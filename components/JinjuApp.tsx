@@ -116,6 +116,9 @@ export default function JinjuApp() {
   const [activeVoiceField,setActiveVoiceField]=useState<VoiceField>("body");
   const [voiceMessage,setVoiceMessage]=useState("");
   const [voiceUndo,setVoiceUndo]=useState<VoiceSnapshot|null>(null);
+  const [micPromptOpen,setMicPromptOpen]=useState(false);
+  const [micPermissionBusy,setMicPermissionBusy]=useState(false);
+  const [micPermissionReady,setMicPermissionReady]=useState(false);
   const recognitionRef=useRef<SpeechRecognitionLike|null>(null),recorderRef=useRef<MediaRecorder|null>(null),streamRef=useRef<MediaStream|null>(null),chunksRef=useRef<Blob[]>([]),voiceFieldRef=useRef<VoiceField>("body"),voiceBaseRef=useRef(""),browserTranscriptRef=useRef("");
 
   const loadPosts = useCallback(async () => {
@@ -173,6 +176,33 @@ export default function JinjuApp() {
       .filter((post) => !normalized || `${post.title} ${post.content}`.toLowerCase().includes(normalized))
       .sort((a, b) => sort === "popular" ? (b.heard + b.same) - (a.heard + a.same) : 0);
   }, [posts, query, sort, topic]);
+
+  function prepareVoiceField(field: VoiceField) {
+    selectVoiceField(field);
+    if (!micPermissionReady && !micPermissionBusy && voiceState === "idle") setMicPromptOpen(true);
+  }
+
+  async function allowMicrophoneOnce() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceMessage("이 브라우저에서는 마이크 권한을 사용할 수 없습니다.");
+      setMicPromptOpen(false);
+      return;
+    }
+    setMicPermissionBusy(true);
+    try {
+      const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      permissionStream.getTracks().forEach((track) => track.stop());
+      setMicPermissionReady(true);
+      setMicPromptOpen(false);
+      setVoiceMessage("마이크 사용 준비가 끝났습니다. 마이크는 즉시 해제됐으며 녹음 버튼을 누를 때만 켜집니다.");
+    } catch (error) {
+      const denied = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError");
+      setVoiceMessage(denied ? "마이크가 차단됐습니다. 주소창 자물쇠 → 마이크 → 허용을 눌러주세요." : "마이크 권한을 확인하지 못했습니다.");
+      setMicPromptOpen(false);
+    } finally {
+      setMicPermissionBusy(false);
+    }
+  }
 
   function selectVoiceField(field:VoiceField){voiceFieldRef.current=field;setActiveVoiceField(field)}
   function joinVoice(base:string,addition:string,field:VoiceField){return field==="title"?[base.trim(),addition.trim()].filter(Boolean).join(" ").replace(/\s+/g," ").slice(0,80):[base.trimEnd(),addition.trim()].filter(Boolean).join(base.trim()?"\n":"").slice(0,2000)}
@@ -286,7 +316,7 @@ export default function JinjuApp() {
       const response = await fetch("/api/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: title.trim() || review.suggestedTitle, content: body, category }) });
       const data = await response.json() as { error?: string };
       if (!response.ok) { setSubmitStatus(data.error || "지금은 저장할 수 없습니다."); return; }
-      setTitle(""); setBody(""); setTopic("전체"); setSubmitStatus("의견이 안전하게 등록되었습니다.");
+      setTitle(""); setBody(""); setTopic("전체"); setMicPermissionReady(false); setSubmitStatus("의견이 안전하게 등록되었습니다.");
       await loadPosts();
       document.getElementById("feed")?.scrollIntoView({ behavior: "smooth" });
     } catch {
@@ -400,9 +430,17 @@ export default function JinjuApp() {
                   <div><p className="eyebrow">하세요!</p><h2 id="write-title">익명 의견 남기기</h2><p>익명의 무게만큼, 책임의 무게도 함께 들어주세요.</p></div>
                 </div>
                 <form className="chat-composer" onSubmit={publish}>
+                  {micPromptOpen && <div className="mic-permission-overlay" role="dialog" aria-modal="true" aria-labelledby="mic-permission-title">
+                    <div className="mic-permission-dialog">
+                      <span className="mic-permission-symbol" aria-hidden="true">●</span>
+                      <h3 id="mic-permission-title">음성으로 작성할까요?</h3>
+                      <p>마이크 권한만 먼저 확인합니다. 확인 직후 마이크를 해제하고, 실제 녹음은 마이크 버튼을 누를 때만 시작합니다.</p>
+                      <div><button className="mic-later-button" onClick={() => setMicPromptOpen(false)} type="button">나중에</button><button className="mic-allow-button" onClick={allowMicrophoneOnce} disabled={micPermissionBusy} type="button">{micPermissionBusy ? "확인 중…" : "마이크 허용"}</button></div>
+                    </div>
+                  </div>}
                   <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1, 8).map((item) => <option key={item}>{item}</option>)}</select></div>
-                  <input className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => selectVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
-                  <textarea className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => selectVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"익명의 무게만큼, 책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
+                  <input className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
+                  <textarea className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"익명의 무게만큼, 책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
                   <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
                   {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
                   {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
