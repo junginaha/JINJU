@@ -12,14 +12,14 @@ type VoiceField="title"|"body";
 type VoiceSnapshot={field:VoiceField;title:string;body:string};
 declare global { interface Window { SpeechRecognition?:SpeechRecognitionConstructor; webkitSpeechRecognition?:SpeechRecognitionConstructor } }
 
-type Comment = {
+export type Comment = {
   id: number | string;
   body: string;
   createdAt: string;
   displayName?: string;
 };
 
-type Post = {
+export type Post = {
   id: string;
   category: string;
   date: string;
@@ -99,14 +99,14 @@ function Pearl({ size = 44, className = "" }: { size?: number; className?: strin
   return <Image className={className} src="/jinju-pearl-cutout.png" alt="" width={size} height={size} priority />;
 }
 
-export default function JinjuApp() {
+export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null }: { initialPosts?: Post[]; initialPostId?: string | null }) {
   const [showIntro, setShowIntro] = useState(true);
   const [introReady, setIntroReady] = useState(false);
-  const [posts, setPosts] = useState(seedPosts);
+  const [posts, setPosts] = useState(initialPosts.length ? initialPosts : seedPosts);
   const [topic, setTopic] = useState("전체");
   const [sort, setSort] = useState<"latest" | "popular">("latest");
   const [query, setQuery] = useState("");
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [category, setCategory] = useState("일상");
   const [title, setTitle] = useState("");
@@ -153,7 +153,8 @@ export default function JinjuApp() {
 
   useEffect(() => {
     const syncPostFromUrl = () => {
-      const postId = new URLSearchParams(window.location.search).get("post");
+      const pathMatch = window.location.pathname.match(/^\/post\/([^/]+)\/?$/);
+      const postId = pathMatch ? decodeURIComponent(pathMatch[1]) : new URLSearchParams(window.location.search).get("post");
       setSelectedPostId(postId || null);
     };
     syncPostFromUrl();
@@ -335,7 +336,7 @@ export default function JinjuApp() {
   }
 
   async function share(post: Post) {
-    const url = `${window.location.origin}/?post=${encodeURIComponent(post.id)}`;
+    const url = `${window.location.origin}/post/${encodeURIComponent(post.id)}`;
     if (navigator.share) {
       await navigator.share({ title: post.title, url }).catch(() => undefined);
     } else {
@@ -353,7 +354,7 @@ export default function JinjuApp() {
   }
 
   function openPost(postId: string) {
-    window.history.pushState({}, "", `/?post=${encodeURIComponent(postId)}`);
+    window.history.pushState({}, "", `/post/${encodeURIComponent(postId)}`);
     setSelectedPostId(postId);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -363,11 +364,9 @@ export default function JinjuApp() {
     setSelectedPostId(null);
   }
 
-  if (!introReady) return <div className="intro-bootstrap" aria-hidden="true" />;
-
   return (
     <>
-      {showIntro && <Intro onComplete={completeIntro} />}
+      {!introReady ? <div className="intro-bootstrap" aria-hidden="true" /> : showIntro && <Intro onComplete={completeIntro} />}
       {selectedPost ? (
         <PostDetail
           post={selectedPost}
@@ -495,10 +494,10 @@ function PostCard({ post, onOpen, onReact, onShare }: {
 }) {
   return (
     <article className="feed-post">
-      <button className="post-main-link" onClick={onOpen} type="button">
+      <a className="post-main-link" href={`/post/${encodeURIComponent(post.id)}`} onClick={(event) => { event.preventDefault(); onOpen(); }}>
         <div className="post-meta"><span>{post.category}</span><span>익명</span><time>{post.date}</time></div>
         <h2>{post.title}</h2><p>{post.content}</p>
-      </button>
+      </a>
       <PostTemperature likes={post.heard} dislikes={post.same} />
       <div className="post-actions">
         <button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요 <span>{post.heard}</span></button>

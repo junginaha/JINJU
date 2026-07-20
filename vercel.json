@@ -1,3 +1,11 @@
 {
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.xn--o55b9n.kr" }],
+      "destination": "https://xn--o55b9n.kr/$1",
+      "permanent": true
+    }
+  ]
 }
