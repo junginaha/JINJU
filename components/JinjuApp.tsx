@@ -5,9 +5,10 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Intro from "./Intro";
 
 type Comment = {
-  id: number;
+  id: number | string;
   body: string;
   createdAt: string;
+  displayName?: string;
 };
 
 type Post = {
@@ -102,6 +103,25 @@ export default function JinjuApp() {
   const [category, setCategory] = useState("일상");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [submitStatus, setSubmitStatus] = useState("");
+
+  const loadPosts = useCallback(async () => {
+    try {
+      const response = await fetch("/api/posts", { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json() as { posts?: Array<Omit<Post, "date" | "comments"> & { createdAt: string; commentCount?: number }> };
+      if (!data.posts?.length) return;
+      setPosts(data.posts.map((post) => ({
+        ...post,
+        date: new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(post.createdAt)),
+        comments: Array.from({ length: post.commentCount ?? 0 }, (_, index) => ({ id: `count-${index}`, body: "", createdAt: "" })),
+      })));
+    } catch {
+      // The editorial feed remains available if the database is temporarily unavailable.
+    }
+  }, []);
+
+  useEffect(() => { void loadPosts(); }, [loadPosts]);
 
   useEffect(() => {
     let seen = false;
@@ -118,7 +138,7 @@ export default function JinjuApp() {
   useEffect(() => {
     const syncPostFromUrl = () => {
       const postId = new URLSearchParams(window.location.search).get("post");
-      setSelectedPostId(postId && seedPosts.some((post) => post.id === postId) ? postId : null);
+      setSelectedPostId(postId || null);
     };
     syncPostFromUrl();
     window.addEventListener("popstate", syncPostFromUrl);
@@ -136,28 +156,33 @@ export default function JinjuApp() {
       .sort((a, b) => sort === "popular" ? (b.heard + b.same) - (a.heard + a.same) : 0);
   }, [posts, query, sort, topic]);
 
-  function publish(event: FormEvent) {
+  async function publish(event: FormEvent) {
     event.preventDefault();
-    if (!body.trim()) return;
-    const newPost: Post = {
-      id: `local-${Date.now()}`,
-      category,
-      date: new Intl.DateTimeFormat("ko-KR").format(new Date()),
-      title: title.trim() || body.trim().split("\n")[0].slice(0, 80),
-      content: body.trim().slice(0, 2000),
-      heard: 0,
-      same: 0,
-      comments: []
-    };
-    setPosts((current) => [newPost, ...current]);
-    setTitle("");
-    setBody("");
-    setTopic("전체");
-    document.getElementById("feed")?.scrollIntoView({ behavior: "smooth" });
+    if (body.trim().length < 8) { setSubmitStatus("본문을 8자 이상 적어주세요."); return; }
+    setSubmitStatus("안전하게 확인하고 있습니다…");
+    try {
+      const reviewResponse = await fetch("/api/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, text: body }) });
+      const review = await reviewResponse.json() as { error?: string; riskLevel?: string; explanation?: string; suggestedTitle?: string };
+      if (!reviewResponse.ok || ["high", "urgent"].includes(review.riskLevel ?? "")) { setSubmitStatus(review.error || review.explanation || "표현을 한 번 더 확인해주세요."); return; }
+      const response = await fetch("/api/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: title.trim() || review.suggestedTitle, content: body, category }) });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) { setSubmitStatus(data.error || "지금은 저장할 수 없습니다."); return; }
+      setTitle(""); setBody(""); setTopic("전체"); setSubmitStatus("의견이 안전하게 등록되었습니다.");
+      await loadPosts();
+      document.getElementById("feed")?.scrollIntoView({ behavior: "smooth" });
+    } catch {
+      setSubmitStatus("연결을 확인한 뒤 다시 시도해주세요.");
+    }
   }
 
-  function react(postId: string, kind: "heard" | "same") {
+  async function react(postId: string, kind: "heard" | "same") {
     setPosts((current) => current.map((post) => post.id === postId ? { ...post, [kind]: post[kind] + 1 } : post));
+    try {
+      const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/react`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind }) });
+      if (!response.ok) setPosts((current) => current.map((post) => post.id === postId ? { ...post, [kind]: Math.max(0, post[kind] - 1) } : post));
+    } catch {
+      setPosts((current) => current.map((post) => post.id === postId ? { ...post, [kind]: Math.max(0, post[kind] - 1) } : post));
+    }
   }
 
   async function share(post: Post) {
@@ -169,13 +194,13 @@ export default function JinjuApp() {
     }
   }
 
-  function addComment(postId: string, comment: string) {
+  async function addComment(postId: string, comment: string) {
     const trimmed = comment.trim().slice(0, 1000);
     if (!trimmed) return;
-    setPosts((current) => current.map((post) => post.id === postId ? {
-      ...post,
-      comments: [...post.comments, { id: Date.now(), body: trimmed, createdAt: "방금 전" }]
-    } : post));
+    const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: trimmed }) });
+    const data = await response.json() as { error?: string; id?: string; body?: string; createdAt?: string; displayName?: string };
+    if (!response.ok) throw new Error(data.error || "댓글을 등록할 수 없습니다.");
+    setPosts((current) => current.map((post) => post.id === postId ? { ...post, comments: [...post.comments.filter((item) => item.body), { id: data.id || Date.now(), body: data.body || trimmed, displayName: data.displayName, createdAt: "방금 전" }] } : post));
   }
 
   function openPost(postId: string) {
@@ -260,6 +285,7 @@ export default function JinjuApp() {
                   <input className="chat-title" value={title} onChange={(event) => setTitle(event.target.value.slice(0, 80))} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
                   <textarea value={body} onChange={(event) => setBody(event.target.value.slice(0, 2000))} placeholder={"익명의 무게만큼, 책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
                   <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
+                  {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
                   <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions"><button className="voice-text-button" type="button" onClick={() => { setTitle(""); setBody(""); }}>지우기</button><button className="submit-review-button" type="submit"><span>확인</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
                 </form>
               </section>
@@ -343,17 +369,32 @@ function PostDetail({ post, onBack, onReact, onShare, onComment }: {
   onBack: () => void;
   onReact: (kind: "heard" | "same") => void;
   onShare: () => void;
-  onComment: (comment: string) => void;
+  onComment: (comment: string) => Promise<void>;
 }) {
   const [comment, setComment] = useState("");
+  const [commentError, setCommentError] = useState("");
+  const [detailComments, setDetailComments] = useState<Comment[]>(post.comments.filter((item) => item.body));
   const total = post.heard + post.same;
   const position = total ? Math.round((post.same / total) * 100) : 50;
 
-  function submitComment(event: FormEvent) {
+  useEffect(() => {
+    fetch(`/api/posts/${encodeURIComponent(post.id)}/comments`, { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : { comments: [] })
+      .then((data: { comments?: Comment[] }) => setDetailComments(data.comments ?? []))
+      .catch(() => undefined);
+  }, [post.id]);
+
+  async function submitComment(event: FormEvent) {
     event.preventDefault();
     if (!comment.trim()) return;
-    onComment(comment);
-    setComment("");
+    setCommentError("");
+    try {
+      await onComment(comment);
+      setDetailComments((current) => [...current, { id: Date.now(), body: comment.trim(), createdAt: "방금 전", displayName: "익명" }]);
+      setComment("");
+    } catch (error) {
+      setCommentError(error instanceof Error ? error.message : "댓글을 등록할 수 없습니다.");
+    }
   }
 
   return (
@@ -367,11 +408,12 @@ function PostDetail({ post, onBack, onReact, onShare, onComment }: {
           <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요 {post.heard}</button><button onClick={() => onReact("same")} type="button">싫어요 {post.same}</button><button onClick={onShare} type="button">공유하기</button><a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a></div>
         </article>
         <section className="comment-list" aria-label="댓글 목록">
-          <h2>댓글 {post.comments.length}</h2>
-          {post.comments.length ? post.comments.map((item) => <article key={item.id}><div><span>익명</span><time>{item.createdAt}</time></div><p>{item.body}</p></article>) : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
+          <h2>댓글 {detailComments.length || post.comments.length}</h2>
+          {detailComments.length ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><time>{item.createdAt}</time></div><p>{item.body}</p></article>) : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>
           <textarea value={comment} onChange={(event) => setComment(event.target.value.slice(0, 1000))} maxLength={1000} rows={5} placeholder="익명으로 댓글을 남겨주세요" aria-label="댓글 내용" />
+          {commentError && <p className="comment-error" role="alert">{commentError}</p>}
           <div><span>{comment.length}/1,000</span><button type="submit">댓글 남기기</button></div>
         </form>
       </div>
