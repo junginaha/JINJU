@@ -239,6 +239,12 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .temperature-track::after { position: absolute; inset: -1px; pointer-events: none; content: ""; background: linear-gradient(100deg,#0000 25%,#ffffff57 48%,#0000 70%) 0 0/220% 100%; border-radius: inherit; animation: 3.6s ease-in-out infinite temperature-sweep; }
 .temperature-marker { position: absolute; z-index: 2; top: 50%; left: var(--temperature-position); width: 21px; height: 21px; transform: translate(-50%,-50%); transition: left .65s cubic-bezier(.2,.8,.2,1); animation: 2.4s ease-in-out infinite temperature-pearl; }
 .temperature-marker img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.temperature-fill { position: absolute; z-index: 1; inset: -1px auto -1px -1px; width: var(--temperature-position); max-width: calc(100% + 2px); border-radius: inherit; background: linear-gradient(90deg,#7fd4dc47,#ffffff3d); box-shadow: 0 0 9px #cdb6de33; pointer-events: none; }
+.temperature-home { position: absolute; z-index: 1; top: 50%; left: var(--temperature-home); width: 2px; height: 17px; border-radius: 999px; background: #ffffff6b; transform: translate(-50%,-50%); pointer-events: none; }
+.post-temperature.interactive { margin-top: 28px; }
+.post-temperature.interactive .temperature-track { height: 9px; cursor: grab; touch-action: none; }
+.post-temperature.interactive .temperature-track:active { cursor: grabbing; }
+.post-temperature.interactive .temperature-marker { width: 28px; height: 28px; transition: none; will-change: left,transform; }
 .post-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 15px; }
 .post-actions button, .post-actions a, .detail-stats button, .detail-stats a { padding: 7px 9px; color: #aaa; font-size: 11px; cursor: pointer; background: transparent; border: 0; border-radius: 8px; }
 .post-actions button:hover, .post-actions a:hover, .detail-stats button:hover, .detail-stats a:hover { color: #e8e8e8; background: #242424; }
@@ -264,6 +270,13 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .composer-actions { display: flex; align-items: center; gap: 7px; }
 .composer-bottom button { min-height: 40px; padding: 0 15px; color: #111; font-size: 11px; font-weight: 700; background: #f4f4f4; border: 0; border-radius: 10px; cursor: pointer; }
 .composer-bottom .voice-text-button { min-height: 34px; padding: 0 10px; color: #cfcfcf; font-size: 10px; font-weight: 650; background: #262626; border: 1px solid #393939; border-radius: 999px; }
+.composer-bottom .voice-input-button { display: inline-grid; width: 40px; min-width: 40px; min-height: 40px; padding: 0; place-items: center; color: #f0f0f0; background: #2d2d2d; border: 1px solid #3a3a3a; border-radius: 999px; }
+.composer-bottom .voice-input-button.listening { color: #dfeaff; background: #1b2a45; border-color: #78a8ff; box-shadow: 0 0 0 4px #78a8ff29; }
+.composer-bottom .voice-input-button:disabled { cursor: not-allowed; opacity: .42; }
+.mic-icon { display: inline-grid; place-items: center; }
+.mic-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+.voice-message { margin: -2px 5px 12px; color: #aaa; font-size: 10px; }
+.voice-target { box-shadow: inset 0 0 0 1px #78a8ff40; }
 .submit-review-button { display: inline-flex; align-items: center; gap: 9px; padding: 0 8px 0 14px !important; border-radius: 999px !important; }
 .submit-review-button .send-arrow { display: grid; width: 28px; height: 28px; place-items: center; color: #fff; font-size: 17px; font-weight: 850; line-height: 1; background: #3b82f6; border-radius: 999px; }
 .continued-feed { margin-top: 56px; }
