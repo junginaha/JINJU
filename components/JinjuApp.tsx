@@ -38,7 +38,11 @@ const seedPosts: Post[] = [
     category: "직장",
     date: "2026. 7. 19.",
     title: "“잘 쉬셨죠?”라는 말 뒤에는 왜 늘 일이 따라올까요",
-    content: "네, 잘 쉬었습니다.\n\n진심은 한 줄인데, 오늘 할 일은 벌써 화면을 가득 채웠네요.\n\n쉬었다는 사실이 업무를 더 받을 준비가 되었다는 뜻은 아닐 텐데요. 잘 쉬었는지 묻는 말이 정말 안부로 끝나는 날도 있었으면 합니다.",
+    content: "네, 잘 쉬었습니다.
+
+진심은 한 줄인데, 오늘 할 일은 벌써 화면을 가득 채웠네요.
+
+쉬었다는 사실이 업무를 더 받을 준비가 되었다는 뜻은 아닐 텐데요. 잘 쉬었는지 묻는 말이 정말 안부로 끝나는 날도 있었으면 합니다.",
     heard: 32,
     same: 4,
     comments: []
@@ -48,7 +52,11 @@ const seedPosts: Post[] = [
     category: "직장",
     date: "2026. 7. 18.",
     title: "실수한 사람이 커피를 사는 문화, 오늘 제가 끝냈습니다",
-    content: "아침 회의 자료에 날짜를 하루 잘못 적었습니다.\n\n별것 아닌데 이상하게 개운합니다. 제 실수는 수정 대상이지 팀 전체 음료 이용권은 아니니까요.\n\n잘못은 바로잡았고 다음부터 확인하겠다고 말했습니다. 커피 대신 체크리스트를 만들었습니다.",
+    content: "아침 회의 자료에 날짜를 하루 잘못 적었습니다.
+
+별것 아닌데 이상하게 개운합니다. 제 실수는 수정 대상이지 팀 전체 음료 이용권은 아니니까요.
+
+잘못은 바로잡았고 다음부터 확인하겠다고 말했습니다. 커피 대신 체크리스트를 만들었습니다.",
     heard: 55,
     same: 8,
     comments: []
@@ -58,7 +66,11 @@ const seedPosts: Post[] = [
     category: "관계",
     date: "2026. 7. 19.",
     title: "어머니가 제 사진을 가족 단체방에 올렸습니다",
-    content: "주말에 부모님 댁에서 소파에 누워 잠든 적이 있습니다.\n\n결국 사진은 내려갔습니다. 대신 어머니가 서운해하십니다. 제 초상권을 지켰는데 효도가 조금 깎인 기분이네요.\n\n가족이라도 사진을 올리기 전에 한 번 물어봐 주면 좋겠습니다.",
+    content: "주말에 부모님 댁에서 소파에 누워 잠든 적이 있습니다.
+
+결국 사진은 내려갔습니다. 대신 어머니가 서운해하십니다. 제 초상권을 지켰는데 효도가 조금 깎인 기분이네요.
+
+가족이라도 사진을 올리기 전에 한 번 물어봐 주면 좋겠습니다.",
     heard: 63,
     same: 11,
     comments: []
@@ -68,7 +80,11 @@ const seedPosts: Post[] = [
     category: "돈",
     date: "2026. 7. 19.",
     title: "안 쓰는 구독을 해지했더니 월급이 조금 자랐습니다",
-    content: "통장에서 매달 빠져나가는 돈을 확인했습니다.\n\n연봉은 그대로인데 월급이 몰래 승진한 기분입니다. 그동안 제 통장이 제 가능성까지 구독하고 있었네요.\n\n작지만 다시 내 선택으로 돌아온 돈이 반갑습니다.",
+    content: "통장에서 매달 빠져나가는 돈을 확인했습니다.
+
+연봉은 그대로인데 월급이 몰래 승진한 기분입니다. 그동안 제 통장이 제 가능성까지 구독하고 있었네요.
+
+작지만 다시 내 선택으로 돌아온 돈이 반갑습니다.",
     heard: 71,
     same: 6,
     comments: []
@@ -78,7 +94,11 @@ const seedPosts: Post[] = [
     category: "일상",
     date: "2026. 7. 19.",
     title: "엘리베이터 닫힘 버튼을 눌렀는데 이웃이 뛰어왔습니다",
-    content: "저녁에 장바구니를 양손에 들고 엘리베이터를 탔습니다.\n\n다음에 마주치면 먼저 말하려고 합니다. “그날 제 손가락이 사회생활을 망쳤습니다.”\n\n문이 닫히는 몇 초가 이렇게 오래 기억에 남을 줄 몰랐습니다.",
+    content: "저녁에 장바구니를 양손에 들고 엘리베이터를 탔습니다.
+
+다음에 마주치면 먼저 말하려고 합니다. “그날 제 손가락이 사회생활을 망쳤습니다.”
+
+문이 닫히는 몇 초가 이렇게 오래 기억에 남을 줄 몰랐습니다.",
     heard: 84,
     same: 3,
     comments: []
@@ -88,7 +108,11 @@ const seedPosts: Post[] = [
     category: "제안",
     date: "2026. 7. 19.",
     title: "아파트 방송은 첫 문장에 용건부터 말해줬으면 합니다",
-    content: "밤 아홉 시에 아파트 방송이 나왔습니다.\n\n주민의 관심은 짧고 샴푸 거품은 오래갑니다. 중요한 내용부터 들려주세요.\n\n언제, 어디서, 무엇을 하는지 먼저 말한 다음 설명을 이어가면 좋겠습니다.",
+    content: "밤 아홉 시에 아파트 방송이 나왔습니다.
+
+주민의 관심은 짧고 샴푸 거품은 오래갑니다. 중요한 내용부터 들려주세요.
+
+언제, 어디서, 무엇을 하는지 먼저 말한 다음 설명을 이어가면 좋겠습니다.",
     heard: 68,
     same: 9,
     comments: []
@@ -115,7 +139,10 @@ export default function JinjuApp() {
   const [voiceState,setVoiceState]=useState<VoiceState>("idle");
   const [activeVoiceField,setActiveVoiceField]=useState<VoiceField>("body");
   const [voiceMessage,setVoiceMessage]=useState("");
-  const [voiceUndo,setVoiceUndo]=useState<VoiceSnapshot|null>(null);\n  const [micPromptOpen,setMicPromptOpen]=useState(false);\n  const [micPermissionBusy,setMicPermissionBusy]=useState(false);\n  const [micPermissionReady,setMicPermissionReady]=useState(false);
+  const [voiceUndo,setVoiceUndo]=useState<VoiceSnapshot|null>(null);
+  const [micPromptOpen,setMicPromptOpen]=useState(false);
+  const [micPermissionBusy,setMicPermissionBusy]=useState(false);
+  const [micPermissionReady,setMicPermissionReady]=useState(false);
   const recognitionRef=useRef<SpeechRecognitionLike|null>(null),recorderRef=useRef<MediaRecorder|null>(null),streamRef=useRef<MediaStream|null>(null),chunksRef=useRef<Blob[]>([]),voiceFieldRef=useRef<VoiceField>("body"),voiceBaseRef=useRef(""),browserTranscriptRef=useRef("");
 
   const loadPosts = useCallback(async () => {
@@ -202,7 +229,8 @@ export default function JinjuApp() {
   }
 
   function selectVoiceField(field:VoiceField){voiceFieldRef.current=field;setActiveVoiceField(field)}
-  function joinVoice(base:string,addition:string,field:VoiceField){return field==="title"?[base.trim(),addition.trim()].filter(Boolean).join(" ").replace(/\s+/g," ").slice(0,80):[base.trimEnd(),addition.trim()].filter(Boolean).join(base.trim()?"\n":"").slice(0,2000)}
+  function joinVoice(base:string,addition:string,field:VoiceField){return field==="title"?[base.trim(),addition.trim()].filter(Boolean).join(" ").replace(/\s+/g," ").slice(0,80):[base.trimEnd(),addition.trim()].filter(Boolean).join(base.trim()?"
+":"").slice(0,2000)}
   function stopVoice(discard=false){if(recognitionRef.current){discard?recognitionRef.current.abort():recognitionRef.current.stop();recognitionRef.current=null}if(recorderRef.current&&recorderRef.current.state!=="inactive"){if(discard)recorderRef.current.onstop=null;recorderRef.current.stop()}streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;recorderRef.current=null;if(discard)chunksRef.current=[];setVoiceState("idle")}
   function updateTitle(value:string){if(voiceState==="listening"||voiceState==="recording")stopVoice(true);setVoiceUndo(null);setTitle(value.slice(0,80))}
   function updateBody(value:string){if(voiceState==="listening"||voiceState==="recording")stopVoice(true);setVoiceUndo(null);setBody(value.slice(0,2000))}
@@ -437,7 +465,8 @@ export default function JinjuApp() {
                   </div>}
                   <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1, 8).map((item) => <option key={item}>{item}</option>)}</select></div>
                   <input className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
-                  <textarea className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"익명의 무게만큼, 책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
+                  <textarea className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"익명의 무게만큼, 책임의 무게도 함께 들어주세요.
+개운하게~"} aria-label="의견 본문" rows={7} />
                   <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
                   {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
                   {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
