@@ -66,12 +66,12 @@ export default function JinjuApp() {
           <div className="introGlow introGlowOne" />
           <div className="introGlow introGlowTwo" />
           <div className="introCenter">
-            <div className="introBrand">
-              <button className="introPearl" onClick={() => setIntro(false)} aria-label="바로 들어가기"><Pearl size={156} /></button>
-              <button className="introSkip" onClick={() => setIntro(false)}>바로 들어가기 <span>↗</span></button>
+            <button className="introPearl" onClick={() => setIntro(false)} aria-label="바로 들어가기"><Pearl size={156} /></button>
+            <div className="introCopyStage">
+              <p className="introMessage"><span>인간적으로,</span><strong>할 말은 하세요!</strong></p>
+              <h1 className="introWordmark"><b>진</b>실의 <b>주</b>둥이</h1>
             </div>
-            <p className="introMessage"><span>인간적으로,</span><strong>할 말은 하세요!</strong></p>
-            <h1 className="introWordmark"><b>진</b>실의 <b>주</b>둥이</h1>
+            <button className="introSkip" onClick={() => setIntro(false)}>바로 들어가기 <span>↗</span></button>
             <p className="introSignature">JINJU IS AN ANONYMOUS COMMUNITY WITH ZERO PERSONAL DATA</p>
           </div>
           <div className="introLoader"><span><i><Pearl size={18} /> 개운하게~</i></span></div>
