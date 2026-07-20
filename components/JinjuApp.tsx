@@ -158,7 +158,12 @@ export default function JinjuApp() {
     return () => window.removeEventListener("popstate", syncPostFromUrl);
   }, []);
 
-  const completeIntro = useCallback(() => setShowIntro(false), []);
+  const completeIntro = useCallback(() => {
+    window.history.replaceState({}, "", "/");
+    setSelectedPostId(null);
+    setShowIntro(false);
+    window.scrollTo({ top: 0 });
+  }, []);
 
   const selectedPost = posts.find((post) => post.id === selectedPostId) ?? null;
   const filteredPosts = useMemo(() => {
@@ -178,7 +183,7 @@ export default function JinjuApp() {
   function clearVoiceField(){stopVoice(true);activeVoiceField==="title"?setTitle(""):setBody("");setVoiceUndo(null)}
   async function transcribe(blob:Blob,target:VoiceField){setVoiceState("transcribing");setVoiceMessage("음성을 글로 바꾸는 중입니다.");try{const form=new FormData();form.append("audio",blob,blob.type.includes("mp4")?"jinju-voice.m4a":"jinju-voice.webm");const response=await fetch("/api/transcribe",{method:"POST",body:form}),data=await response.json() as {text?:string;error?:string};if(!response.ok||!data.text)throw new Error(data.error||"음성을 글로 바꾸지 못했습니다.");target==="title"?setTitle(value=>joinVoice(value,data.text!,target)):setBody(value=>joinVoice(value,data.text!,target));setVoiceMessage(`${target==="title"?"제목":"본문"}에 음성 입력이 추가되었습니다.`)}catch(error){setVoiceMessage(error instanceof Error?error.message:"음성 입력을 사용할 수 없습니다.")}finally{streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;recorderRef.current=null;chunksRef.current=[];setVoiceState("idle")}}
   async function startRecording(){if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==="undefined"){setVoiceMessage("이 브라우저에서는 마이크 입력을 지원하지 않습니다.");return}try{const target=voiceFieldRef.current;setVoiceUndo({field:target,title,body});const stream=await navigator.mediaDevices.getUserMedia({audio:true}),mime=["audio/webm;codecs=opus","audio/mp4","audio/webm"].find(type=>MediaRecorder.isTypeSupported(type)),recorder=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);streamRef.current=stream;recorderRef.current=recorder;chunksRef.current=[];recorder.ondataavailable=event=>{if(event.data.size)chunksRef.current.push(event.data)};recorder.onstop=()=>{const blob=new Blob(chunksRef.current,{type:recorder.mimeType||"audio/webm"});if(blob.size<100){setVoiceState("idle");setVoiceMessage("음성이 충분히 녹음되지 않았습니다.");return}void transcribe(blob,target)};recorder.start();setVoiceState("recording");setVoiceMessage(`${target==="title"?"제목":"본문"}을 듣고 있습니다. 한 번 더 누르면 입력됩니다.`)}catch{setVoiceState("idle");setVoiceMessage("주소창의 마이크 권한을 허용해주세요.")}}
-  async function toggleVoice(){if(voiceState==="listening"){stopVoice();return}if(voiceState==="recording"){recorderRef.current?.stop();return}if(voiceState==="transcribing")return;const apple=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1),safari=/^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent),Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(apple||safari||preferRecordingRef.current||!Recognition){await startRecording();return}const recognition=new Recognition(),target=voiceFieldRef.current;setVoiceUndo({field:target,title,body});voiceBaseRef.current=(target==="title"?title:body).trimEnd();recognition.lang="ko-KR";recognition.continuous=true;recognition.interimResults=true;recognition.onresult=event=>{let finalText="",interim="";for(let i=event.resultIndex;i<event.results.length;i++){const result=event.results[i],transcript=result[0]?.transcript||"";if(result.isFinal)finalText+=`${transcript} `;else interim+=transcript}if(finalText.trim())voiceBaseRef.current=joinVoice(voiceBaseRef.current,finalText,target);const value=joinVoice(voiceBaseRef.current,interim,target);target==="title"?setTitle(value):setBody(value)};recognition.onerror=()=>{preferRecordingRef.current=true;recognitionRef.current=null;setVoiceState("idle");setVoiceMessage("음성인식이 중단됐습니다. 다시 누르면 녹음 방식으로 입력합니다.")};recognition.onend=()=>{recognitionRef.current=null;setVoiceState("idle")};recognitionRef.current=recognition;setVoiceState("listening");setVoiceMessage(`${target==="title"?"제목":"본문"}에 음성 입력 중입니다.`);try{recognition.start()}catch{setVoiceState("idle");await startRecording()}}
+  async function toggleVoice(){if(voiceState==="listening"){stopVoice();return}if(voiceState==="recording"){recorderRef.current?.stop();return}if(voiceState==="transcribing")return;const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(preferRecordingRef.current||!Recognition){await startRecording();return}const recognition=new Recognition(),target=voiceFieldRef.current;setVoiceUndo({field:target,title,body});voiceBaseRef.current=(target==="title"?title:body).trimEnd();recognition.lang="ko-KR";recognition.continuous=true;recognition.interimResults=true;recognition.onresult=event=>{let finalText="",interim="";for(let i=event.resultIndex;i<event.results.length;i++){const result=event.results[i],transcript=result[0]?.transcript||"";if(result.isFinal)finalText+=`${transcript} `;else interim+=transcript}if(finalText.trim())voiceBaseRef.current=joinVoice(voiceBaseRef.current,finalText,target);const value=joinVoice(voiceBaseRef.current,interim,target);target==="title"?setTitle(value):setBody(value)};recognition.onerror=()=>{preferRecordingRef.current=true;recognitionRef.current=null;setVoiceState("idle");setVoiceMessage("음성인식이 중단됐습니다. 다시 누르면 녹음 방식으로 입력합니다.")};recognition.onend=()=>{recognitionRef.current=null;setVoiceState("idle")};recognitionRef.current=recognition;setVoiceState("listening");setVoiceMessage(`${target==="title"?"제목":"본문"}에 음성 입력 중입니다.`);try{recognition.start()}catch{setVoiceState("idle");await startRecording()}}
 
   async function publish(event: FormEvent) {
     event.preventDefault();
@@ -219,7 +224,7 @@ export default function JinjuApp() {
   }
 
   async function addComment(postId: string, comment: string) {
-    const trimmed = comment.trim().slice(0, 1000);
+    const trimmed = comment.trim().slice(0, 2000);
     if (!trimmed) return;
     const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: trimmed }) });
     const data = await response.json() as { error?: string; id?: string; body?: string; createdAt?: string; displayName?: string };
@@ -272,7 +277,7 @@ export default function JinjuApp() {
             <div className="feed-shell">
               <header className="feed-heading">
                 <div><p className="eyebrow">공개 베타 · 아무도 몰라요 · 개인정보 0%</p><h1>새로운 익명 의견</h1></div>
-                <span>30개의 공개 의견</span>
+                <span>{posts.length}개의 공개 의견</span>
               </header>
 
               <section className="beta-notice" aria-label="공개 베타 안내">
@@ -368,7 +373,7 @@ function PostCard({ post, onOpen, onReact, onShare }: {
       </button>
       <PostTemperature likes={post.heard} dislikes={post.same} />
       <div className="post-actions">
-        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요</button>
+        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요 <span>{post.heard}</span></button>
         <button onClick={() => onReact("same")} type="button">싫어요</button>
         <button onClick={onOpen} type="button">댓글 <span>{post.comments.length}</span></button>
         <button className="share-post-button" onClick={onShare} type="button">공유하기</button>
@@ -417,16 +422,16 @@ function PostDetail({ post, onBack, onReact, onShare, onComment }: {
           <div className="post-meta"><span>{post.category}</span><span>익명</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />
-          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요</button><button onClick={() => onReact("same")} type="button">싫어요</button><button onClick={onShare} type="button">공유하기</button><a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a></div>
+          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요 <span>{post.heard}</span></button><button onClick={() => onReact("same")} type="button">싫어요</button><button onClick={onShare} type="button">공유하기</button><a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a></div>
         </article>
         <section className="comment-list" aria-label="댓글 목록">
           <h2>댓글 {detailComments.length || post.comments.length}</h2>
           {detailComments.length ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><time>{item.createdAt}</time></div><p>{item.body}</p></article>) : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>
-          <textarea value={comment} onChange={(event) => setComment(event.target.value.slice(0, 1000))} maxLength={1000} rows={5} placeholder="익명으로 댓글을 남겨주세요" aria-label="댓글 내용" />
+          <textarea value={comment} onChange={(event) => setComment(event.target.value.slice(0, 2000))} maxLength={2000} rows={5} placeholder="익명으로 댓글을 남겨주세요" aria-label="댓글 내용" />
           {commentError && <p className="comment-error" role="alert">{commentError}</p>}
-          <div><span>{comment.length}/1,000</span><button type="submit">댓글 남기기</button></div>
+          <div><span>{comment.length}/2,000</span><button type="submit">댓글 남기기</button></div>
         </form>
       </div>
     </main>

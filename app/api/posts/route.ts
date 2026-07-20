@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   posts.sort((a, b) => sort === "popular"
     ? (b.heard + b.same + b.commentCount * 3) - (a.heard + a.same + a.commentCount * 3)
     : Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  return Response.json({ posts: posts.slice(0, 30), total: posts.length, database: databaseEnabled() }, { headers: { "cache-control": "no-store" } });
+  return Response.json({ posts: posts.slice(0, 100), total: posts.length, database: databaseEnabled() }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request) {
