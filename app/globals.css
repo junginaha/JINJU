@@ -276,6 +276,16 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .mic-icon { display: inline-grid; place-items: center; }
 .mic-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
 .voice-message { margin: -2px 5px 12px; color: #aaa; font-size: 10px; }
+.mic-permission-overlay { position: fixed; z-index: 1200; inset: 0; display: grid; padding: 20px; place-items: center; background: #000000b8; backdrop-filter: blur(8px); }
+.mic-permission-dialog { width: min(420px,calc(100vw - 32px)); padding: 26px; color: #f4f4f4; text-align: center; background: #212121; border: 1px solid #414141; border-radius: 22px; box-shadow: 0 24px 80px #000000a6; }
+.mic-permission-symbol { display: inline-grid; width: 48px; height: 48px; margin-bottom: 14px; place-items: center; color: #ef6f6f; font-size: 19px; background: #ef6f6f1f; border: 1px solid #ef6f6f5c; border-radius: 999px; box-shadow: 0 0 0 7px #ef6f6f0d; }
+.mic-permission-dialog h3 { margin: 0; font-size: 20px; letter-spacing: -.035em; }
+.mic-permission-dialog p { margin: 12px 0 22px; color: #b8b8b8; font-size: 13px; line-height: 1.7; word-break: keep-all; overflow-wrap: anywhere; }
+.mic-permission-dialog > div { display: flex; justify-content: flex-end; gap: 8px; }
+.mic-permission-dialog button { min-height: 42px; padding: 0 17px; font-size: 12px; font-weight: 750; border-radius: 12px; cursor: pointer; }
+.mic-later-button { color: #c7c7c7; background: #2a2a2a; border: 1px solid #424242; }
+.mic-allow-button { color: #111; background: #f4f4f4; border: 1px solid #f4f4f4; }
+.mic-allow-button:disabled { cursor: wait; opacity: .58; }
 .voice-target { box-shadow: inset 0 0 0 1px #78a8ff40; }
 .submit-review-button { display: inline-flex; align-items: center; gap: 9px; padding: 0 8px 0 14px !important; border-radius: 999px !important; }
 .submit-review-button .send-arrow { display: grid; width: 28px; height: 28px; place-items: center; color: #fff; font-size: 17px; font-weight: 850; line-height: 1; background: #3b82f6; border-radius: 999px; }
