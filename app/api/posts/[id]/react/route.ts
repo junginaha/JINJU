@@ -1,9 +1,11 @@
 import { db, databaseEnabled, ensureSchema, hash } from "../../../../../lib/db";
 import { editorialPost } from "../../../../../lib/editorial";
+import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   const { id } = await context.params;
+  if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return Response.json({ error: "의견을 찾을 수 없습니다." }, { status: 404 });
   const { kind } = await request.json() as { kind?: "heard" | "same" };
   if (!kind || !["heard", "same"].includes(kind)) return Response.json({ error: "올바른 반응을 선택해주세요." }, { status: 400 });
   await ensureSchema();

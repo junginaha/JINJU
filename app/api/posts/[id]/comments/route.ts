@@ -1,11 +1,13 @@
 import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../../lib/db";
 import { editorialComments, editorialPost } from "../../../../../lib/editorial";
 import { hasPii, reviewText } from "../../../../../lib/safety";
+import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   const fallback = editorialComments(id);
   if (!databaseEnabled()) return Response.json({ comments: fallback }, { headers: { "cache-control": "no-store" } });
   await ensureSchema();
@@ -19,6 +21,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   const { id: postId } = await context.params;
+  if (HIDDEN_DUPLICATE_POST_IDS.has(postId)) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
   const payload = await request.json() as { content?: string; displayName?: string };
   const content = payload.content?.trim() ?? "";
   const displayName = (payload.displayName?.trim() || "익명").slice(0, 12);
