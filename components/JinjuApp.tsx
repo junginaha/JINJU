@@ -1,8 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Intro from "./Intro";
+import PostTemperature from "./PostTemperature";
+
+type SpeechRecognitionLike = { lang:string; continuous:boolean; interimResults:boolean; start:()=>void; stop:()=>void; abort:()=>void; onresult:((event:{resultIndex:number;results:ArrayLike<{isFinal:boolean;0:{transcript:string}}>})=>void)|null; onend:(()=>void)|null; onerror:(()=>void)|null };
+type SpeechRecognitionConstructor = new()=>SpeechRecognitionLike;
+type VoiceState="idle"|"listening"|"recording"|"transcribing";
+type VoiceField="title"|"body";
+type VoiceSnapshot={field:VoiceField;title:string;body:string};
+declare global { interface Window { SpeechRecognition?:SpeechRecognitionConstructor; webkitSpeechRecognition?:SpeechRecognitionConstructor } }
 
 type Comment = {
   id: number | string;
@@ -104,6 +112,11 @@ export default function JinjuApp() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [submitStatus, setSubmitStatus] = useState("");
+  const [voiceState,setVoiceState]=useState<VoiceState>("idle");
+  const [activeVoiceField,setActiveVoiceField]=useState<VoiceField>("body");
+  const [voiceMessage,setVoiceMessage]=useState("");
+  const [voiceUndo,setVoiceUndo]=useState<VoiceSnapshot|null>(null);
+  const recognitionRef=useRef<SpeechRecognitionLike|null>(null),recorderRef=useRef<MediaRecorder|null>(null),streamRef=useRef<MediaStream|null>(null),chunksRef=useRef<Blob[]>([]),voiceFieldRef=useRef<VoiceField>("body"),voiceBaseRef=useRef(""),preferRecordingRef=useRef(false);
 
   const loadPosts = useCallback(async () => {
     try {
@@ -155,6 +168,17 @@ export default function JinjuApp() {
       .filter((post) => !normalized || `${post.title} ${post.content}`.toLowerCase().includes(normalized))
       .sort((a, b) => sort === "popular" ? (b.heard + b.same) - (a.heard + a.same) : 0);
   }, [posts, query, sort, topic]);
+
+  function selectVoiceField(field:VoiceField){voiceFieldRef.current=field;setActiveVoiceField(field)}
+  function joinVoice(base:string,addition:string,field:VoiceField){return field==="title"?[base.trim(),addition.trim()].filter(Boolean).join(" ").replace(/\s+/g," ").slice(0,80):[base.trimEnd(),addition.trim()].filter(Boolean).join(base.trim()?"\n":"").slice(0,2000)}
+  function stopVoice(discard=false){if(recognitionRef.current){discard?recognitionRef.current.abort():recognitionRef.current.stop();recognitionRef.current=null}if(recorderRef.current&&recorderRef.current.state!=="inactive"){if(discard)recorderRef.current.onstop=null;recorderRef.current.stop()}streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;recorderRef.current=null;if(discard)chunksRef.current=[];setVoiceState("idle")}
+  function updateTitle(value:string){if(voiceState==="listening"||voiceState==="recording")stopVoice(true);setVoiceUndo(null);setTitle(value.slice(0,80))}
+  function updateBody(value:string){if(voiceState==="listening"||voiceState==="recording")stopVoice(true);setVoiceUndo(null);setBody(value.slice(0,2000))}
+  function undoVoice(){if(!voiceUndo)return;stopVoice(true);setTitle(voiceUndo.title);setBody(voiceUndo.body);selectVoiceField(voiceUndo.field);setVoiceUndo(null);setVoiceMessage("직전 음성 입력을 되돌렸습니다.")}
+  function clearVoiceField(){stopVoice(true);activeVoiceField==="title"?setTitle(""):setBody("");setVoiceUndo(null)}
+  async function transcribe(blob:Blob,target:VoiceField){setVoiceState("transcribing");setVoiceMessage("음성을 글로 바꾸는 중입니다.");try{const form=new FormData();form.append("audio",blob,blob.type.includes("mp4")?"jinju-voice.m4a":"jinju-voice.webm");const response=await fetch("/api/transcribe",{method:"POST",body:form}),data=await response.json() as {text?:string;error?:string};if(!response.ok||!data.text)throw new Error(data.error||"음성을 글로 바꾸지 못했습니다.");target==="title"?setTitle(value=>joinVoice(value,data.text!,target)):setBody(value=>joinVoice(value,data.text!,target));setVoiceMessage(`${target==="title"?"제목":"본문"}에 음성 입력이 추가되었습니다.`)}catch(error){setVoiceMessage(error instanceof Error?error.message:"음성 입력을 사용할 수 없습니다.")}finally{streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;recorderRef.current=null;chunksRef.current=[];setVoiceState("idle")}}
+  async function startRecording(){if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==="undefined"){setVoiceMessage("이 브라우저에서는 마이크 입력을 지원하지 않습니다.");return}try{const target=voiceFieldRef.current;setVoiceUndo({field:target,title,body});const stream=await navigator.mediaDevices.getUserMedia({audio:true}),mime=["audio/webm;codecs=opus","audio/mp4","audio/webm"].find(type=>MediaRecorder.isTypeSupported(type)),recorder=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);streamRef.current=stream;recorderRef.current=recorder;chunksRef.current=[];recorder.ondataavailable=event=>{if(event.data.size)chunksRef.current.push(event.data)};recorder.onstop=()=>{const blob=new Blob(chunksRef.current,{type:recorder.mimeType||"audio/webm"});if(blob.size<100){setVoiceState("idle");setVoiceMessage("음성이 충분히 녹음되지 않았습니다.");return}void transcribe(blob,target)};recorder.start();setVoiceState("recording");setVoiceMessage(`${target==="title"?"제목":"본문"}을 듣고 있습니다. 한 번 더 누르면 입력됩니다.`)}catch{setVoiceState("idle");setVoiceMessage("주소창의 마이크 권한을 허용해주세요.")}}
+  async function toggleVoice(){if(voiceState==="listening"){stopVoice();return}if(voiceState==="recording"){recorderRef.current?.stop();return}if(voiceState==="transcribing")return;const apple=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1),safari=/^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent),Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(apple||safari||preferRecordingRef.current||!Recognition){await startRecording();return}const recognition=new Recognition(),target=voiceFieldRef.current;setVoiceUndo({field:target,title,body});voiceBaseRef.current=(target==="title"?title:body).trimEnd();recognition.lang="ko-KR";recognition.continuous=true;recognition.interimResults=true;recognition.onresult=event=>{let finalText="",interim="";for(let i=event.resultIndex;i<event.results.length;i++){const result=event.results[i],transcript=result[0]?.transcript||"";if(result.isFinal)finalText+=`${transcript} `;else interim+=transcript}if(finalText.trim())voiceBaseRef.current=joinVoice(voiceBaseRef.current,finalText,target);const value=joinVoice(voiceBaseRef.current,interim,target);target==="title"?setTitle(value):setBody(value)};recognition.onerror=()=>{preferRecordingRef.current=true;recognitionRef.current=null;setVoiceState("idle");setVoiceMessage("음성인식이 중단됐습니다. 다시 누르면 녹음 방식으로 입력합니다.")};recognition.onend=()=>{recognitionRef.current=null;setVoiceState("idle")};recognitionRef.current=recognition;setVoiceState("listening");setVoiceMessage(`${target==="title"?"제목":"본문"}에 음성 입력 중입니다.`);try{recognition.start()}catch{setVoiceState("idle");await startRecording()}}
 
   async function publish(event: FormEvent) {
     event.preventDefault();
@@ -282,11 +306,12 @@ export default function JinjuApp() {
                 </div>
                 <form className="chat-composer" onSubmit={publish}>
                   <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1, 8).map((item) => <option key={item}>{item}</option>)}</select></div>
-                  <input className="chat-title" value={title} onChange={(event) => setTitle(event.target.value.slice(0, 80))} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
-                  <textarea value={body} onChange={(event) => setBody(event.target.value.slice(0, 2000))} placeholder={"익명의 무게만큼, 책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
+                  <input className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => selectVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
+                  <textarea className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => selectVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"익명의 무게만큼, 책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
                   <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
+                  {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
                   {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
-                  <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions"><button className="voice-text-button" type="button" onClick={() => { setTitle(""); setBody(""); }}>지우기</button><button className="submit-review-button" type="submit"><span>확인</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
+                  <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${voiceState === "idle" ? "" : " listening"}`} onClick={toggleVoice} type="button" disabled={voiceState === "transcribing"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit"><span>확인</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
                 </form>
               </section>
 
@@ -335,32 +360,21 @@ function PostCard({ post, onOpen, onReact, onShare }: {
   onReact: (kind: "heard" | "same") => void;
   onShare: () => void;
 }) {
-  const total = post.heard + post.same;
-  const position = total ? Math.round((post.same / total) * 100) : 50;
   return (
     <article className="feed-post">
       <button className="post-main-link" onClick={onOpen} type="button">
         <div className="post-meta"><span>{post.category}</span><span>익명</span><time>{post.date}</time></div>
         <h2>{post.title}</h2><p>{post.content}</p>
       </button>
-      <Temperature position={position} label={`게시글 온도: 좋아요 ${post.heard}`} />
+      <PostTemperature likes={post.heard} dislikes={post.same} />
       <div className="post-actions">
-        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요 <span>{post.heard}</span></button>
-        <button onClick={() => onReact("same")} type="button">싫어요 <span>{post.same || ""}</span></button>
+        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요</button>
+        <button onClick={() => onReact("same")} type="button">싫어요</button>
         <button onClick={onOpen} type="button">댓글 <span>{post.comments.length}</span></button>
         <button className="share-post-button" onClick={onShare} type="button">공유하기</button>
         <a className="post-report" href="mailto:hello@xn--o55b9n.kr">의견 보내기</a>
       </div>
     </article>
-  );
-}
-
-function Temperature({ position, label }: { position: number; label: string }) {
-  return (
-    <div className="post-temperature" style={{ "--temperature-position": `${position}%` } as React.CSSProperties} aria-label={label}>
-      <div className="temperature-copy"><span>OK</span><span>Not OK</span></div>
-      <div className="temperature-track" role="img" aria-label={`Not OK 방향 ${position}%`}><span className="temperature-marker"><Pearl size={20} /></span></div>
-    </div>
   );
 }
 
@@ -374,8 +388,6 @@ function PostDetail({ post, onBack, onReact, onShare, onComment }: {
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
   const [detailComments, setDetailComments] = useState<Comment[]>(post.comments.filter((item) => item.body));
-  const total = post.heard + post.same;
-  const position = total ? Math.round((post.same / total) * 100) : 50;
 
   useEffect(() => {
     fetch(`/api/posts/${encodeURIComponent(post.id)}/comments`, { cache: "no-store" })
@@ -404,8 +416,8 @@ function PostDetail({ post, onBack, onReact, onShare, onComment }: {
         <article className="detail-post">
           <div className="post-meta"><span>{post.category}</span><span>익명</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
-          <Temperature position={position} label={`게시글 온도: 좋아요 ${post.heard}`} />
-          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요 {post.heard}</button><button onClick={() => onReact("same")} type="button">싫어요 {post.same}</button><button onClick={onShare} type="button">공유하기</button><a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a></div>
+          <PostTemperature likes={post.heard} dislikes={post.same} interactive />
+          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요</button><button onClick={() => onReact("same")} type="button">싫어요</button><button onClick={onShare} type="button">공유하기</button><a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a></div>
         </article>
         <section className="comment-list" aria-label="댓글 목록">
           <h2>댓글 {detailComments.length || post.comments.length}</h2>
