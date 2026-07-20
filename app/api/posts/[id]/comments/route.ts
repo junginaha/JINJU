@@ -10,8 +10,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (!databaseEnabled()) return Response.json({ comments: fallback }, { headers: { "cache-control": "no-store" } });
   await ensureSchema();
   const rows = await db()`SELECT id, content, display_name, created_at FROM comments WHERE post_id = ${id} AND status = 'approved' ORDER BY created_at ASC LIMIT 200`;
-  const stored = rows.map((row: Record<string, unknown>) => ({ id: String(row.id), body: String(row.content), displayName: String(row.display_name), createdAt: new Date(String(row.created_at)).toISOString() }));
-  return Response.json({ comments: [...fallback, ...stored] }, { headers: { "cache-control": "no-store" } });
+  const stored = rows.map((row: Record<string, unknown>) => ({ id: String(row.id), body: String(row.content), displayName: String(row.display_name || "익명"), createdAt: new Date(String(row.created_at)).toISOString() }));
+  const merged = new Map(fallback.map((comment) => [String(comment.id), comment]));
+  for (const comment of stored) merged.set(String(comment.id), comment);
+  return Response.json({ comments: [...merged.values()].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)) }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -21,7 +23,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const content = payload.content?.trim() ?? "";
   const displayName = (payload.displayName?.trim() || "익명").slice(0, 12);
   const review = reviewText(content);
-  if (content.length < 2 || content.length > 1000 || hasPii(content) || ["high", "urgent"].includes(review.riskLevel)) return Response.json({ error: "개인정보와 위험 표현을 제거하고 2~1,000자로 작성해주세요." }, { status: 400 });
+  if (content.length < 2 || content.length > 2000 || hasPii(content) || ["high", "urgent"].includes(review.riskLevel)) return Response.json({ error: "개인정보와 위험 표현을 제거하고 2~2,000자로 작성해주세요." }, { status: 400 });
   await ensureSchema();
   let rows = await db()`SELECT id FROM posts WHERE id = ${postId} LIMIT 1`;
   if (!rows[0]) {
