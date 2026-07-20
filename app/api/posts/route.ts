@@ -1,6 +1,7 @@
 import { db, databaseEnabled, ensureSchema, hash, token } from "../../../lib/db";
 import { editorialPosts } from "../../../lib/editorial";
 import { hasPii, reviewText } from "../../../lib/safety";
+import { generateCoreTitle } from "../../../lib/title";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   const payload = await request.json() as { title?: string; content?: string; category?: string };
   const content = payload.content?.trim() ?? "";
-  const title = (payload.title?.trim() || content.split(/\n|[.!?]/)[0] || "제목 없는 진주").slice(0, 80);
+  const title = (payload.title?.trim() || generateCoreTitle(content)).slice(0, 80);
   const category = payload.category?.trim() || "일상";
   const allowed = ["일상", "관계", "직장", "돈", "사회", "제안", "질문"];
   const review = reviewText(`${title}\n${content}`);
