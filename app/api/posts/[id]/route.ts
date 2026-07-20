@@ -1,10 +1,12 @@
 import { db, databaseEnabled, ensureSchema } from "../../../../lib/db";
 import { editorialPost } from "../../../../lib/editorial";
+import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../lib/dedup";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return Response.json({ error: "찾을 수 없는 진주입니다." }, { status: 404 });
   if (databaseEnabled()) {
     await ensureSchema();
     const rows = await db()`SELECT id, title, content, category, created_at, heard, same, support, comment_count FROM posts WHERE id = ${id} AND status = 'approved' LIMIT 1`;
