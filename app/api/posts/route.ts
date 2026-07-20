@@ -2,6 +2,7 @@ import { db, databaseEnabled, ensureSchema, hash, token } from "../../../lib/db"
 import { editorialPosts } from "../../../lib/editorial";
 import { hasPii, reviewText } from "../../../lib/safety";
 import { generateCoreTitle } from "../../../lib/title";
+import { dedupePosts, isDuplicatePost } from "../../../lib/dedup";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
   }
   const byId = new Map(editorialPosts.map((post) => [post.id, post]));
   for (const post of stored) byId.set(post.id, post);
-  let posts = [...byId.values()].filter((post) => category === "전체" || post.category === category);
+  let posts = dedupePosts([...byId.values()]).filter((post) => category === "전체" || post.category === category);
   if (query) posts = posts.filter((post) => `${post.title} ${post.content} ${post.category}`.toLocaleLowerCase("ko-KR").includes(query));
   posts.sort((a, b) => sort === "popular"
     ? (b.heard + b.same + b.commentCount * 3) - (a.heard + a.same + a.commentCount * 3)
@@ -47,6 +48,14 @@ export async function POST(request: Request) {
   }
   if (["high", "urgent"].includes(review.riskLevel)) return Response.json({ error: review.explanation }, { status: 400 });
   await ensureSchema();
+  const existingRows = await db()`SELECT title, content FROM posts WHERE status = 'approved' ORDER BY created_at DESC LIMIT 500`;
+  const existingPosts = [
+    ...editorialPosts,
+    ...existingRows.map((row: Record<string, unknown>) => ({ title: String(row.title), content: String(row.content) })),
+  ];
+  if (existingPosts.some((post) => isDuplicatePost({ title, content }, post))) {
+    return Response.json({ error: "이미 같은 제목이 있거나 본문이 90% 이상 비슷한 의견입니다. 기존 글에 댓글로 참여해주세요." }, { status: 409 });
+  }
   const id = token(10);
   const deleteKey = token(16);
   await db()`INSERT INTO posts (id, title, content, category, delete_key_hash) VALUES (${id}, ${title}, ${content}, ${category}, ${await hash(deleteKey)})`;
