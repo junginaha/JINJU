@@ -116,7 +116,7 @@ export default function JinjuApp() {
   const [activeVoiceField,setActiveVoiceField]=useState<VoiceField>("body");
   const [voiceMessage,setVoiceMessage]=useState("");
   const [voiceUndo,setVoiceUndo]=useState<VoiceSnapshot|null>(null);
-  const recognitionRef=useRef<SpeechRecognitionLike|null>(null),recorderRef=useRef<MediaRecorder|null>(null),streamRef=useRef<MediaStream|null>(null),chunksRef=useRef<Blob[]>([]),voiceFieldRef=useRef<VoiceField>("body"),voiceBaseRef=useRef(""),preferRecordingRef=useRef(false);
+  const recognitionRef=useRef<SpeechRecognitionLike|null>(null),recorderRef=useRef<MediaRecorder|null>(null),streamRef=useRef<MediaStream|null>(null),chunksRef=useRef<Blob[]>([]),voiceFieldRef=useRef<VoiceField>("body"),voiceBaseRef=useRef(""),browserTranscriptRef=useRef("");
 
   const loadPosts = useCallback(async () => {
     try {
@@ -181,9 +181,99 @@ export default function JinjuApp() {
   function updateBody(value:string){if(voiceState==="listening"||voiceState==="recording")stopVoice(true);setVoiceUndo(null);setBody(value.slice(0,2000))}
   function undoVoice(){if(!voiceUndo)return;stopVoice(true);setTitle(voiceUndo.title);setBody(voiceUndo.body);selectVoiceField(voiceUndo.field);setVoiceUndo(null);setVoiceMessage("직전 음성 입력을 되돌렸습니다.")}
   function clearVoiceField(){stopVoice(true);activeVoiceField==="title"?setTitle(""):setBody("");setVoiceUndo(null)}
-  async function transcribe(blob:Blob,target:VoiceField){setVoiceState("transcribing");setVoiceMessage("음성을 글로 바꾸는 중입니다.");try{const form=new FormData();form.append("audio",blob,blob.type.includes("mp4")?"jinju-voice.m4a":"jinju-voice.webm");const response=await fetch("/api/transcribe",{method:"POST",body:form}),data=await response.json() as {text?:string;error?:string};if(!response.ok||!data.text)throw new Error(data.error||"음성을 글로 바꾸지 못했습니다.");target==="title"?setTitle(value=>joinVoice(value,data.text!,target)):setBody(value=>joinVoice(value,data.text!,target));setVoiceMessage(`${target==="title"?"제목":"본문"}에 음성 입력이 추가되었습니다.`)}catch(error){setVoiceMessage(error instanceof Error?error.message:"음성 입력을 사용할 수 없습니다.")}finally{streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;recorderRef.current=null;chunksRef.current=[];setVoiceState("idle")}}
-  async function startRecording(){if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==="undefined"){setVoiceMessage("이 브라우저에서는 마이크 입력을 지원하지 않습니다.");return}try{const target=voiceFieldRef.current;setVoiceUndo({field:target,title,body});const stream=await navigator.mediaDevices.getUserMedia({audio:true}),mime=["audio/webm;codecs=opus","audio/mp4","audio/webm"].find(type=>MediaRecorder.isTypeSupported(type)),recorder=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);streamRef.current=stream;recorderRef.current=recorder;chunksRef.current=[];recorder.ondataavailable=event=>{if(event.data.size)chunksRef.current.push(event.data)};recorder.onstop=()=>{const blob=new Blob(chunksRef.current,{type:recorder.mimeType||"audio/webm"});if(blob.size<100){setVoiceState("idle");setVoiceMessage("음성이 충분히 녹음되지 않았습니다.");return}void transcribe(blob,target)};recorder.start();setVoiceState("recording");setVoiceMessage(`${target==="title"?"제목":"본문"}을 듣고 있습니다. 한 번 더 누르면 입력됩니다.`)}catch{setVoiceState("idle");setVoiceMessage("주소창의 마이크 권한을 허용해주세요.")}}
-  async function toggleVoice(){if(voiceState==="listening"){stopVoice();return}if(voiceState==="recording"){recorderRef.current?.stop();return}if(voiceState==="transcribing")return;const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(preferRecordingRef.current||!Recognition){await startRecording();return}const recognition=new Recognition(),target=voiceFieldRef.current;setVoiceUndo({field:target,title,body});voiceBaseRef.current=(target==="title"?title:body).trimEnd();recognition.lang="ko-KR";recognition.continuous=true;recognition.interimResults=true;recognition.onresult=event=>{let finalText="",interim="";for(let i=event.resultIndex;i<event.results.length;i++){const result=event.results[i],transcript=result[0]?.transcript||"";if(result.isFinal)finalText+=`${transcript} `;else interim+=transcript}if(finalText.trim())voiceBaseRef.current=joinVoice(voiceBaseRef.current,finalText,target);const value=joinVoice(voiceBaseRef.current,interim,target);target==="title"?setTitle(value):setBody(value)};recognition.onerror=()=>{preferRecordingRef.current=true;recognitionRef.current=null;setVoiceState("idle");setVoiceMessage("음성인식이 중단됐습니다. 다시 누르면 녹음 방식으로 입력합니다.")};recognition.onend=()=>{recognitionRef.current=null;setVoiceState("idle")};recognitionRef.current=recognition;setVoiceState("listening");setVoiceMessage(`${target==="title"?"제목":"본문"}에 음성 입력 중입니다.`);try{recognition.start()}catch{setVoiceState("idle");await startRecording()}}
+  async function transcribe(blob: Blob, target: VoiceField, browserText: string) {
+    setVoiceState("transcribing");
+    setVoiceMessage("녹음을 정확한 문장으로 바꾸는 중입니다…");
+    try {
+      const form = new FormData();
+      const filename = blob.type.includes("mp4") ? "jinju-voice.m4a" : "jinju-voice.webm";
+      form.append("audio", blob, filename);
+      const response = await fetch("/api/transcribe", { method: "POST", body: form });
+      const data = await response.json() as { text?: string; error?: string };
+      const transcript = response.ok && data.text ? data.text.trim() : browserText.trim();
+      if (!transcript) throw new Error(data.error || "음성을 글로 바꾸지 못했습니다. 마이크 권한을 확인해주세요.");
+      if (target === "title") setTitle((value) => joinVoice(value, transcript, target));
+      else setBody((value) => joinVoice(value, transcript, target));
+      setVoiceMessage(response.ok ? "녹음한 내용을 글로 옮겼습니다." : "기기 음성인식으로 녹음 내용을 글로 옮겼습니다.");
+    } catch (error) {
+      setVoiceMessage(error instanceof Error ? error.message : "음성 입력을 사용할 수 없습니다.");
+    } finally {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      recorderRef.current = null;
+      recognitionRef.current = null;
+      chunksRef.current = [];
+      browserTranscriptRef.current = "";
+      setVoiceState("idle");
+    }
+  }
+
+  async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setVoiceMessage("이 브라우저에서는 녹음을 지원하지 않습니다. 최신 Chrome 또는 Safari를 사용해주세요.");
+      return;
+    }
+    try {
+      const target = voiceFieldRef.current;
+      setVoiceUndo({ field: target, title, body });
+      setVoiceMessage("마이크 연결 중…");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      const mime = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((type) => MediaRecorder.isTypeSupported(type));
+      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 128000 }) : new MediaRecorder(stream);
+      streamRef.current = stream;
+      recorderRef.current = recorder;
+      chunksRef.current = [];
+      browserTranscriptRef.current = "";
+
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (Recognition) {
+        const recognition = new Recognition();
+        recognition.lang = "ko-KR";
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.onresult = (event) => {
+          let text = "";
+          for (let index = 0; index < event.results.length; index += 1) text += `${event.results[index][0]?.transcript || ""} `;
+          browserTranscriptRef.current = text.trim();
+        };
+        recognition.onerror = () => undefined;
+        recognition.onend = () => undefined;
+        recognitionRef.current = recognition;
+        try { recognition.start(); } catch { recognitionRef.current = null; }
+      }
+
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
+      recorder.onerror = () => {
+        setVoiceMessage("녹음 중 오류가 발생했습니다. 주소창의 마이크 권한을 확인해주세요.");
+        stopVoice(true);
+      };
+      recorder.onstop = () => {
+        try { recognitionRef.current?.stop(); } catch { /* already stopped */ }
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        if (blob.size < 100) {
+          setVoiceState("idle");
+          setVoiceMessage("녹음된 음성이 없습니다. 다시 눌러 말씀해주세요.");
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        void transcribe(blob, target, browserTranscriptRef.current);
+      };
+      recorder.start(500);
+      setVoiceState("recording");
+      setVoiceMessage(`${target === "title" ? "제목" : "본문"} 녹음 중 · 한 번 더 누르면 완료됩니다.`);
+    } catch (error) {
+      setVoiceState("idle");
+      const denied = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError");
+      setVoiceMessage(denied ? "마이크가 차단됐습니다. 주소창 자물쇠 → 마이크 → 허용을 눌러주세요." : "마이크를 시작하지 못했습니다. 다른 앱이 마이크를 사용 중인지 확인해주세요.");
+    }
+  }
+
+  async function toggleVoice() {
+    if (voiceState === "recording") { recorderRef.current?.stop(); return; }
+    if (voiceState === "transcribing") return;
+    if (voiceState === "listening") { stopVoice(); return; }
+    await startRecording();
+  }
 
   async function publish(event: FormEvent) {
     event.preventDefault();
