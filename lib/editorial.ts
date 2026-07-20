@@ -3889,6 +3889,7 @@ const COMMENTS: Record<string, EditorialComment[]> = {
   "jinju-story-teen-sleep": [],
   "jinju-story-five-minutes": []
 };
-export const editorialPosts=POSTS;
-export function editorialPost(id:string){return POSTS.find(post=>post.id===id)??null}
-export function editorialComments(id:string){return COMMENTS[id]??[]}
+const DUPLICATE_POST_IDS = new Set(["jinju-seed-20260720-rested-then-work"]);
+export const editorialPosts=POSTS.filter(post=>!DUPLICATE_POST_IDS.has(post.id));
+export function editorialPost(id:string){return DUPLICATE_POST_IDS.has(id)?null:POSTS.find(post=>post.id===id)??null}
+export function editorialComments(id:string){return DUPLICATE_POST_IDS.has(id)?[]:COMMENTS[id]??[]}
