@@ -31,6 +31,7 @@ export async function GET(request: Request) {
     await ensureSchema();
     const rows = await db()`
       SELECT post.id, post.title, post.content, post.category, post.created_at,
+             post.status, post.visibility,
              post.heard, post.same, post.support,
              COUNT(comment.id)::INTEGER AS stored_comment_count,
              EXISTS (
@@ -40,11 +41,10 @@ export async function GET(request: Request) {
       FROM posts AS post
       LEFT JOIN comments AS comment
         ON comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()
-      WHERE post.status = 'approved'
       GROUP BY post.id
       ORDER BY post.created_at DESC
       LIMIT 100`;
-    stored = rows.map((row: Record<string, unknown>) => {
+    stored = rows.filter((row: Record<string, unknown>) => String(row.status) === "approved" && String(row.visibility) === "public").map((row: Record<string, unknown>) => {
       const post = cleanRow(row);
       const baseCount = editorialPost(post.id)
         ? editorialComments(post.id).length
@@ -53,6 +53,10 @@ export async function GET(request: Request) {
     });
   }
   const byId = new Map(editorialPosts.map((post) => [post.id, { ...post, commentCount: editorialComments(post.id).length }]));
+  if (databaseEnabled()) {
+    const storedStates = await db()`SELECT id, status, visibility FROM posts`;
+    for (const row of storedStates) if (String(row.status) !== "approved" || String(row.visibility) !== "public") byId.delete(String(row.id));
+  }
   for (const post of stored) byId.set(post.id, post);
   const hiddenCounts = hiddenCommentCounts(overrides);
   let posts = dedupePosts([...byId.values()])
