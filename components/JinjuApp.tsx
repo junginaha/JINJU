@@ -10,6 +10,7 @@ type SpeechRecognitionConstructor = new()=>SpeechRecognitionLike;
 type VoiceState="idle"|"listening"|"recording"|"transcribing";
 type VoiceField="title"|"body";
 type VoiceSnapshot={field:VoiceField;title:string;body:string};
+type DeleteKeys=Record<string,string>;
 declare global { interface Window { SpeechRecognition?:SpeechRecognitionConstructor; webkitSpeechRecognition?:SpeechRecognitionConstructor } }
 
 export type Comment = {
@@ -31,6 +32,10 @@ export type Post = {
 };
 
 const topics = ["전체", "일상", "관계", "직장", "돈", "사회", "제안", "질문", "광고 홍보"];
+const POST_DRAFT_KEY="jinju-post-draft-v1",POST_DELETE_KEYS="jinju-owned-posts-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1";
+
+function readKeys(storageKey:string):DeleteKeys{try{return JSON.parse(localStorage.getItem(storageKey)||"{}") as DeleteKeys}catch{return {}}}
+function saveKeys(storageKey:string,keys:DeleteKeys){try{localStorage.setItem(storageKey,JSON.stringify(keys))}catch{/* Private browsing can reject storage writes. */}}
 
 const seedPosts: Post[] = [
   {
@@ -112,6 +117,10 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [submitStatus, setSubmitStatus] = useState("");
+  const [submitBusy,setSubmitBusy]=useState(false);
+  const [draftReady,setDraftReady]=useState(false);
+  const [postDeleteKeys,setPostDeleteKeys]=useState<DeleteKeys>({});
+  const [commentDeleteKeys,setCommentDeleteKeys]=useState<DeleteKeys>({});
   const [voiceState,setVoiceState]=useState<VoiceState>("idle");
   const [activeVoiceField,setActiveVoiceField]=useState<VoiceField>("body");
   const [voiceMessage,setVoiceMessage]=useState("");
@@ -119,6 +128,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [micPromptOpen,setMicPromptOpen]=useState(false);
   const [micPermissionBusy,setMicPermissionBusy]=useState(false);
   const [micPermissionReady,setMicPermissionReady]=useState(false);
+  const [micPromptError,setMicPromptError]=useState("");
   const recognitionRef=useRef<SpeechRecognitionLike|null>(null),recorderRef=useRef<MediaRecorder|null>(null),streamRef=useRef<MediaStream|null>(null),chunksRef=useRef<Blob[]>([]),voiceFieldRef=useRef<VoiceField>("body"),voiceBaseRef=useRef(""),browserTranscriptRef=useRef("");
 
   const loadPosts = useCallback(async () => {
@@ -138,6 +148,17 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   }, []);
 
   useEffect(() => { void loadPosts(); }, [loadPosts]);
+
+  useEffect(()=>{
+    try{const draft=JSON.parse(sessionStorage.getItem(POST_DRAFT_KEY)||"null") as {title?:string;body?:string;category?:string}|null;if(draft){setTitle(draft.title||"");setBody(draft.body||"");if(draft.category) setCategory(draft.category)}}catch{/* Ignore a damaged local draft. */}
+    setPostDeleteKeys(readKeys(POST_DELETE_KEYS));
+    setCommentDeleteKeys(readKeys(COMMENT_DELETE_KEYS));
+    setDraftReady(true);
+  },[]);
+
+  useEffect(()=>{if(!draftReady)return;try{if(title||body)sessionStorage.setItem(POST_DRAFT_KEY,JSON.stringify({title,body,category}));else sessionStorage.removeItem(POST_DRAFT_KEY)}catch{/* Draft storage is best effort. */}},[body,category,draftReady,title]);
+
+  useEffect(()=>()=>{try{recognitionRef.current?.abort()}catch{/* already stopped */}if(recorderRef.current){recorderRef.current.onstop=null;if(recorderRef.current.state!=="inactive")recorderRef.current.stop()}streamRef.current?.getTracks().forEach(track=>track.stop())},[]);
 
   useEffect(() => {
     let seen = false;
@@ -163,8 +184,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   }, []);
 
   const completeIntro = useCallback(() => {
-    window.history.replaceState({}, "", "/");
-    setSelectedPostId(null);
     setShowIntro(false);
     window.scrollTo({ top: 0 });
   }, []);
@@ -180,26 +199,23 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
   function prepareVoiceField(field: VoiceField) {
     selectVoiceField(field);
-    if (!micPermissionReady && !micPermissionBusy && voiceState === "idle") setMicPromptOpen(true);
   }
 
-  async function allowMicrophoneOnce() {
+  async function allowAndStartMicrophone() {
     if (!navigator.mediaDevices?.getUserMedia) {
-      setVoiceMessage("이 브라우저에서는 마이크 권한을 사용할 수 없습니다.");
-      setMicPromptOpen(false);
+      setMicPromptError("이 브라우저에서는 음성 입력이 제한됩니다. 키보드의 마이크를 이용해주세요.");
       return;
     }
     setMicPermissionBusy(true);
     try {
-      const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      permissionStream.getTracks().forEach((track) => track.stop());
+      setMicPromptError("");
+      const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true,noiseSuppression:true,autoGainControl:true } });
       setMicPermissionReady(true);
       setMicPromptOpen(false);
-      setVoiceMessage("마이크 사용 준비가 끝났습니다. 마이크는 즉시 해제됐으며 녹음 버튼을 누를 때만 켜집니다.");
+      await startRecording(permissionStream);
     } catch (error) {
       const denied = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError");
-      setVoiceMessage(denied ? "마이크가 차단됐습니다. 주소창 자물쇠 → 마이크 → 허용을 눌러주세요." : "마이크 권한을 확인하지 못했습니다.");
-      setMicPromptOpen(false);
+      setMicPromptError(denied ? "마이크가 허용되지 않았어요. 아래 버튼을 눌러 다시 허용할 수 있습니다." : "마이크를 시작하지 못했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setMicPermissionBusy(false);
     }
@@ -212,7 +228,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   function updateBody(value:string){if(voiceState==="listening"||voiceState==="recording")stopVoice(true);setVoiceUndo(null);setBody(value.slice(0,2000))}
   function undoVoice(){if(!voiceUndo)return;stopVoice(true);setTitle(voiceUndo.title);setBody(voiceUndo.body);selectVoiceField(voiceUndo.field);setVoiceUndo(null);setVoiceMessage("직전 음성 입력을 되돌렸습니다.")}
   function clearVoiceField(){stopVoice(true);activeVoiceField==="title"?setTitle(""):setBody("");setVoiceUndo(null)}
-  async function transcribe(blob: Blob, target: VoiceField, browserText: string) {
+  async function transcribe(blob: Blob, target: VoiceField, browserText: string, base: string) {
     setVoiceState("transcribing");
     setVoiceMessage("녹음을 정확한 문장으로 바꾸는 중입니다…");
     try {
@@ -223,8 +239,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       const data = await response.json() as { text?: string; error?: string };
       const transcript = response.ok && data.text ? data.text.trim() : browserText.trim();
       if (!transcript) throw new Error(data.error || "음성을 글로 바꾸지 못했습니다. 마이크 권한을 확인해주세요.");
-      if (target === "title") setTitle((value) => joinVoice(value, transcript, target));
-      else setBody((value) => joinVoice(value, transcript, target));
+      if (target === "title") setTitle(joinVoice(base, transcript, target));
+      else setBody(joinVoice(base, transcript, target));
       setVoiceMessage(response.ok ? "녹음한 내용을 글로 옮겼습니다." : "기기 음성인식으로 녹음 내용을 글로 옮겼습니다.");
     } catch (error) {
       setVoiceMessage(error instanceof Error ? error.message : "음성 입력을 사용할 수 없습니다.");
@@ -239,8 +255,9 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     }
   }
 
-  async function startRecording() {
+  async function startRecording(authorizedStream?:MediaStream) {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      authorizedStream?.getTracks().forEach(track=>track.stop());
       setVoiceMessage("이 브라우저에서는 녹음을 지원하지 않습니다. 최신 Chrome 또는 Safari를 사용해주세요.");
       return;
     }
@@ -248,13 +265,16 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       const target = voiceFieldRef.current;
       setVoiceUndo({ field: target, title, body });
       setVoiceMessage("마이크 연결 중…");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      const stream = authorizedStream||await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      setMicPermissionReady(true);
       const mime = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((type) => MediaRecorder.isTypeSupported(type));
       const recorder = mime ? new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 128000 }) : new MediaRecorder(stream);
       streamRef.current = stream;
       recorderRef.current = recorder;
       chunksRef.current = [];
       browserTranscriptRef.current = "";
+      const base=target==="title"?title:body;
+      voiceBaseRef.current=base;
 
       const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (Recognition) {
@@ -266,6 +286,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           let text = "";
           for (let index = 0; index < event.results.length; index += 1) text += `${event.results[index][0]?.transcript || ""} `;
           browserTranscriptRef.current = text.trim();
+          const liveText=joinVoice(voiceBaseRef.current,browserTranscriptRef.current,target);
+          if(target==="title")setTitle(liveText);else setBody(liveText);
         };
         recognition.onerror = () => undefined;
         recognition.onend = () => undefined;
@@ -287,12 +309,13 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           stream.getTracks().forEach((track) => track.stop());
           return;
         }
-        void transcribe(blob, target, browserTranscriptRef.current);
+        void transcribe(blob, target, browserTranscriptRef.current, base);
       };
       recorder.start(500);
       setVoiceState("recording");
       setVoiceMessage(`${target === "title" ? "제목" : "본문"} 녹음 중 · 한 번 더 누르면 완료됩니다.`);
     } catch (error) {
+      authorizedStream?.getTracks().forEach(track=>track.stop());
       setVoiceState("idle");
       const denied = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError");
       setVoiceMessage(denied ? "마이크가 차단됐습니다. 주소창 자물쇠 → 마이크 → 허용을 눌러주세요." : "마이크를 시작하지 못했습니다. 다른 앱이 마이크를 사용 중인지 확인해주세요.");
@@ -303,25 +326,32 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     if (voiceState === "recording") { recorderRef.current?.stop(); return; }
     if (voiceState === "transcribing") return;
     if (voiceState === "listening") { stopVoice(); return; }
+    if(!micPermissionReady){setMicPromptError("");setMicPromptOpen(true);return}
     await startRecording();
   }
 
   async function publish(event: FormEvent) {
     event.preventDefault();
     if (body.trim().length < 8) { setSubmitStatus("본문을 8자 이상 적어주세요."); return; }
+    if(submitBusy)return;
+    setSubmitBusy(true);
     setSubmitStatus("안전하게 확인하고 있습니다…");
     try {
       const reviewResponse = await fetch("/api/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, text: body }) });
       const review = await reviewResponse.json() as { error?: string; riskLevel?: string; explanation?: string; suggestedTitle?: string };
       if (!reviewResponse.ok || ["high", "urgent"].includes(review.riskLevel ?? "")) { setSubmitStatus(review.error || review.explanation || "표현을 한 번 더 확인해주세요."); return; }
       const response = await fetch("/api/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: title.trim() || review.suggestedTitle, content: body, category }) });
-      const data = await response.json() as { error?: string };
+      const data = await response.json() as { error?: string;id?:string;deleteKey?:string };
       if (!response.ok) { setSubmitStatus(data.error || "지금은 저장할 수 없습니다."); return; }
-      setTitle(""); setBody(""); setTopic("전체"); setMicPermissionReady(false); setSubmitStatus("의견이 안전하게 등록되었습니다.");
+      if(data.id&&data.deleteKey){const next={...postDeleteKeys,[data.id]:data.deleteKey};setPostDeleteKeys(next);saveKeys(POST_DELETE_KEYS,next)}
+      try{sessionStorage.removeItem(POST_DRAFT_KEY)}catch{/* already clear */}
+      setTitle(""); setBody(""); setTopic("전체"); setSubmitStatus("의견이 안전하게 등록되었습니다.");
       await loadPosts();
       document.getElementById("feed")?.scrollIntoView({ behavior: "smooth" });
     } catch {
       setSubmitStatus("연결을 확인한 뒤 다시 시도해주세요.");
+    } finally {
+      setSubmitBusy(false);
     }
   }
 
@@ -344,14 +374,20 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     }
   }
 
-  async function addComment(postId: string, comment: string) {
+  async function addComment(postId: string, comment: string):Promise<Comment> {
     const trimmed = comment.trim().slice(0, 2000);
-    if (!trimmed) return;
+    if (!trimmed) throw new Error("댓글을 두 글자 이상 적어주세요.");
     const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: trimmed }) });
-    const data = await response.json() as { error?: string; id?: string; body?: string; createdAt?: string; displayName?: string };
+    const data = await response.json() as { error?: string; id?: string;deleteKey?:string; body?: string; createdAt?: string; displayName?: string };
     if (!response.ok) throw new Error(data.error || "댓글을 등록할 수 없습니다.");
-    setPosts((current) => current.map((post) => post.id === postId ? { ...post, comments: [...post.comments.filter((item) => item.body), { id: data.id || Date.now(), body: data.body || trimmed, displayName: data.displayName, createdAt: "방금 전" }] } : post));
+    const created={id:data.id||Date.now(),body:data.body||trimmed,displayName:data.displayName,createdAt:data.createdAt||new Date().toISOString()};
+    if(data.id&&data.deleteKey){const next={...commentDeleteKeys,[data.id]:data.deleteKey};setCommentDeleteKeys(next);saveKeys(COMMENT_DELETE_KEYS,next)}
+    setPosts((current) => current.map((post) => post.id === postId ? { ...post, comments: [...post.comments.filter((item) => item.body), created] } : post));
+    return created;
   }
+
+  async function deletePost(postId:string){const deleteKey=postDeleteKeys[postId];if(!deleteKey)throw new Error("이 글을 삭제할 권한을 확인할 수 없습니다.");const response=await fetch(`/api/posts/${encodeURIComponent(postId)}`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({deleteKey})});const data=await response.json() as {error?:string};if(!response.ok)throw new Error(data.error||"글을 삭제하지 못했습니다.");const next={...postDeleteKeys};delete next[postId];setPostDeleteKeys(next);saveKeys(POST_DELETE_KEYS,next);setPosts(current=>current.filter(post=>post.id!==postId));closePost()}
+  async function deleteComment(postId:string,commentId:string|number){const key=String(commentId),deleteKey=commentDeleteKeys[key];if(!deleteKey)throw new Error("이 댓글을 삭제할 권한을 확인할 수 없습니다.");const response=await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({commentId:key,deleteKey})});const data=await response.json() as {error?:string};if(!response.ok)throw new Error(data.error||"댓글을 삭제하지 못했습니다.");const next={...commentDeleteKeys};delete next[key];setCommentDeleteKeys(next);saveKeys(COMMENT_DELETE_KEYS,next);setPosts(current=>current.map(post=>post.id===postId?{...post,comments:post.comments.filter(item=>String(item.id)!==key)}:post))}
 
   function openPost(postId: string) {
     window.history.pushState({}, "", `/post/${encodeURIComponent(postId)}`);
@@ -369,11 +405,16 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       {!introReady ? <div className="intro-bootstrap" aria-hidden="true" /> : showIntro && <Intro onComplete={completeIntro} />}
       {selectedPost ? (
         <PostDetail
+          key={selectedPost.id}
           post={selectedPost}
           onBack={closePost}
           onReact={(kind) => react(selectedPost.id, kind)}
           onShare={() => share(selectedPost)}
           onComment={(comment) => addComment(selectedPost.id, comment)}
+          canDeletePost={Boolean(postDeleteKeys[selectedPost.id])}
+          canDeleteComment={(commentId)=>Boolean(commentDeleteKeys[String(commentId)])}
+          onDeletePost={()=>deletePost(selectedPost.id)}
+          onDeleteComment={(commentId)=>deleteComment(selectedPost.id,commentId)}
         />
       ) : (
         <div className="chat-app">
@@ -433,8 +474,9 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                     <div className="mic-permission-dialog">
                       <span className="mic-permission-symbol" aria-hidden="true">●</span>
                       <h3 id="mic-permission-title">음성으로 작성할까요?</h3>
-                      <p>마이크 권한만 먼저 확인합니다. 확인 직후 마이크를 해제하고, 실제 녹음은 마이크 버튼을 누를 때만 시작합니다.</p>
-                      <div><button className="mic-later-button" onClick={() => setMicPromptOpen(false)} type="button">나중에</button><button className="mic-allow-button" onClick={allowMicrophoneOnce} disabled={micPermissionBusy} type="button">{micPermissionBusy ? "확인 중…" : "마이크 허용"}</button></div>
+                      <p>허용을 누르면 바로 듣기 시작하고, 인식한 문장을 선택한 입력칸에 보여드립니다.</p>
+                      {micPromptError&&<p className="mic-permission-error" role="alert">{micPromptError}</p>}
+                      <div><button className="mic-later-button" onClick={() => setMicPromptOpen(false)} type="button">취소</button><button className="mic-allow-button" onClick={allowAndStartMicrophone} disabled={micPermissionBusy} type="button">{micPermissionBusy ? "마이크 여는 중…" : "허용하고 바로 말하기"}</button></div>
                     </div>
                   </div>}
                   <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1, 8).map((item) => <option key={item}>{item}</option>)}</select></div>
@@ -443,7 +485,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                   <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
                   {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
                   {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
-                  <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${voiceState === "idle" ? "" : " listening"}`} onClick={toggleVoice} type="button" disabled={voiceState === "transcribing"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit"><span>확인</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
+                  <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${voiceState === "idle" ? "" : " listening"}`} onClick={toggleVoice} type="button" disabled={voiceState === "transcribing"} aria-pressed={voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy}><span>{submitBusy?"등록 중":"확인"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
                 </form>
               </section>
 
@@ -500,7 +542,7 @@ function PostCard({ post, onOpen, onReact, onShare }: {
       </a>
       <PostTemperature likes={post.heard} dislikes={post.same} />
       <div className="post-actions">
-        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요 <span>{post.heard}</span></button>
+        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요</button>
         <button onClick={() => onReact("same")} type="button">싫어요</button>
         <button onClick={onOpen} type="button">댓글 <span>{post.comments.length}</span></button>
         <button className="share-post-button" onClick={onShare} type="button">공유하기</button>
@@ -510,36 +552,53 @@ function PostCard({ post, onOpen, onReact, onShare }: {
   );
 }
 
-function PostDetail({ post, onBack, onReact, onShare, onComment }: {
+function PostDetail({ post, onBack, onReact, onShare, onComment, canDeletePost, canDeleteComment, onDeletePost, onDeleteComment }: {
   post: Post;
   onBack: () => void;
   onReact: (kind: "heard" | "same") => void;
   onShare: () => void;
-  onComment: (comment: string) => Promise<void>;
+  onComment: (comment: string) => Promise<Comment>;
+  canDeletePost:boolean;
+  canDeleteComment:(commentId:string|number)=>boolean;
+  onDeletePost:()=>Promise<void>;
+  onDeleteComment:(commentId:string|number)=>Promise<void>;
 }) {
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
+  const [commentBusy,setCommentBusy]=useState(false);
+  const [commentDraftReady,setCommentDraftReady]=useState(false);
+  const [deleteBusy,setDeleteBusy]=useState<string|null>(null);
   const [detailComments, setDetailComments] = useState<Comment[]>(post.comments.filter((item) => item.body));
 
   useEffect(() => {
+    try{setComment(sessionStorage.getItem(`jinju-comment-draft:${post.id}`)||"")}catch{/* Best effort draft restore. */}
+    setCommentDraftReady(true);
     fetch(`/api/posts/${encodeURIComponent(post.id)}/comments`, { cache: "no-store" })
       .then(async (response) => response.ok ? response.json() : { comments: [] })
       .then((data: { comments?: Comment[] }) => setDetailComments(data.comments ?? []))
       .catch(() => undefined);
   }, [post.id]);
 
+  useEffect(()=>{if(!commentDraftReady)return;try{if(comment)sessionStorage.setItem(`jinju-comment-draft:${post.id}`,comment);else sessionStorage.removeItem(`jinju-comment-draft:${post.id}`)}catch{/* Best effort draft save. */}},[comment,commentDraftReady,post.id]);
+
   async function submitComment(event: FormEvent) {
     event.preventDefault();
-    if (!comment.trim()) return;
+    if (!comment.trim()||commentBusy) return;
     setCommentError("");
+    setCommentBusy(true);
     try {
-      await onComment(comment);
-      setDetailComments((current) => [...current, { id: Date.now(), body: comment.trim(), createdAt: "방금 전", displayName: "익명" }]);
+      const created=await onComment(comment);
+      setDetailComments((current) => [...current, created]);
       setComment("");
     } catch (error) {
       setCommentError(error instanceof Error ? error.message : "댓글을 등록할 수 없습니다.");
+    } finally {
+      setCommentBusy(false);
     }
   }
+
+  async function removePost(){if(!window.confirm("이 글을 삭제할까요? 삭제한 글은 다시 되돌릴 수 없습니다."))return;setDeleteBusy("post");setCommentError("");try{await onDeletePost()}catch(error){setCommentError(error instanceof Error?error.message:"글을 삭제하지 못했습니다.");setDeleteBusy(null)}}
+  async function removeComment(commentId:string|number){if(!window.confirm("이 댓글을 삭제할까요?"))return;const key=String(commentId);setDeleteBusy(key);setCommentError("");try{await onDeleteComment(commentId);setDetailComments(current=>current.filter(item=>String(item.id)!==key))}catch(error){setCommentError(error instanceof Error?error.message:"댓글을 삭제하지 못했습니다.")}finally{setDeleteBusy(null)}}
 
   return (
     <main className="detail-page">
@@ -549,16 +608,16 @@ function PostDetail({ post, onBack, onReact, onShare, onComment }: {
           <div className="post-meta"><span>{post.category}</span><span>익명</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />
-          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요 <span>{post.heard}</span></button><button onClick={() => onReact("same")} type="button">싫어요</button><button onClick={onShare} type="button">공유하기</button><a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a></div>
+          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요</button><button onClick={() => onReact("same")} type="button">싫어요</button><button onClick={onShare} type="button">공유하기</button>{canDeletePost&&<button className="own-delete-button" onClick={removePost} disabled={deleteBusy==="post"} type="button">{deleteBusy==="post"?"삭제 중…":"내 글 삭제"}</button>}<a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a></div>
         </article>
         <section className="comment-list" aria-label="댓글 목록">
           <h2>댓글 {detailComments.length || post.comments.length}</h2>
-          {detailComments.length ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><time>{item.createdAt}</time></div><p>{item.body}</p></article>) : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
+          {detailComments.length ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><span><time>{item.createdAt}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>) : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>
           <textarea value={comment} onChange={(event) => setComment(event.target.value.slice(0, 2000))} maxLength={2000} rows={5} placeholder="익명으로 댓글을 남겨주세요" aria-label="댓글 내용" />
           {commentError && <p className="comment-error" role="alert">{commentError}</p>}
-          <div><span>{comment.length}/2,000</span><button type="submit">댓글 남기기</button></div>
+          <div><span>{comment.length}/2,000 · 입력 내용은 등록 전까지 이 기기에 보관됩니다</span><button type="submit" disabled={commentBusy}>{commentBusy?"등록 중…":"댓글 남기기"}</button></div>
         </form>
       </div>
     </main>

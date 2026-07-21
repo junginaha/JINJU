@@ -281,6 +281,7 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .mic-permission-symbol { display: inline-grid; width: 48px; height: 48px; margin-bottom: 14px; place-items: center; color: #ef6f6f; font-size: 19px; background: #ef6f6f1f; border: 1px solid #ef6f6f5c; border-radius: 999px; box-shadow: 0 0 0 7px #ef6f6f0d; }
 .mic-permission-dialog h3 { margin: 0; font-size: 20px; letter-spacing: -.035em; }
 .mic-permission-dialog p { margin: 12px 0 22px; color: #b8b8b8; font-size: 13px; line-height: 1.7; word-break: keep-all; overflow-wrap: anywhere; }
+.mic-permission-dialog .mic-permission-error { margin: -8px 0 18px; color: #ef9b9b; font-size: 12px; }
 .mic-permission-dialog > div { display: flex; justify-content: flex-end; gap: 8px; }
 .mic-permission-dialog button { min-height: 42px; padding: 0 17px; font-size: 12px; font-weight: 750; border-radius: 12px; cursor: pointer; }
 .mic-later-button { color: #c7c7c7; background: #2a2a2a; border: 1px solid #424242; }
@@ -313,6 +314,10 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .comment-list h2 { margin: 0 0 20px; font-size: 18px; }
 .comment-list article { padding: 18px 0; border-top: 1px solid #292929; }
 .comment-list article > div { display: flex; justify-content: space-between; color: #aaa; font-size: 11px; }
+.comment-list article > div > span:last-child { display: inline-flex; align-items: center; gap: 9px; }
+.comment-delete-button { min-height: 32px; padding: 0 7px; color: #999; font-size: 10px; background: transparent; border: 0; border-radius: 7px; cursor: pointer; }
+.comment-delete-button:hover, .own-delete-button:hover { color: #ef9b9b !important; }
+.comment-delete-button:disabled, .own-delete-button:disabled, .comment-composer button:disabled, .submit-review-button:disabled { cursor: wait; opacity: .55; }
 .comment-list article p { color: #c6c6c6; line-height: 1.75; white-space: pre-wrap; }
 .no-comments { color: #888; }
 .comment-composer { margin-top: 28px; }
@@ -322,6 +327,7 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .mobile-menu-scrim { display: none; }
 
 @media (max-width: 760px) {
+  .chat-title, .chat-composer textarea, .comment-composer textarea { font-size: 16px; }
   .chat-sidebar { display: none; }
   .chat-sidebar.mobile-open { position: fixed; z-index: 60; display: flex; width: min(82vw,300px); box-shadow: 18px 0 50px #0009; }
   .mobile-menu-scrim { position: fixed; z-index: 50; inset: 0; display: block; width: 100%; height: 100%; background: #0008; border: 0; }
@@ -349,7 +355,8 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
   .feed-post h2 { font-size: 18px; }
   .feed-post .post-main-link > p { display: block; overflow: visible; white-space: pre-wrap; -webkit-line-clamp: unset; }
   .post-actions { gap: 1px; }
-  .post-actions button, .post-actions a { padding: 7px 6px; }
+  .post-actions button, .post-actions a { min-height: 44px; padding: 7px 7px; }
+  .detail-stats button, .detail-stats a, .comment-composer button { min-height: 44px; }
   .composer-intro { align-items: flex-start; }
   .composer-intro h2 { font-size: 21px; }
   .composer-intro p:last-child { line-height: 1.55; }
