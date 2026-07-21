@@ -30,16 +30,20 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const postRows = await db()`SELECT id, title, content, category, created_at FROM posts WHERE id = ${id} AND status = 'approved' LIMIT 1`;
   const row = postRows[0] as Record<string, unknown> | undefined;
   if (!row && !editorial) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
+  const autoRows = editorial ? [] : await db()`
+    SELECT id FROM comments
+    WHERE post_id = ${id} AND id LIKE 'jinju-auto-%'
+    LIMIT 1`;
   const baseComments = editorial
     ? fallback
-    : supplementalComments({
-        id: String(row?.id),
-        title: String(row?.title),
-        content: String(row?.content),
-        category: String(row?.category),
-        createdAt: new Date(String(row?.created_at)).toISOString(),
-      });
-  const rows = await db()`SELECT id, content, display_name, created_at FROM comments WHERE post_id = ${id} AND status = 'approved' ORDER BY created_at ASC LIMIT 200`;
+    : autoRows[0] ? [] : supplementalComments({
+      id: String(row?.id),
+      title: String(row?.title),
+      content: String(row?.content),
+      category: String(row?.category),
+      createdAt: new Date(String(row?.created_at)).toISOString(),
+    });
+  const rows = await db()`SELECT id, content, display_name, created_at FROM comments WHERE post_id = ${id} AND status = 'approved' AND created_at <= NOW() ORDER BY created_at ASC LIMIT 200`;
   const stored = rows.map((row: Record<string, unknown>) => ({ id: String(row.id), body: String(row.content), displayName: String(row.display_name || "익명"), createdAt: new Date(String(row.created_at)).toISOString() }));
   const merged = new Map(baseComments.map((comment) => [String(comment.id), comment]));
   for (const comment of stored) merged.set(String(comment.id), comment);
@@ -72,7 +76,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const postTime = Date.parse(publicPost.createdAt);
   const createdAt = new Date(Math.max(Date.now(), Number.isFinite(postTime) ? postTime + 1 : 0)).toISOString();
   await db()`INSERT INTO comments (id, post_id, content, display_name, delete_key_hash, created_at) VALUES (${id}, ${postId}, ${content}, ${displayName}, ${await hash(deleteKey)}, ${createdAt})`;
-  await db()`UPDATE posts SET comment_count = (SELECT COUNT(*)::INTEGER FROM comments WHERE post_id = ${postId} AND status = 'approved'), updated_at = NOW() WHERE id = ${postId}`;
+  await db()`UPDATE posts SET comment_count = (SELECT COUNT(*)::INTEGER FROM comments WHERE post_id = ${postId} AND status = 'approved' AND created_at <= NOW()), updated_at = NOW() WHERE id = ${postId}`;
   return Response.json({ id, deleteKey, body: content, displayName, createdAt }, { status: 201 });
 }
 
@@ -89,6 +93,6 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     return Response.json({ error: "이 댓글을 삭제할 권한을 확인할 수 없습니다." }, { status: 403 });
   }
   await db()`UPDATE comments SET status = 'deleted' WHERE id = ${payload.commentId} AND post_id = ${postId}`;
-  await db()`UPDATE posts SET comment_count = (SELECT COUNT(*)::INTEGER FROM comments WHERE post_id = ${postId} AND status = 'approved'), updated_at = NOW() WHERE id = ${postId}`;
+  await db()`UPDATE posts SET comment_count = (SELECT COUNT(*)::INTEGER FROM comments WHERE post_id = ${postId} AND status = 'approved' AND created_at <= NOW()), updated_at = NOW() WHERE id = ${postId}`;
   return Response.json({ deleted: true }, { headers: { "cache-control": "no-store" } });
 }
