@@ -18,7 +18,6 @@ export type Comment = {
   body: string;
   createdAt: string;
   displayName?: string;
-  isSeeded?: boolean;
 };
 
 type ReviewFeedback = {
@@ -762,7 +761,7 @@ function PostDetail({ post, onBack, onReact, onShare, onComment, canDeletePost, 
             : commentsLoadError
               ? <div className="comments-load-error" role="alert"><p>{commentsLoadError}</p><button type="button" onClick={()=>void loadComments()}>다시 시도</button></div>
               : detailComments.length
-                ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}{item.isSeeded&&<small className="seed-comment-label">대화 씨앗</small>}</span><span><time>{item.createdAt}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>)
+                ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><span><time>{item.createdAt}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>)
                 : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>
