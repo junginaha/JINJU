@@ -1,4 +1,4 @@
-import { getAdminIdentity } from "../../../../lib/admin-auth";
+import { getAdminIdentity, hasValidMutationOrigin } from "../../../../lib/admin-auth";
 import { applyCommentOverrides, contentOverrides } from "../../../../lib/content-overrides";
 import { db, databaseEnabled, ensureSchema } from "../../../../lib/db";
 import { editorialComments, editorialPost } from "../../../../lib/editorial";
@@ -15,7 +15,7 @@ async function requireSuperadmin(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const limit = rateLimit(request, "admin-content", 20, 10 * 60_000);
+  const limit = await rateLimit(request, "admin-content", 20, 10 * 60_000);
   if (!limit.allowed) return Response.json({ error: "관리 요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }, { status: 429 });
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   if (!await requireSuperadmin(request)) return Response.json({ error: "주관리자 권한이 필요합니다." }, { status: 403 });
@@ -54,8 +54,9 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const limit = rateLimit(request, "admin-content-write", 60, 10 * 60_000);
+  const limit = await rateLimit(request, "admin-content-write", 60, 10 * 60_000);
   if (!limit.allowed) return Response.json({ error: "관리 요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }, { status: 429 });
+  if (!hasValidMutationOrigin(request)) return Response.json({ error: "요청 출처를 확인할 수 없습니다." }, { status: 403 });
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   if (!await requireSuperadmin(request)) return Response.json({ error: "주관리자 권한이 필요합니다." }, { status: 403 });
   const payload = await request.json().catch(() => ({})) as {

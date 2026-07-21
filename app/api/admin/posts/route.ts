@@ -1,4 +1,4 @@
-import { isAdminRequest } from "../../../../lib/admin-auth";
+import { hasValidMutationOrigin, isAdminRequest } from "../../../../lib/admin-auth";
 import { db, databaseEnabled, ensureSchema, hash } from "../../../../lib/db";
 import { editorialPost, editorialPosts } from "../../../../lib/editorial";
 import { rateLimit } from "../../../../lib/rate-limit";
@@ -10,7 +10,7 @@ function unavailable() {
 }
 
 export async function GET(request: Request) {
-  const limit = rateLimit(request, "admin-review", 12, 10 * 60_000);
+  const limit = await rateLimit(request, "admin-review", 12, 10 * 60_000);
   if (!limit.allowed) return Response.json({ error: "인증 요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
   if (!databaseEnabled()) return unavailable();
   if (!await isAdminRequest(request)) return Response.json({ error: "운영자 비밀번호를 확인해주세요." }, { status: 401 });
@@ -46,8 +46,9 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const limit = rateLimit(request, "admin-review", 30, 10 * 60_000);
+  const limit = await rateLimit(request, "admin-review", 30, 10 * 60_000);
   if (!limit.allowed) return Response.json({ error: "처리 요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
+  if (!hasValidMutationOrigin(request)) return Response.json({ error: "요청 출처를 확인할 수 없습니다." }, { status: 403 });
   if (!databaseEnabled()) return unavailable();
   if (!await isAdminRequest(request)) return Response.json({ error: "운영자 비밀번호를 확인해주세요." }, { status: 401 });
   const payload = await request.json().catch(() => ({})) as { id?: string; action?: "approve" | "reject" | "set-reactions"; heard?: number; same?: number };

@@ -64,6 +64,36 @@ export async function ensureSchema() {
         )`;
       await sql`ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'admin'`;
       await sql`
+        CREATE TABLE IF NOT EXISTS admin_sessions (
+          token_hash TEXT PRIMARY KEY,
+          admin_id TEXT NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS rate_limits (
+          scope TEXT NOT NULL,
+          actor_hash TEXT NOT NULL,
+          window_start BIGINT NOT NULL,
+          request_count INTEGER NOT NULL DEFAULT 1,
+          expires_at TIMESTAMPTZ NOT NULL,
+          PRIMARY KEY (scope, actor_hash, window_start)
+        )`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS feedback_reports (
+          receipt TEXT PRIMARY KEY,
+          post_id TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '',
+          check_key_hash TEXT NOT NULL,
+          reporter_hash TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'received',
+          auto_blinded BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          expires_at TIMESTAMPTZ NOT NULL
+        )`;
+      await sql`
         CREATE TABLE IF NOT EXISTS admin_content_overrides (
           kind TEXT NOT NULL CHECK (kind IN ('post', 'comment')),
           id TEXT NOT NULL,
@@ -84,6 +114,10 @@ export async function ensureSchema() {
       await sql`CREATE INDEX IF NOT EXISTS comments_post_created_idx ON comments(post_id, created_at ASC)`;
       await sql`CREATE INDEX IF NOT EXISTS post_reactions_created_idx ON post_reactions(created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS admin_content_overrides_post_idx ON admin_content_overrides(post_id, kind)`;
+      await sql`CREATE INDEX IF NOT EXISTS admin_sessions_expiry_idx ON admin_sessions(expires_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS rate_limits_expiry_idx ON rate_limits(expires_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS feedback_reports_post_created_idx ON feedback_reports(post_id, created_at DESC)`;
+      await sql`CREATE INDEX IF NOT EXISTS feedback_reports_expiry_idx ON feedback_reports(expires_at)`;
       await sql`
         UPDATE posts AS post
         SET comment_count = (

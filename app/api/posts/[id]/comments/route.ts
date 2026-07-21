@@ -6,6 +6,7 @@ import { supplementalComments } from "../../../../../lib/supplemental-comments";
 import { applyCommentOverrides, contentOverrides } from "../../../../../lib/content-overrides";
 import { getPublicPost } from "../../../../../lib/public-posts";
 import { normalizeCommentTimes } from "../../../../../lib/comment-time";
+import { rateLimit } from "../../../../../lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const limit = await rateLimit(request, "comment", 12, 10 * 60_000);
+  if (!limit.allowed) return Response.json({ error: "짧은 시간에 댓글 등록이 많았습니다. 잠시 후 다시 시도해주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   const { id: postId } = await context.params;
   if (HIDDEN_DUPLICATE_POST_IDS.has(postId)) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
@@ -74,6 +77,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const limit = await rateLimit(request, "comment-delete", 20, 10 * 60_000);
+  if (!limit.allowed) return Response.json({ error: "삭제 요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }, { status: 429 });
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   const { id: postId } = await context.params;
   const payload = await request.json().catch(() => ({})) as { commentId?: string; deleteKey?: string };

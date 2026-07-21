@@ -30,6 +30,16 @@ type ManagedPost = {
   createdAt: string;
   comments: ManagedComment[];
 };
+type FeedbackReport = {
+  receipt: string;
+  postId: string;
+  postTitle: string;
+  reason: string;
+  detail: string;
+  status: string;
+  autoBlinded: boolean;
+  createdAt: string;
+};
 
 export default function AdminReview() {
   const [username, setUsername] = useState("junginaha");
@@ -37,40 +47,63 @@ export default function AdminReview() {
   const [posts, setPosts] = useState<PendingPost[]>([]);
   const [reactions, setReactions] = useState<ReactionPost[]>([]);
   const [managedContent, setManagedContent] = useState<ManagedPost[] | null>(null);
+  const [reports, setReports] = useState<FeedbackReport[]>([]);
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState("");
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    try {
-      setUsername(sessionStorage.getItem("jinju-admin-username") || "junginaha");
-      setSecret(sessionStorage.getItem("jinju-admin-review-secret") || "");
-    } catch { /* Private browsing. */ }
-  }, []);
-
-  function adminHeaders() {
-    return { "x-admin-username": username.trim().toLowerCase(), "x-admin-secret": secret };
-  }
-
-  async function load(event?: FormEvent) {
-    event?.preventDefault();
+  async function loadAdminData() {
     setMessage("승인 대기 글을 불러오는 중입니다…");
-    const response = await fetch("/api/admin/posts", { headers: adminHeaders(), cache: "no-store" });
+    const response = await fetch("/api/admin/posts", { credentials: "same-origin", cache: "no-store" });
     const data = await response.json() as { posts?: PendingPost[]; reactions?: ReactionPost[]; error?: string };
     if (!response.ok) { setMessage(data.error || "불러오지 못했습니다."); setReady(false); return; }
-    try {
-      sessionStorage.setItem("jinju-admin-username", username.trim().toLowerCase());
-      sessionStorage.setItem("jinju-admin-review-secret", secret);
-    } catch { /* Private browsing. */ }
     setPosts(data.posts || []);
     setReactions(data.reactions || []);
-    const contentResponse = await fetch("/api/admin/content", { headers: adminHeaders(), cache: "no-store" });
+    const [contentResponse, feedbackResponse] = await Promise.all([
+      fetch("/api/admin/content", { credentials: "same-origin", cache: "no-store" }),
+      fetch("/api/admin/feedback", { credentials: "same-origin", cache: "no-store" }),
+    ]);
     if (contentResponse.ok) {
       const contentData = await contentResponse.json() as { content?: ManagedPost[] };
       setManagedContent(contentData.content || []);
     } else setManagedContent(null);
+    if (feedbackResponse.ok) {
+      const feedbackData = await feedbackResponse.json() as { reports?: FeedbackReport[] };
+      setReports(feedbackData.reports || []);
+    } else setReports([]);
     setReady(true);
     setMessage(data.posts?.length ? "" : "현재 승인 대기 중인 글이 없습니다.");
+  }
+
+  useEffect(() => {
+    void fetch("/api/admin/session", { credentials: "same-origin", cache: "no-store" })
+      .then((response) => { if (response.ok) return loadAdminData(); })
+      .catch(() => undefined);
+  }, []);
+
+  async function load(event?: FormEvent) {
+    event?.preventDefault();
+    setMessage("로그인하는 중입니다…");
+    const response = await fetch("/api/admin/session", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: username.trim().toLowerCase(), password: secret }),
+    });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) { setMessage(data.error || "로그인하지 못했습니다."); setReady(false); return; }
+    setSecret("");
+    await loadAdminData();
+  }
+
+  async function logout() {
+    await fetch("/api/admin/session", { method: "DELETE", credentials: "same-origin" });
+    setReady(false);
+    setPosts([]);
+    setReactions([]);
+    setManagedContent(null);
+    setReports([]);
+    setMessage("로그아웃했습니다.");
   }
 
   async function decide(id: string, action: "approve" | "reject") {
@@ -79,7 +112,8 @@ export default function AdminReview() {
     setMessage("");
     const response = await fetch("/api/admin/posts", {
       method: "PATCH",
-      headers: { "content-type": "application/json", ...adminHeaders() },
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ id, action }),
     });
     const data = await response.json() as { error?: string };
@@ -93,7 +127,8 @@ export default function AdminReview() {
     setMessage("");
     const response = await fetch("/api/admin/posts", {
       method: "PATCH",
-      headers: { "content-type": "application/json", ...adminHeaders() },
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ id: post.id, action: "set-reactions", heard: post.heard, same: post.same }),
     });
     const data = await response.json() as { heard?: number; same?: number; error?: string };
@@ -108,7 +143,8 @@ export default function AdminReview() {
   async function updateManaged(payload: Record<string, unknown>) {
     const response = await fetch("/api/admin/content", {
       method: "PATCH",
-      headers: { "content-type": "application/json", ...adminHeaders() },
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
     });
     const data = await response.json() as { error?: string };
@@ -159,9 +195,28 @@ export default function AdminReview() {
     setBusyId("");
   }
 
+  async function decideFeedback(report: FeedbackReport, action: "keep" | "hide") {
+    if (!window.confirm(action === "hide" ? "이 글을 블라인드할까요?" : "이 글을 유지할까요? 임시 블라인드 상태라면 다시 공개됩니다.")) return;
+    setBusyId(`feedback:${report.receipt}`);
+    setMessage("");
+    const response = await fetch("/api/admin/feedback", {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ receipt: report.receipt, action }),
+    });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) setMessage(data.error || "접수 건을 처리하지 못했습니다.");
+    else {
+      setReports((current) => current.map((item) => item.postId === report.postId ? { ...item, status: "resolved" } : item));
+      setMessage(action === "hide" ? "운영자 판단으로 글을 블라인드했습니다." : "운영자 판단으로 글을 유지했습니다.");
+    }
+    setBusyId("");
+  }
+
   return (
     <main className="admin-review-page">
-      <header><p>JINJU · 운영</p><h1>승인 대기 글</h1><a href="/">사이트로 돌아가기</a></header>
+      <header><p>JINJU · 운영</p><h1>승인 대기 글</h1><a href="/">사이트로 돌아가기</a>{ready && <button className="admin-logout" type="button" onClick={logout}>로그아웃</button>}</header>
       {!ready && <form onSubmit={load} className="admin-login">
         <label htmlFor="admin-username">운영자 아이디</label>
         <input id="admin-username" type="text" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} />
@@ -171,6 +226,15 @@ export default function AdminReview() {
       </form>}
       {message && <p className="admin-message" role="status">{message}</p>}
       {ready && <>
+        <section className="admin-feedback-manager">
+          <div><p>익명 접수</p><h2>의견 보내기</h2></div>
+          {reports.filter((report) => report.status !== "resolved").length === 0 && <p className="admin-feedback-empty">확인할 접수 건이 없습니다.</p>}
+          {reports.filter((report) => report.status !== "resolved").map((report) => <article key={report.receipt}>
+            <div className="admin-post-meta"><span>{report.reason}{report.autoBlinded ? " · 임시 블라인드" : ""}</span><time>{new Date(report.createdAt).toLocaleString("ko-KR")}</time></div>
+            <h3>{report.postTitle}</h3><p>{report.detail || "추가 설명 없음"}</p><small>{report.receipt}</small>
+            <div className="admin-decision-buttons"><button className="admin-reject" type="button" disabled={busyId === `feedback:${report.receipt}`} onClick={() => decideFeedback(report, "hide")}>블라인드</button><button className="admin-approve" type="button" disabled={busyId === `feedback:${report.receipt}`} onClick={() => decideFeedback(report, "keep")}>유지</button></div>
+          </article>)}
+        </section>
         <section className="admin-pending-list">
           {posts.map((post) => <article key={post.id}>
             <div className="admin-post-meta"><span>{post.category}</span><time>{new Date(post.createdAt).toLocaleString("ko-KR")}</time></div>

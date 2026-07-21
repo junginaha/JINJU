@@ -7,5 +7,11 @@
       "destination": "https://xn--o55b9n.kr/$1",
       "permanent": true
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/maintenance",
+      "schedule": "17 18 * * *"
+    }
   ]
 }

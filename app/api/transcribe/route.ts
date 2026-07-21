@@ -1,6 +1,10 @@
+import { rateLimit } from "../../../lib/rate-limit";
+
 export const runtime="nodejs";
 export async function POST(request:Request){
   try{
+    const limit=await rateLimit(request,"transcribe",10,10*60_000);
+    if(!limit.allowed)return Response.json({error:"음성 요청이 잠시 몰렸습니다. 잠시 후 다시 시도해주세요."},{status:429});
     const form=await request.formData(),audio=form.get("audio");
     if(!(audio instanceof File)||audio.size<100)return Response.json({error:"음성 파일을 확인할 수 없습니다."},{status:400});
     if(audio.size>25*1024*1024)return Response.json({error:"녹음은 25MB 이하만 변환할 수 있습니다."},{status:413});

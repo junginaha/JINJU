@@ -4,7 +4,7 @@ import { rateLimit } from "../../../lib/rate-limit";
 import { issueReviewToken } from "../../../lib/review-token";
 
 export async function POST(request: Request) {
-  const limit = rateLimit(request, "review", 10, 60_000);
+  const limit = await rateLimit(request, "review", 10, 60_000);
   if (!limit.allowed) return Response.json({ error: "검수 요청이 잠시 몰렸습니다. 잠깐 뒤 다시 눌러주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
   const payload = await request.json() as { title?: string; text?: string; category?: string };
   const title = payload.title?.trim() ?? "";

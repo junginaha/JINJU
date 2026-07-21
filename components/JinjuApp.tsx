@@ -4,6 +4,8 @@ import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Intro from "./Intro";
 import PostTemperature from "./PostTemperature";
+import FeedbackDialog from "./FeedbackDialog";
+import InAppBrowserBanner from "./InAppBrowserBanner";
 import { formatCommentTime } from "../lib/comment-time";
 
 type SpeechRecognitionLike = { lang:string; continuous:boolean; interimResults:boolean; maxAlternatives?:number; start:()=>void; stop:()=>void; abort:()=>void; onresult:((event:{resultIndex:number;results:ArrayLike<{isFinal:boolean;0:{transcript:string}}>})=>void)|null; onend:(()=>void)|null; onerror:((event:{error?:string})=>void)|null };
@@ -43,7 +45,7 @@ export type Post = {
   comments: Comment[];
 };
 
-const topics = ["전체", "일상", "관계", "직장", "돈", "사회", "제안", "질문", "광고 홍보"];
+const topics = ["전체", "일상", "관계", "직장", "돈", "사회", "제안", "질문"];
 const POST_DRAFT_KEY="jinju-post-draft-v1",POST_DELETE_KEYS="jinju-owned-posts-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1",REACTION_KEYS="jinju-reacted-posts-v1";
 const MAX_RECORDING_MS=120_000,TRANSCRIPTION_TIMEOUT_MS=25_000;
 
@@ -121,6 +123,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [showIntro, setShowIntro] = useState(true);
   const [introReady, setIntroReady] = useState(false);
   const [posts, setPosts] = useState(initialPosts.length ? initialPosts : seedPosts);
+  const [feedState, setFeedState] = useState<"loading" | "ready" | "error">("loading");
+  const [feedbackPost, setFeedbackPost] = useState<Post | null>(null);
   const [topic, setTopic] = useState("전체");
   const [sort, setSort] = useState<"latest" | "popular">("latest");
   const [query, setQuery] = useState("");
@@ -153,16 +157,16 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const loadPosts = useCallback(async () => {
     try {
       const response = await fetch("/api/posts", { cache: "no-store" });
-      if (!response.ok) return;
+      if (!response.ok) throw new Error("feed");
       const data = await response.json() as { posts?: Array<Omit<Post, "date" | "comments"> & { createdAt: string; commentCount?: number }> };
-      if (!data.posts?.length) return;
-      setPosts(data.posts.map((post) => ({
+      setPosts((data.posts || []).map((post) => ({
         ...post,
         date: new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(post.createdAt)),
         comments: Array.from({ length: post.commentCount ?? 0 }, (_, index) => ({ id: `count-${index}`, body: "", createdAt: "" })),
       })));
+      setFeedState("ready");
     } catch {
-      // The editorial feed remains available if the database is temporarily unavailable.
+      setFeedState("error");
     }
   }, []);
 
@@ -516,6 +520,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   return (
     <>
       {!introReady ? <div className="intro-bootstrap" aria-hidden="true" /> : showIntro && <Intro onComplete={completeIntro} />}
+      <InAppBrowserBanner />
+      {feedbackPost && <FeedbackDialog postId={feedbackPost.id} postTitle={feedbackPost.title} onClose={() => setFeedbackPost(null)} />}
       {selectedPost ? (
         <PostDetail
           key={selectedPost.id}
@@ -524,6 +530,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           onReact={(kind) => react(selectedPost.id, kind)}
           reacted={Boolean(reactedPosts[selectedPost.id])}
           onShare={() => share(selectedPost)}
+          onFeedback={() => setFeedbackPost(selectedPost)}
           onComment={(comment) => addComment(selectedPost.id, comment)}
           canDeletePost={Boolean(postDeleteKeys[selectedPost.id])}
           canDeleteComment={(commentId)=>Boolean(commentDeleteKeys[String(commentId)])}
@@ -550,7 +557,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
             <div className="feed-shell">
               <header className="feed-heading">
-                <div><p className="eyebrow">공개 베타 · 아무도 몰라요 · 개인정보 0%</p><h1>새로운 의견</h1></div>
+                <div><p className="eyebrow">공개 베타 · 개인정보 0%를 지향합니다.</p><h1>새로운 의견</h1></div>
                 <span>{posts.length}개의 공개 의견</span>
               </header>
 
@@ -560,8 +567,10 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                   <p className="beta-notice-identity">조개가 아픔을 감내하며 귀한 보석을 만들어내듯, 사용자의 상처받은 경험과 진짜 속마음을 소중하게 품어주는 다정하고 정제된 공간입니다.</p>
                   <p className="beta-notice-detail">정식 오픈 전 실제 사용 환경을 점검하고 있습니다. 글쓰기·검색·신고·삭제 흐름을 우선 안정화합니다.</p>
                 </div>
-                <nav aria-label="공개 베타 바로가기"><a href="#beta">베타 안내</a><a href="mailto:hello@xn--o55b9n.kr">문제 제보</a><a href="#write">내 글 삭제</a></nav>
+                <nav aria-label="공개 베타 바로가기"><a href="/beta">베타 안내</a><a href="mailto:hello@xn--o55b9n.kr">문제 제보</a><a href="#write">내 글 삭제</a></nav>
               </section>
+
+              {feedState === "error" && <section className="feed-state feed-state-error" role="alert"><div><h2>의견을 불러오지 못했어요.</h2><p>잠시 후 다시 시도해주세요.</p></div><button type="button" onClick={() => { setFeedState("loading"); void loadPosts(); }}>다시 불러오기</button></section>}
 
               <form className="chat-search" role="search" onSubmit={(event) => event.preventDefault()}>
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="무엇이든 검색해 보세요" aria-label="의견 검색어" />
@@ -574,7 +583,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="post-feed" aria-label="익명 의견 목록">
                 {filteredPosts.slice(0, 3).map((post) => (
-                  <PostCard key={post.id} post={post} reacted={Boolean(reactedPosts[post.id])} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} />
+                  <PostCard key={post.id} post={post} reacted={Boolean(reactedPosts[post.id])} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
                 ))}
               </section>
 
@@ -618,7 +627,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                       <div><button className="mic-later-button" onClick={() => setMicPromptOpen(false)} type="button">취소</button><button className="mic-allow-button" onClick={allowAndStartMicrophone} disabled={micPermissionBusy} type="button">{micPermissionBusy ? "마이크 여는 중…" : "허용하고 바로 말하기"}</button></div>
                     </div>
                   </div>}
-                  <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1, 8).map((item) => <option key={item}>{item}</option>)}</select></div>
+                  <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1).map((item) => <option key={item}>{item}</option>)}</select></div>
                   <input ref={titleInputRef} className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
                   <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
                   <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
@@ -630,11 +639,12 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="post-feed continued-feed" aria-label="더 많은 익명 의견">
                 {filteredPosts.slice(3).map((post) => (
-                  <PostCard key={post.id} post={post} reacted={Boolean(reactedPosts[post.id])} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} />
+                  <PostCard key={post.id} post={post} reacted={Boolean(reactedPosts[post.id])} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
                 ))}
               </section>
 
-              {!filteredPosts.length && <section className="feed-empty"><h2>찾는 의견이 없습니다</h2><p>다른 검색어나 게시판을 선택해 보세요.</p></section>}
+              {feedState === "ready" && posts.length === 0 && <section className="feed-empty"><h2>아직 공개된 의견이 없어요.</h2><p>첫 의견을 남겨주세요.</p><a href="#write">의견 남기기</a></section>}
+              {posts.length > 0 && !filteredPosts.length && <section className="feed-empty"><h2>찾는 의견이 없습니다</h2><p>다른 검색어나 게시판을 선택해 보세요.</p></section>}
 
               <section className="bottom-write-cta" aria-label="하단 의견 남기기">
                 <Pearl size={42} /><div><strong>할 말은 하세요!</strong><span className="cta-relief">개운하게~</span></div><a href="#write">의견 남기기</a>
@@ -662,17 +672,18 @@ function Sidebar({ topic, sort, onTopic, onSort, mobileOpen }: {
       <nav className="channel-list" aria-label="주제 게시판">{topics.map((item) => <button key={item} className={topic === item ? "active" : ""} onClick={() => onTopic(item)} type="button"><span>{item === "전체" ? "◉" : "#"}</span>{item}</button>)}</nav>
       <p className="sidebar-label">피드</p>
       <nav className="channel-list" aria-label="피드 정렬"><button className={sort === "latest" ? "active" : ""} onClick={() => onSort("latest")} type="button"><span>◷</span>최신 의견</button><button className={sort === "popular" ? "active" : ""} onClick={() => onSort("popular")} type="button"><span>↗</span>인기 의견</button></nav>
-      <div className="sidebar-footer"><a href="#beta">공개 베타</a><a href="#principles">운영원칙</a><a href="#safe">안전 안내</a><a href="#privacy">개인정보</a><a href="mailto:hello@xn--o55b9n.kr">신고</a><p>개인정보를 운영 데이터로 수집하지 않습니다.</p></div>
+      <div className="sidebar-footer"><a href="/beta">공개 베타</a><a href="/principles">운영원칙</a><a href="/safety">안전 안내</a><a href="/privacy">개인정보</a><a href="mailto:hello@xn--o55b9n.kr">신고</a><p>개인정보 0%를 지향합니다.<br />이름·연락처 등 개인 식별정보를 요구하지 않습니다.</p></div>
     </aside>
   );
 }
 
-function PostCard({ post, reacted, onOpen, onReact, onShare }: {
+function PostCard({ post, reacted, onOpen, onReact, onShare, onFeedback }: {
   post: Post;
   reacted: boolean;
   onOpen: () => void;
   onReact: (kind: "heard" | "same") => void;
   onShare: () => void;
+  onFeedback: () => void;
 }) {
   return (
     <article className="feed-post">
@@ -686,18 +697,19 @@ function PostCard({ post, reacted, onOpen, onReact, onShare }: {
         <button onClick={() => onReact("same")} type="button" disabled={reacted}>싫어요</button>
         <button onClick={onOpen} type="button">댓글 <span>{post.comments.length}</span></button>
         <button className="share-post-button" onClick={onShare} type="button">공유하기</button>
-        <a className="post-report" href="mailto:hello@xn--o55b9n.kr">의견 보내기</a>
+        <button className="post-report" type="button" onClick={onFeedback}>의견 보내기</button>
       </div>
     </article>
   );
 }
 
-function PostDetail({ post, reacted, onBack, onReact, onShare, onComment, canDeletePost, canDeleteComment, onDeletePost, onDeleteComment }: {
+function PostDetail({ post, reacted, onBack, onReact, onShare, onFeedback, onComment, canDeletePost, canDeleteComment, onDeletePost, onDeleteComment }: {
   post: Post;
   reacted: boolean;
   onBack: () => void;
   onReact: (kind: "heard" | "same") => void;
   onShare: () => void;
+  onFeedback: () => void;
   onComment: (comment: string) => Promise<Comment>;
   canDeletePost:boolean;
   canDeleteComment:(commentId:string|number)=>boolean;
@@ -763,7 +775,7 @@ function PostDetail({ post, reacted, onBack, onReact, onShare, onComment, canDel
           <div className="post-meta"><span>{post.category}</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />
-          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reacted}><Pearl size={16} /><span>좋아요</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reacted}>싫어요</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button">공유하기</button><a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a>{canDeletePost&&<button className="own-delete-button" onClick={removePost} disabled={deleteBusy==="post"} type="button">{deleteBusy==="post"?"삭제 중…":"내 글 삭제"}</button>}</div>
+          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reacted}><Pearl size={16} /><span>좋아요</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reacted}>싫어요</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button">공유하기</button><button type="button" onClick={onFeedback}>의견 보내기</button>{canDeletePost&&<button className="own-delete-button" onClick={removePost} disabled={deleteBusy==="post"} type="button">{deleteBusy==="post"?"삭제 중…":"내 글 삭제"}</button>}</div>
         </article>
         <section className="comment-list" id="comment-list" aria-label="댓글 목록">
           <h2>댓글 {commentsLoading ? "…" : detailComments.length}</h2>

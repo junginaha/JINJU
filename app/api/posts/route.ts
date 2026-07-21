@@ -64,7 +64,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const limit = rateLimit(request, "post", 6, 10 * 60_000);
+  const limit = await rateLimit(request, "post", 6, 10 * 60_000);
   if (!limit.allowed) return Response.json({ error: "짧은 시간에 등록 요청이 많았습니다. 잠시 후 다시 시도해주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   const payload = await request.json() as { title?: string; content?: string; category?: string; acceptReviewHold?: boolean; reviewToken?: string };

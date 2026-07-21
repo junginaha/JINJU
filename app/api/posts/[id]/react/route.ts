@@ -1,6 +1,7 @@
 import { db, databaseEnabled, ensureSchema, hash } from "../../../../../lib/db";
 import { editorialPost } from "../../../../../lib/editorial";
 import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
+import { rateLimit } from "../../../../../lib/rate-limit";
 
 const REACTION_COOKIE = "jinju-reaction-device";
 
@@ -9,16 +10,19 @@ function reactionDevice(request: Request) {
   const current = cookies.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${REACTION_COOKIE}=`))?.slice(REACTION_COOKIE.length + 1);
   if (current && /^[a-zA-Z0-9-]{20,80}$/.test(current)) return { id: current, setCookie: "" };
   const id = crypto.randomUUID();
-  return { id, setCookie: `${REACTION_COOKIE}=${id}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax` };
+  return { id, setCookie: `${REACTION_COOKIE}=${id}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax` };
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const limit = await rateLimit(request, "reaction", 30, 10 * 60_000);
+  if (!limit.allowed) return Response.json({ error: "반응 요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }, { status: 429 });
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   const { id } = await context.params;
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return Response.json({ error: "의견을 찾을 수 없습니다." }, { status: 404 });
   const { kind } = await request.json() as { kind?: "heard" | "same" };
   if (!kind || !["heard", "same"].includes(kind)) return Response.json({ error: "올바른 반응을 선택해주세요." }, { status: 400 });
   await ensureSchema();
+  await db()`DELETE FROM post_reactions WHERE created_at <= NOW() - INTERVAL '30 days'`;
   const device = reactionDevice(request);
   const voterHash = await hash(`reaction:${device.id}`);
   let rows = await db()`SELECT id FROM posts WHERE id = ${id} LIMIT 1`;

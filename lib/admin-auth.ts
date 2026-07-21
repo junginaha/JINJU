@@ -1,6 +1,8 @@
-import { db, databaseEnabled, ensureSchema } from "./db";
+import { db, databaseEnabled, ensureSchema, hash, token } from "./db";
 
 const PASSWORD_ITERATIONS = 210_000;
+export const ADMIN_SESSION_COOKIE = "__Host-jinju-admin";
+const ADMIN_SESSION_MAX_AGE = 8 * 60 * 60;
 
 export function timingSafeEqual(left: string, right: string) {
   const encoder = new TextEncoder();
@@ -38,20 +40,71 @@ export async function createAdminCredential(password: string) {
 
 export type AdminIdentity = { id: string; role: "admin" | "superadmin" };
 
-export async function getAdminIdentity(request: Request): Promise<AdminIdentity | null> {
+export async function authenticateAdminCredential(usernameInput: string, password: string): Promise<AdminIdentity | null> {
   const expected = process.env.ADMIN_REVIEW_SECRET;
-  const supplied = request.headers.get("x-admin-secret") || "";
-  const username = (request.headers.get("x-admin-username") || "owner").trim().toLowerCase();
-  if (!supplied) return null;
-  if (expected && username === "owner" && timingSafeEqual(expected, supplied)) return { id: "owner", role: "admin" };
+  const username = usernameInput.trim().toLowerCase();
+  if (!password) return null;
+  if (expected && username === "owner" && timingSafeEqual(expected, password)) return { id: "owner", role: "admin" };
   if (!/^[a-z0-9_-]{1,64}$/.test(username)) return null;
   if (!databaseEnabled()) return null;
   await ensureSchema();
   const rows = await db()`SELECT password_salt, password_hash, password_iterations, role FROM admin_credentials WHERE id = ${username} LIMIT 1`;
   if (!rows[0]) return null;
-  const actual = await derivePasswordHash(supplied, String(rows[0].password_salt), Number(rows[0].password_iterations));
+  const actual = await derivePasswordHash(password, String(rows[0].password_salt), Number(rows[0].password_iterations));
   if (!timingSafeEqual(String(rows[0].password_hash), actual)) return null;
   return { id: username, role: String(rows[0].role) === "superadmin" ? "superadmin" : "admin" };
+}
+
+function cookieValue(request: Request, name: string) {
+  const cookies = request.headers.get("cookie") || "";
+  return cookies.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1) || "";
+}
+
+export async function createAdminSession(identity: AdminIdentity) {
+  await ensureSchema();
+  const sessionToken = token(24);
+  await db()`DELETE FROM admin_sessions WHERE expires_at <= NOW()`;
+  await db()`
+    INSERT INTO admin_sessions (token_hash, admin_id, expires_at)
+    VALUES (${await hash(sessionToken)}, ${identity.id}, NOW() + INTERVAL '8 hours')`;
+  return {
+    sessionToken,
+    cookie: `${ADMIN_SESSION_COOKIE}=${sessionToken}; Path=/; Max-Age=${ADMIN_SESSION_MAX_AGE}; HttpOnly; Secure; SameSite=Strict`,
+  };
+}
+
+export async function deleteAdminSession(request: Request) {
+  const sessionToken = cookieValue(request, ADMIN_SESSION_COOKIE);
+  if (sessionToken && databaseEnabled()) {
+    await ensureSchema();
+    await db()`DELETE FROM admin_sessions WHERE token_hash = ${await hash(sessionToken)}`;
+  }
+}
+
+export function clearAdminSessionCookie() {
+  return `${ADMIN_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
+}
+
+export async function getAdminIdentity(request: Request): Promise<AdminIdentity | null> {
+  const sessionToken = cookieValue(request, ADMIN_SESSION_COOKIE);
+  if (!sessionToken || !databaseEnabled()) return null;
+  await ensureSchema();
+  const rows = await db()`
+    SELECT session.admin_id, credential.role
+    FROM admin_sessions AS session
+    LEFT JOIN admin_credentials AS credential ON credential.id = session.admin_id
+    WHERE session.token_hash = ${await hash(sessionToken)} AND session.expires_at > NOW()
+    LIMIT 1`;
+  if (!rows[0]) return null;
+  const id = String(rows[0].admin_id);
+  const role = id === "owner" ? "admin" : String(rows[0].role) === "superadmin" ? "superadmin" : "admin";
+  return { id, role };
+}
+
+export function hasValidMutationOrigin(request: Request) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  return origin === new URL(request.url).origin;
 }
 
 export async function isAdminRequest(request: Request) {

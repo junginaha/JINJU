@@ -404,9 +404,64 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .admin-comment-manager { display: grid; gap: 10px; margin-top: 14px; padding-top: 18px; border-top: 1px solid #353535; }
 .admin-comment-manager h3 { margin: 0; font-size: 15px; }
 .admin-comment-manager article { display: grid; gap: 10px; padding: 14px; background: #202020; border-radius: 12px; }
+.admin-logout { position: absolute; top: 30px; right: 0; padding: 0; color: #aaa; font-size: 11px; background: transparent; border: 0; cursor: pointer; }
+.admin-feedback-manager { display: grid; gap: 12px; margin-top: 28px; padding-bottom: 28px; border-bottom: 1px solid #303030; }
+.admin-feedback-manager > div > p { margin: 0 0 6px; color: #7fd4dc; font-size: 10px; font-weight: 750; letter-spacing: .11em; }
+.admin-feedback-manager > div > h2 { margin: 0; font-size: 23px; }
+.admin-feedback-manager article { padding: 18px; background: #202020; border: 1px solid #343434; border-radius: 15px; }
+.admin-feedback-manager h3 { margin: 13px 0 8px; font-size: 16px; }
+.admin-feedback-manager article > p { color: #bbb; font-size: 12px; line-height: 1.6; }
+.admin-feedback-manager article > small, .admin-feedback-empty { color: #888; font-size: 10px; }
+.feed-state { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 18px 0; padding: 16px 18px; background: #231f1f; border: 1px solid #493737; border-radius: 14px; }
+.feed-state h2 { margin: 0 0 4px; color: #f0dada; font-size: 15px; }
+.feed-state p { margin: 0; color: #a98f8f; font-size: 11px; }
+.feed-state button, .feed-empty a { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; padding: 0 14px; color: #111; font-size: 11px; font-weight: 750; background: #f4f4f4; border: 0; border-radius: 9px; cursor: pointer; }
+.feed-empty a { margin-top: 12px; }
+.inapp-banner { position: fixed; z-index: 90; top: max(10px,env(safe-area-inset-top)); left: 50%; display: grid; width: min(calc(100% - 24px),720px); grid-template-columns: minmax(0,1fr) auto auto auto; align-items: center; gap: 8px; padding: 12px 12px 12px 15px; color: #eee; background: #242424f5; border: 1px solid #484848; border-radius: 14px; box-shadow: 0 18px 55px #0009; backdrop-filter: blur(14px); transform: translateX(-50%); }
+.inapp-banner strong { font-size: 12px; }
+.inapp-banner p { margin: 3px 0 0; color: #aaa; font-size: 10px; line-height: 1.5; }
+.inapp-banner span { display: block; margin-top: 4px; color: #9fcbd0; font-size: 10px; }
+.inapp-banner button { min-height: 36px; padding: 0 11px; color: #111; font-size: 10px; font-weight: 750; background: #f4f4f4; border: 0; border-radius: 9px; cursor: pointer; }
+.inapp-banner .inapp-help { color: #ddd; background: #333; }
+.inapp-banner .inapp-close { min-width: 32px; padding: 0; color: #aaa; font-size: 20px; background: transparent; }
+.feedback-overlay { position: fixed; z-index: 110; inset: 0; display: grid; place-items: center; padding: 18px; background: #000b; }
+.feedback-dialog { position: relative; width: min(100%,460px); max-height: calc(100dvh - 36px); padding: 26px; overflow-y: auto; color: #eee; background: #202020; border: 1px solid #424242; border-radius: 20px; box-shadow: 0 28px 80px #000b; }
+.feedback-close { position: absolute; top: 13px; right: 13px; width: 36px; height: 36px; color: #aaa; font-size: 22px; background: transparent; border: 0; cursor: pointer; }
+.feedback-eyebrow { margin: 0 0 7px; color: #7fd4dc; font-size: 10px; font-weight: 750; letter-spacing: .1em; }
+.feedback-dialog h2 { margin: 0 0 15px; font-size: 24px; letter-spacing: -.04em; }
+.feedback-dialog > p, .feedback-dialog form > p { color: #aaa; font-size: 12px; line-height: 1.65; }
+.feedback-dialog .feedback-target { padding: 11px 12px; color: #ccc; background: #171717; border-radius: 9px; }
+.feedback-dialog label { display: grid; gap: 6px; margin-top: 13px; color: #aaa; font-size: 11px; }
+.feedback-dialog label span { color: #777; }
+.feedback-dialog select, .feedback-dialog textarea { width: 100%; padding: 11px 12px; color: #eee; font: inherit; font-size: 14px; background: #171717; border: 1px solid #3c3c3c; border-radius: 10px; }
+.feedback-dialog textarea { resize: vertical; }
+.feedback-dialog small { display: block; margin-top: 7px; color: #888; font-size: 10px; }
+.feedback-primary, .feedback-secondary { width: 100%; min-height: 46px; margin-top: 16px; color: #111; font-weight: 750; background: #f4f4f4; border: 0; border-radius: 10px; cursor: pointer; }
+.feedback-primary:disabled { cursor: wait; opacity: .55; }
+.feedback-secondary { margin-top: 8px; color: #bbb; background: #303030; }
+.feedback-error { color: #e8a9a9 !important; }
+.feedback-status { color: #9fcbd0 !important; text-align: center; }
+.feedback-dialog dl { display: grid; gap: 8px; margin: 16px 0; }
+.feedback-dialog dl div { padding: 11px 12px; background: #171717; border-radius: 10px; }
+.feedback-dialog dt { color: #888; font-size: 9px; }
+.feedback-dialog dd { margin: 5px 0 0; color: #f2f2f2; font-size: 15px; font-weight: 750; letter-spacing: .04em; overflow-wrap: anywhere; }
+.policy-page { width: min(calc(100% - 32px),760px); min-height: 100dvh; margin: 0 auto; padding: 48px 0 100px; color: #eee; }
+.policy-page header { padding-bottom: 28px; border-bottom: 1px solid #303030; }
+.policy-page header a { color: #aaa; font-size: 11px; }
+.policy-page header p { margin: 34px 0 7px; color: #7fd4dc; font-size: 10px; font-weight: 750; letter-spacing: .12em; }
+.policy-page h1 { margin: 0; font-size: clamp(30px,7vw,46px); letter-spacing: -.05em; }
+.policy-content { display: grid; gap: 14px; padding-top: 28px; }
+.policy-content section { padding: 22px; background: #202020; border: 1px solid #353535; border-radius: 17px; }
+.policy-content h2 { margin: 0 0 11px; color: #f1f1f1; font-size: 18px; line-height: 1.45; }
+.policy-content p { margin: 0; color: #bbb; font-size: 14px; line-height: 1.85; word-break: keep-all; }
 .mobile-menu-scrim { display: none; }
 
 @media (max-width: 760px) {
+  .inapp-banner { grid-template-columns: minmax(0,1fr) auto auto; }
+  .inapp-banner .inapp-help { display: none; }
+  .feedback-dialog { padding: 23px 18px; }
+  .feedback-dialog select, .feedback-dialog textarea { font-size: 16px; }
+  .feed-state { align-items: flex-start; }
   .chat-title, .chat-composer textarea, .comment-composer textarea { font-size: 16px; }
   .review-dialog, .pending-dialog { padding: 22px 18px; border-radius: 20px; }
   .review-dialog-actions { grid-template-columns: 1fr; }
