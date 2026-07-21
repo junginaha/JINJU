@@ -105,7 +105,7 @@ function nickname(postId: string, variant: number) {
 }
 
 function hook(title: string) {
-  const clean = title.replace(/[“”"]/g, "").replace(/[!.]+$/g, "").trim();
+  const clean = title.replace(/[“”"]/g, "").replace(/[?？](?=라는)/g, "").replace(/[!.]+$/g, "").trim();
   if (clean.length <= 28) return clean;
   const clipped = clean.slice(0, 28);
   const lastSpace = clipped.lastIndexOf(" ");
