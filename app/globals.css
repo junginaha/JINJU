@@ -337,7 +337,6 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .comment-list article { padding: 18px 0; border-top: 1px solid #292929; }
 .comment-list article > div { display: flex; justify-content: space-between; color: #aaa; font-size: 11px; }
 .comment-list article > div > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
-.seed-comment-label { padding: 2px 6px; border: 1px solid #3a3a3a; border-radius: 999px; color: #7fd4dc; font-size: 9px; font-weight: 500; letter-spacing: .02em; }
 .comment-list article > div > span:last-child { display: inline-flex; align-items: center; gap: 9px; }
 .comment-delete-button { min-height: 32px; padding: 0 7px; color: #999; font-size: 10px; background: transparent; border: 0; border-radius: 7px; cursor: pointer; }
 .comment-delete-button:hover, .own-delete-button:hover { color: #ef9b9b !important; }
