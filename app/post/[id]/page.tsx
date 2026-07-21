@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const post = await getPublicPost(id);
   if (!post) return { title: "찾을 수 없는 의견 | 진주.kr", robots: { index: false, follow: false } };
   const path = `/post/${encodeURIComponent(post.id)}`;
-  const description = post.content.replace(/\s+/g, " ").slice(0, 150);
+  const description = "인간적으로, 할 말은 하세요! 안전하고 개운하게 속마음을 털어놓으세요";
   return {
     title: `${post.title} | 진주.kr`,
     description,

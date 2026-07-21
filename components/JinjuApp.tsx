@@ -478,10 +478,11 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
   async function share(post: Post) {
     const url = `${window.location.origin}/post/${encodeURIComponent(post.id)}`;
+    const shareText = "인간적으로, 할 말은 하세요!\n\n안전하고 개운하게 속마음을 털어놓으세요";
     if (navigator.share) {
-      await navigator.share({ title: post.title, url }).catch(() => undefined);
+      await navigator.share({ title: post.title, text: shareText, url }).catch(() => undefined);
     } else {
-      await navigator.clipboard?.writeText(url);
+      await navigator.clipboard?.writeText(`${shareText}\n\n${url}`);
     }
   }
 
