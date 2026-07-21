@@ -4,6 +4,7 @@ import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "./cont
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
 import { editorialComments, editorialPost, editorialPosts, type EditorialPost } from "./editorial";
 import { supplementalComments } from "./supplemental-comments";
+import { normalizeCommentTimes } from "./comment-time";
 import type { Post } from "../components/JinjuApp";
 
 function cleanRow(row: Record<string, unknown>): EditorialPost {
@@ -32,7 +33,8 @@ function editorialWithVisibleCommentCount(post: EditorialPost) {
 }
 
 export function toClientPost(post: EditorialPost): Post {
-  const comments = editorialComments(post.id).map(({ id, body, displayName, createdAt }) => ({ id, body, displayName, createdAt }));
+  const comments = normalizeCommentTimes(post.createdAt, editorialComments(post.id))
+    .map(({ id, body, displayName, createdAt }) => ({ id, body, displayName, createdAt }));
   return {
     id: post.id,
     title: post.title,

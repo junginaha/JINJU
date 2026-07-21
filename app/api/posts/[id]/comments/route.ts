@@ -5,6 +5,7 @@ import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 import { supplementalComments } from "../../../../../lib/supplemental-comments";
 import { applyCommentOverrides, contentOverrides } from "../../../../../lib/content-overrides";
 import { getPublicPost } from "../../../../../lib/public-posts";
+import { normalizeCommentTimes } from "../../../../../lib/comment-time";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +17,13 @@ function publicComment(comment: PublicComment): PublicComment {
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
-  if (!await getPublicPost(id)) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
+  const publicPost = await getPublicPost(id);
+  if (!publicPost) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   const editorial = editorialPost(id);
   const fallback = editorialComments(id);
   const overrides = await contentOverrides();
   if (!databaseEnabled()) return editorial
-    ? Response.json({ comments: applyCommentOverrides(fallback, overrides).map(publicComment) }, { headers: { "cache-control": "no-store" } })
+    ? Response.json({ comments: normalizeCommentTimes(publicPost.createdAt, applyCommentOverrides(fallback, overrides)).map(publicComment) }, { headers: { "cache-control": "no-store" } })
     : Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   await ensureSchema();
   const postRows = await db()`SELECT id, title, content, category, created_at FROM posts WHERE id = ${id} AND status = 'approved' LIMIT 1`;
@@ -40,7 +42,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const stored = rows.map((row: Record<string, unknown>) => ({ id: String(row.id), body: String(row.content), displayName: String(row.display_name || "익명"), createdAt: new Date(String(row.created_at)).toISOString() }));
   const merged = new Map(baseComments.map((comment) => [String(comment.id), comment]));
   for (const comment of stored) merged.set(String(comment.id), comment);
-  const comments = [...merged.values()].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  const comments = normalizeCommentTimes(publicPost.createdAt, [...merged.values()]);
   return Response.json({ comments: applyCommentOverrides(comments, overrides).map(publicComment) }, { headers: { "cache-control": "no-store" } });
 }
 
@@ -48,7 +50,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   const { id: postId } = await context.params;
   if (HIDDEN_DUPLICATE_POST_IDS.has(postId)) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
-  if (!await getPublicPost(postId)) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
+  const publicPost = await getPublicPost(postId);
+  if (!publicPost) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
   const payload = await request.json() as { content?: string; displayName?: string };
   const content = payload.content?.trim() ?? "";
   const displayName = (payload.displayName?.trim() || "익명").slice(0, 12);
@@ -63,7 +66,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }
   const id = token(10);
   const deleteKey = token(14);
-  const createdAt = new Date().toISOString();
+  const postTime = Date.parse(publicPost.createdAt);
+  const createdAt = new Date(Math.max(Date.now(), Number.isFinite(postTime) ? postTime + 1 : 0)).toISOString();
   await db()`INSERT INTO comments (id, post_id, content, display_name, delete_key_hash, created_at) VALUES (${id}, ${postId}, ${content}, ${displayName}, ${await hash(deleteKey)}, ${createdAt})`;
   await db()`UPDATE posts SET comment_count = (SELECT COUNT(*)::INTEGER FROM comments WHERE post_id = ${postId} AND status = 'approved'), updated_at = NOW() WHERE id = ${postId}`;
   return Response.json({ id, deleteKey, body: content, displayName, createdAt }, { status: 201 });

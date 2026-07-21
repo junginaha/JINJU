@@ -4,6 +4,7 @@ import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Intro from "./Intro";
 import PostTemperature from "./PostTemperature";
+import { formatCommentTime } from "../lib/comment-time";
 
 type SpeechRecognitionLike = { lang:string; continuous:boolean; interimResults:boolean; maxAlternatives?:number; start:()=>void; stop:()=>void; abort:()=>void; onresult:((event:{resultIndex:number;results:ArrayLike<{isFinal:boolean;0:{transcript:string}}>})=>void)|null; onend:(()=>void)|null; onerror:((event:{error?:string})=>void)|null };
 type SpeechRecognitionConstructor = new()=>SpeechRecognitionLike;
@@ -769,7 +770,7 @@ function PostDetail({ post, reacted, onBack, onReact, onShare, onComment, canDel
             : commentsLoadError
               ? <div className="comments-load-error" role="alert"><p>{commentsLoadError}</p><button type="button" onClick={()=>void loadComments()}>다시 시도</button></div>
               : detailComments.length
-                ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><span><time>{item.createdAt}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>)
+                ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><span><time dateTime={item.createdAt}>{formatCommentTime(item.createdAt)}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>)
                 : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>
