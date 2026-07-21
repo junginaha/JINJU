@@ -67,6 +67,15 @@ const OPENERS = [
   (hook: string) => `이 글의 “${hook}”에 제 경험이 무단으로 특별출연했네요.`,
 ];
 
+const SPECIFIC_TAILS = [
+  (title: string) => `“${title}”라는 제목은 오늘 제 상황 보고서 첫 줄로 빌려갑니다.`,
+  (title: string) => `“${title}”까지 읽고 나니 제 하루도 같은 장르였네요.`,
+  (title: string) => `제 오늘과 눈이 마주친 “${title}”, 조용히 저장해둡니다.`,
+  (title: string) => `“${title}”는 제 마음속 생활기록부에도 같은 제목으로 들어가겠습니다.`,
+  (title: string) => `“${title}”에서 웃고 나니 억울함도 한 칸 줄었어요.`,
+  (title: string) => `오늘의 제 사정은 “${title}” 한 줄이면 설명이 다 되겠습니다.`,
+];
+
 const CATEGORY_ENDINGS: Record<string, string[]> = {
   직장: ["회사에서는 사소한 일도 안건이 되고 제 마음만 늘 기타사항이더라고요.", "오늘도 업무보다 표정 관리가 먼저 출근했습니다."],
   돈: ["계산기는 정확한데 마음의 잔돈은 늘 남더라고요.", "통장도 이 글을 읽고 작게 한숨 쉬었을 것 같습니다."],
@@ -96,7 +105,11 @@ function nickname(postId: string, variant: number) {
 }
 
 function hook(title: string) {
-  return title.replace(/[“”"?!.]/g, "").trim().slice(0, 22);
+  const clean = title.replace(/[“”"?!.]/g, "").trim();
+  if (clean.length <= 22) return clean;
+  const clipped = clean.slice(0, 22);
+  const lastSpace = clipped.lastIndexOf(" ");
+  return lastSpace >= 12 ? clipped.slice(0, lastSpace) : clipped;
 }
 
 function genericPair(post: CommentSourcePost): [string, string] {
@@ -113,10 +126,11 @@ export function supplementalComments(post: CommentSourcePost): SupplementalComme
   const combined = `${post.title}\n${post.content}`;
   const matchedPair = RULES.find((rule) => rule.match.test(combined))?.pair;
   const titleHook = hook(post.title);
+  const seed = hash(post.id);
   const pair = matchedPair
     ? [
-        `${matchedPair[0]} “${titleHook}”라는 제목까지 오늘 제 상황 보고서로 저장합니다.`,
-        `${matchedPair[1]} 이 글은 제 마음속 생활기록부의 “${titleHook}” 항목에 넣어둘게요.`,
+        `${matchedPair[0]} ${SPECIFIC_TAILS[seed % SPECIFIC_TAILS.length](titleHook)}`,
+        `${matchedPair[1]} ${SPECIFIC_TAILS[(seed + 3) % SPECIFIC_TAILS.length](titleHook)}`,
       ]
     : genericPair(post);
   const baseTime = Number.isFinite(Date.parse(post.createdAt)) ? Date.parse(post.createdAt) : Date.now();
