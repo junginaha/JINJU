@@ -415,6 +415,37 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .admin-feedback-manager h3 { margin: 13px 0 8px; font-size: 16px; }
 .admin-feedback-manager article > p { color: #bbb; font-size: 12px; line-height: 1.6; }
 .admin-feedback-manager article > small, .admin-feedback-empty { color: #888; font-size: 10px; }
+.admin-dashboard-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 28px 0 12px; }
+.admin-dashboard-summary article { display: grid; gap: 5px; padding: 16px; background: #202020; border: 1px solid #343434; border-radius: 14px; }
+.admin-dashboard-summary strong { color: #f5f5f5; font-size: 25px; line-height: 1; }
+.admin-dashboard-summary span, .admin-session-note, .admin-filter-result { color: #929292; font-size: 10px; line-height: 1.55; }
+.admin-session-note { margin: 0 0 26px; }
+.admin-content-manager > div > span { display: block; margin: -12px 0 20px; color: #888; font-size: 10px; line-height: 1.6; }
+.admin-content-toolbar { display: grid; grid-template-columns: minmax(0,1fr) 150px auto; gap: 8px; margin: 22px 0 8px; padding: 14px; background: #202020; border: 1px solid #343434; border-radius: 14px; }
+.admin-content-toolbar label { display: grid; gap: 5px; color: #999; font-size: 9px; }
+.admin-content-toolbar input, .admin-content-toolbar select { width: 100%; min-width: 0; min-height: 44px; padding: 0 11px; color: #f2f2f2; font-size: 14px; background: #171717; border: 1px solid #3c3c3c; border-radius: 9px; }
+.admin-content-toolbar button, .admin-new-comment > button { min-height: 44px; align-self: end; padding: 0 14px; color: #111; font-weight: 750; background: #f4f4f4; border: 0; border-radius: 9px; cursor: pointer; }
+.admin-content-manager summary { display: grid; grid-template-columns: auto minmax(0,1fr) auto; }
+.admin-content-manager summary b { min-width: 0; overflow-wrap: anywhere; }
+.admin-content-manager summary em { color: #999; font-size: 10px; font-style: normal; font-weight: 500; }
+.admin-content-manager summary .admin-status { display: inline-flex; min-height: 24px; align-items: center; padding: 0 8px; color: #d9eeee; font-size: 9px; background: #203033; border: 1px solid #365158; border-radius: 999px; }
+.admin-content-manager summary .admin-status-pending { color: #f0d8ac; background: #322b20; border-color: #5b4b2f; }
+.admin-content-manager summary .admin-status-rejected, .admin-content-manager summary .admin-status-deleted { color: #e9b3b3; background: #302121; border-color: #5a3333; }
+.admin-content-manager summary .admin-status-hidden { color: #c4c4c4; background: #292929; border-color: #444; }
+.admin-two-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.admin-inline-reactions { display: grid; grid-template-columns: 110px 110px minmax(0,1fr) auto; padding: 14px; background: #181818; border: 1px solid #333; border-radius: 12px; }
+.admin-inline-reactions input { width: 100%; }
+.admin-inline-reactions > button { align-self: end; }
+.admin-post-actions, .admin-comment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-post-actions button, .admin-comment-actions button, .admin-new-comment button { min-height: 42px; padding: 0 14px; color: #111; font-weight: 750; background: #f4f4f4; border: 0; border-radius: 9px; cursor: pointer; }
+.admin-post-actions button:disabled, .admin-comment-actions button:disabled, .admin-new-comment button:disabled { cursor: wait; opacity: .5; }
+.admin-post-actions .admin-secondary, .admin-comment-actions .admin-secondary { color: #ddd; background: #303030; border: 1px solid #494949; }
+.admin-post-actions .admin-danger, .admin-comment-actions .admin-danger { color: #efb1b1; background: #2a2020; border: 1px solid #5a3333; }
+.admin-post-actions .admin-reject, .admin-comment-actions .admin-reject { color: #efb1b1; background: #2a2020; border: 1px solid #5a3333; }
+.admin-post-actions .admin-approve, .admin-comment-actions .admin-approve { color: #111; background: #f4f4f4; }
+.admin-new-comment { display: grid; gap: 10px; padding: 14px; background: #191f20; border: 1px solid #314044; border-radius: 12px; }
+.admin-new-comment > button { justify-self: start; }
+.admin-comment-muted { opacity: .65; }
 .feed-state { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 18px 0; padding: 16px 18px; background: #231f1f; border: 1px solid #493737; border-radius: 14px; }
 .feed-state h2 { margin: 0 0 4px; color: #f0dada; font-size: 15px; }
 .feed-state p { margin: 0; color: #a98f8f; font-size: 11px; }
@@ -478,6 +509,15 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
   .admin-like-quick-actions button { grid-column: auto; flex: 1; }
   .admin-content-manager summary { align-items: flex-start; }
   .admin-content-editor input, .admin-content-editor select, .admin-content-editor textarea { font-size: 16px; }
+  .admin-dashboard-summary { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .admin-content-toolbar { grid-template-columns: minmax(0,1fr) minmax(110px,.55fr); }
+  .admin-content-toolbar button { grid-column: 1 / -1; }
+  .admin-content-manager summary { grid-template-columns: auto minmax(0,1fr); }
+  .admin-content-manager summary em { grid-column: 2; }
+  .admin-two-fields { grid-template-columns: minmax(0,1fr); }
+  .admin-inline-reactions { grid-template-columns: 1fr 1fr; }
+  .admin-inline-reactions .admin-like-quick-actions, .admin-inline-reactions > button { grid-column: 1 / -1; }
+  .admin-post-actions button, .admin-comment-actions button { flex: 1 1 120px; }
   .chat-sidebar { display: none; }
   .chat-sidebar.mobile-open { position: fixed; z-index: 60; display: flex; width: min(82vw,300px); box-shadow: 18px 0 50px #0009; }
   .mobile-menu-scrim { position: fixed; z-index: 50; inset: 0; display: block; width: 100%; height: 100%; background: #0008; border: 0; }
