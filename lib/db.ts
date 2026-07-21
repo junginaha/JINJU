@@ -50,6 +50,18 @@ export async function ensureSchema() {
       await sql`UPDATE comments SET status = 'hidden' WHERE post_id = 'unused-subscriptions'`;
       await sql`UPDATE posts SET status = 'deleted', updated_at = NOW() WHERE id = '53446x5m240c181m1n5c'`;
       await sql`UPDATE comments SET status = 'hidden' WHERE post_id = '53446x5m240c181m1n5c'`;
+      await sql`
+        UPDATE posts AS post
+        SET comment_count = (
+          SELECT COUNT(*)::INTEGER
+          FROM comments AS comment
+          WHERE comment.post_id = post.id AND comment.status = 'approved'
+        )
+        WHERE post.comment_count <> (
+          SELECT COUNT(*)::INTEGER
+          FROM comments AS comment
+          WHERE comment.post_id = post.id AND comment.status = 'approved'
+        )`;
     })().catch((error) => {
       schemaReady = null;
       throw error;

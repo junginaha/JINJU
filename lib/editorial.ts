@@ -1,3 +1,5 @@
+import { supplementalComments } from "./supplemental-comments";
+
 export type EditorialPost = { id:string; title:string; content:string; category:string; mode?:string; createdAt:string; updatedAt?:string; heard:number; same:number; support:number; commentCount:number };
 export type EditorialComment = { id:string; body:string; displayName:string; createdAt:string };
 const POSTS: EditorialPost[] = [
@@ -3892,4 +3894,8 @@ const COMMENTS: Record<string, EditorialComment[]> = {
 const DUPLICATE_POST_IDS = new Set(["jinju-seed-20260720-rested-then-work"]);
 export const editorialPosts=POSTS.filter(post=>!DUPLICATE_POST_IDS.has(post.id));
 export function editorialPost(id:string){return DUPLICATE_POST_IDS.has(id)?null:POSTS.find(post=>post.id===id)??null}
-export function editorialComments(id:string){return DUPLICATE_POST_IDS.has(id)?[]:COMMENTS[id]??[]}
+export function editorialComments(id:string){
+  if(DUPLICATE_POST_IDS.has(id))return [];
+  const post=POSTS.find(item=>item.id===id);
+  return post?[...(COMMENTS[id]??[]),...supplementalComments(post)]:[];
+}

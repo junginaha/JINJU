@@ -382,12 +382,12 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     if (!response.ok) throw new Error(data.error || "댓글을 등록할 수 없습니다.");
     const created={id:data.id||Date.now(),body:data.body||trimmed,displayName:data.displayName,createdAt:data.createdAt||new Date().toISOString()};
     if(data.id&&data.deleteKey){const next={...commentDeleteKeys,[data.id]:data.deleteKey};setCommentDeleteKeys(next);saveKeys(COMMENT_DELETE_KEYS,next)}
-    setPosts((current) => current.map((post) => post.id === postId ? { ...post, comments: [...post.comments.filter((item) => item.body), created] } : post));
+    setPosts((current) => current.map((post) => post.id === postId ? { ...post, comments: [...post.comments, created] } : post));
     return created;
   }
 
   async function deletePost(postId:string){const deleteKey=postDeleteKeys[postId];if(!deleteKey)throw new Error("이 글을 삭제할 권한을 확인할 수 없습니다.");const response=await fetch(`/api/posts/${encodeURIComponent(postId)}`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({deleteKey})});const data=await response.json() as {error?:string};if(!response.ok)throw new Error(data.error||"글을 삭제하지 못했습니다.");const next={...postDeleteKeys};delete next[postId];setPostDeleteKeys(next);saveKeys(POST_DELETE_KEYS,next);setPosts(current=>current.filter(post=>post.id!==postId));closePost()}
-  async function deleteComment(postId:string,commentId:string|number){const key=String(commentId),deleteKey=commentDeleteKeys[key];if(!deleteKey)throw new Error("이 댓글을 삭제할 권한을 확인할 수 없습니다.");const response=await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({commentId:key,deleteKey})});const data=await response.json() as {error?:string};if(!response.ok)throw new Error(data.error||"댓글을 삭제하지 못했습니다.");const next={...commentDeleteKeys};delete next[key];setCommentDeleteKeys(next);saveKeys(COMMENT_DELETE_KEYS,next);setPosts(current=>current.map(post=>post.id===postId?{...post,comments:post.comments.filter(item=>String(item.id)!==key)}:post))}
+  async function deleteComment(postId:string,commentId:string|number){const key=String(commentId),deleteKey=commentDeleteKeys[key];if(!deleteKey)throw new Error("이 댓글을 삭제할 권한을 확인할 수 없습니다.");const response=await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({commentId:key,deleteKey})});const data=await response.json() as {error?:string};if(!response.ok)throw new Error(data.error||"댓글을 삭제하지 못했습니다.");const next={...commentDeleteKeys};delete next[key];setCommentDeleteKeys(next);saveKeys(COMMENT_DELETE_KEYS,next);setPosts(current=>current.map(post=>post.id===postId?{...post,comments:post.comments.filter(item=>String(item.id)!==key)}:post));await loadPosts()}
 
   function openPost(postId: string) {
     window.history.pushState({}, "", `/post/${encodeURIComponent(postId)}`);
@@ -569,15 +569,29 @@ function PostDetail({ post, onBack, onReact, onShare, onComment, canDeletePost, 
   const [commentDraftReady,setCommentDraftReady]=useState(false);
   const [deleteBusy,setDeleteBusy]=useState<string|null>(null);
   const [detailComments, setDetailComments] = useState<Comment[]>(post.comments.filter((item) => item.body));
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentsLoadError, setCommentsLoadError] = useState("");
+
+  const loadComments = useCallback(async () => {
+    setCommentsLoading(true);
+    setCommentsLoadError("");
+    try {
+      const response = await fetch(`/api/posts/${encodeURIComponent(post.id)}/comments`, { cache: "no-store" });
+      const data = await response.json() as { comments?: Comment[]; error?: string };
+      if (!response.ok) throw new Error(data.error || "댓글을 불러오지 못했습니다.");
+      setDetailComments((data.comments ?? []).filter((item) => item.body));
+    } catch (error) {
+      setCommentsLoadError(error instanceof Error ? error.message : "댓글을 불러오지 못했습니다.");
+    } finally {
+      setCommentsLoading(false);
+    }
+  }, [post.id]);
 
   useEffect(() => {
     try{setComment(sessionStorage.getItem(`jinju-comment-draft:${post.id}`)||"")}catch{/* Best effort draft restore. */}
     setCommentDraftReady(true);
-    fetch(`/api/posts/${encodeURIComponent(post.id)}/comments`, { cache: "no-store" })
-      .then(async (response) => response.ok ? response.json() : { comments: [] })
-      .then((data: { comments?: Comment[] }) => setDetailComments(data.comments ?? []))
-      .catch(() => undefined);
-  }, [post.id]);
+    void loadComments();
+  }, [loadComments, post.id]);
 
   useEffect(()=>{if(!commentDraftReady)return;try{if(comment)sessionStorage.setItem(`jinju-comment-draft:${post.id}`,comment);else sessionStorage.removeItem(`jinju-comment-draft:${post.id}`)}catch{/* Best effort draft save. */}},[comment,commentDraftReady,post.id]);
 
@@ -611,8 +625,14 @@ function PostDetail({ post, onBack, onReact, onShare, onComment, canDeletePost, 
           <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요</button><button onClick={() => onReact("same")} type="button">싫어요</button><button onClick={onShare} type="button">공유하기</button>{canDeletePost&&<button className="own-delete-button" onClick={removePost} disabled={deleteBusy==="post"} type="button">{deleteBusy==="post"?"삭제 중…":"내 글 삭제"}</button>}<a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a></div>
         </article>
         <section className="comment-list" aria-label="댓글 목록">
-          <h2>댓글 {detailComments.length || post.comments.length}</h2>
-          {detailComments.length ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><span><time>{item.createdAt}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>) : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
+          <h2>댓글 {commentsLoading ? "…" : detailComments.length}</h2>
+          {commentsLoading
+            ? <p className="comments-loading" aria-live="polite">댓글을 불러오는 중입니다.</p>
+            : commentsLoadError
+              ? <div className="comments-load-error" role="alert"><p>{commentsLoadError}</p><button type="button" onClick={()=>void loadComments()}>다시 시도</button></div>
+              : detailComments.length
+                ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><span><time>{item.createdAt}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>)
+                : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>
           <textarea value={comment} onChange={(event) => setComment(event.target.value.slice(0, 2000))} maxLength={2000} rows={5} placeholder="익명으로 댓글을 남겨주세요" aria-label="댓글 내용" />

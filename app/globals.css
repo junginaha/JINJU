@@ -320,6 +320,10 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .comment-delete-button:disabled, .own-delete-button:disabled, .comment-composer button:disabled, .submit-review-button:disabled { cursor: wait; opacity: .55; }
 .comment-list article p { color: #c6c6c6; line-height: 1.75; white-space: pre-wrap; }
 .no-comments { color: #888; }
+.comments-loading { color: #aaa; }
+.comments-load-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; color: #d8bcbc; }
+.comments-load-error p { margin: 0; }
+.comments-load-error button { min-width: 88px; min-height: 44px; padding: 0 14px; color: #111; font-weight: 700; background: #f4f4f4; border: 0; border-radius: 10px; cursor: pointer; }
 .comment-composer { margin-top: 28px; }
 .comment-composer > div { display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid #363636; }
 .comment-composer span { color: #aaa; font-size: 10px; }

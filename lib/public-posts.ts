@@ -2,6 +2,7 @@ import { cache } from "react";
 import { db, databaseEnabled } from "./db";
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
 import { editorialComments, editorialPost, editorialPosts, type EditorialPost } from "./editorial";
+import { supplementalComments } from "./supplemental-comments";
 import type { Post } from "../components/JinjuApp";
 
 function cleanRow(row: Record<string, unknown>): EditorialPost {
@@ -14,8 +15,19 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
     heard: Number(row.heard),
     same: Number(row.same),
     support: Number(row.support),
-    commentCount: Number(row.comment_count),
+    commentCount: Number(row.stored_comment_count ?? row.comment_count ?? 0),
   };
+}
+
+function withVisibleCommentCount(post: EditorialPost) {
+  const builtInCount = editorialPost(post.id)
+    ? editorialComments(post.id).length
+    : supplementalComments(post).length;
+  return { ...post, commentCount: post.commentCount + builtInCount };
+}
+
+function editorialWithVisibleCommentCount(post: EditorialPost) {
+  return { ...post, commentCount: editorialComments(post.id).length };
 }
 
 export function toClientPost(post: EditorialPost): Post {
@@ -35,12 +47,22 @@ export function toClientPost(post: EditorialPost): Post {
 }
 
 export const getPublicPosts = cache(async () => {
-  const byId = new Map(editorialPosts.map((post) => [post.id, post]));
+  const byId = new Map(editorialPosts.map((post) => [post.id, editorialWithVisibleCommentCount(post)]));
   if (databaseEnabled()) {
     try {
-      const rows = await db()`SELECT id, title, content, category, created_at, heard, same, support, comment_count FROM posts WHERE status = 'approved' ORDER BY created_at DESC LIMIT 500`;
+      const rows = await db()`
+        SELECT post.id, post.title, post.content, post.category, post.created_at,
+               post.heard, post.same, post.support,
+               COUNT(comment.id)::INTEGER AS stored_comment_count
+        FROM posts AS post
+        LEFT JOIN comments AS comment
+          ON comment.post_id = post.id AND comment.status = 'approved'
+        WHERE post.status = 'approved'
+        GROUP BY post.id
+        ORDER BY post.created_at DESC
+        LIMIT 500`;
       for (const row of rows) {
-        const post = cleanRow(row as Record<string, unknown>);
+        const post = withVisibleCommentCount(cleanRow(row as Record<string, unknown>));
         if (!HIDDEN_DUPLICATE_POST_IDS.has(post.id)) byId.set(post.id, post);
       }
     } catch {
@@ -54,11 +76,18 @@ export const getPublicPost = cache(async (id: string) => {
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return null;
   if (databaseEnabled()) {
     try {
-      const rows = await db()`SELECT id, title, content, category, created_at, heard, same, support, comment_count FROM posts WHERE id = ${id} AND status = 'approved' LIMIT 1`;
-      if (rows[0]) return cleanRow(rows[0] as Record<string, unknown>);
+      const rows = await db()`
+        SELECT post.id, post.title, post.content, post.category, post.created_at,
+               post.heard, post.same, post.support,
+               (SELECT COUNT(*)::INTEGER FROM comments AS comment WHERE comment.post_id = post.id AND comment.status = 'approved') AS stored_comment_count
+        FROM posts AS post
+        WHERE post.id = ${id} AND post.status = 'approved'
+        LIMIT 1`;
+      if (rows[0]) return withVisibleCommentCount(cleanRow(rows[0] as Record<string, unknown>));
     } catch {
       // Fall through to the built-in editorial copy.
     }
   }
-  return editorialPost(id);
+  const fallback = editorialPost(id);
+  return fallback ? editorialWithVisibleCommentCount(fallback) : null;
 });

@@ -1,5 +1,6 @@
 import { db, databaseEnabled, ensureSchema, hash, token } from "../../../lib/db";
-import { editorialPosts } from "../../../lib/editorial";
+import { editorialComments, editorialPost, editorialPosts } from "../../../lib/editorial";
+import { supplementalComments } from "../../../lib/supplemental-comments";
 import { hasPii, reviewText } from "../../../lib/safety";
 import { generateCoreTitle } from "../../../lib/title";
 import { dedupePosts, isDuplicatePost } from "../../../lib/dedup";
@@ -10,7 +11,7 @@ function cleanRow(row: Record<string, unknown>) {
   return {
     id: String(row.id), title: String(row.title), content: String(row.content), category: String(row.category),
     createdAt: new Date(String(row.created_at)).toISOString(), heard: Number(row.heard), same: Number(row.same),
-    support: Number(row.support), commentCount: Number(row.comment_count),
+    support: Number(row.support), commentCount: Number(row.stored_comment_count ?? row.comment_count ?? 0),
   };
 }
 
@@ -22,10 +23,26 @@ export async function GET(request: Request) {
   let stored: ReturnType<typeof cleanRow>[] = [];
   if (databaseEnabled()) {
     await ensureSchema();
-    const rows = await db()`SELECT id, title, content, category, created_at, heard, same, support, comment_count FROM posts WHERE status = 'approved' ORDER BY created_at DESC LIMIT 100`;
-    stored = rows.map((row: Record<string, unknown>) => cleanRow(row));
+    const rows = await db()`
+      SELECT post.id, post.title, post.content, post.category, post.created_at,
+             post.heard, post.same, post.support,
+             COUNT(comment.id)::INTEGER AS stored_comment_count
+      FROM posts AS post
+      LEFT JOIN comments AS comment
+        ON comment.post_id = post.id AND comment.status = 'approved'
+      WHERE post.status = 'approved'
+      GROUP BY post.id
+      ORDER BY post.created_at DESC
+      LIMIT 100`;
+    stored = rows.map((row: Record<string, unknown>) => {
+      const post = cleanRow(row);
+      const baseCount = editorialPost(post.id)
+        ? editorialComments(post.id).length
+        : supplementalComments(post).length;
+      return { ...post, commentCount: post.commentCount + baseCount };
+    });
   }
-  const byId = new Map(editorialPosts.map((post) => [post.id, post]));
+  const byId = new Map(editorialPosts.map((post) => [post.id, { ...post, commentCount: editorialComments(post.id).length }]));
   for (const post of stored) byId.set(post.id, post);
   let posts = dedupePosts([...byId.values()]).filter((post) => category === "전체" || post.category === category);
   if (query) posts = posts.filter((post) => `${post.title} ${post.content} ${post.category}`.toLocaleLowerCase("ko-KR").includes(query));
