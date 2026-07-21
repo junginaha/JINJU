@@ -11,7 +11,6 @@ export type SupplementalComment = {
   body: string;
   displayName: string;
   createdAt: string;
-  isSeeded: true;
 };
 
 const ADJECTIVES = [
@@ -101,6 +100,5 @@ export function supplementalComments(post: CommentSourcePost): SupplementalComme
     body,
     displayName: nickname(post.id, index),
     createdAt: new Date(baseTime + (index === 0 ? 11 : 23) * 60_000).toISOString(),
-    isSeeded: true,
   }));
 }
