@@ -268,9 +268,9 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .composer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-top: 8px; border-top: 1px solid #363636; }
 .composer-bottom > span { color: #aaa; font-size: 10px; }
 .composer-actions { display: flex; align-items: center; gap: 7px; }
-.composer-bottom button { min-height: 40px; padding: 0 15px; color: #111; font-size: 11px; font-weight: 700; background: #f4f4f4; border: 0; border-radius: 10px; cursor: pointer; }
+.composer-bottom button { min-height: 44px; padding: 0 15px; color: #111; font-size: 11px; font-weight: 700; background: #f4f4f4; border: 0; border-radius: 10px; cursor: pointer; }
 .composer-bottom .voice-text-button { min-height: 34px; padding: 0 10px; color: #cfcfcf; font-size: 10px; font-weight: 650; background: #262626; border: 1px solid #393939; border-radius: 999px; }
-.composer-bottom .voice-input-button { display: inline-grid; width: 40px; min-width: 40px; min-height: 40px; padding: 0; place-items: center; color: #f0f0f0; background: #2d2d2d; border: 1px solid #3a3a3a; border-radius: 999px; }
+.composer-bottom .voice-input-button { display: inline-grid; width: 44px; min-width: 44px; min-height: 44px; padding: 0; place-items: center; color: #f0f0f0; background: #2d2d2d; border: 1px solid #3a3a3a; border-radius: 999px; }
 .composer-bottom .voice-input-button.listening { color: #dfeaff; background: #1b2a45; border-color: #78a8ff; box-shadow: 0 0 0 4px #78a8ff29; }
 .composer-bottom .voice-input-button:disabled { cursor: not-allowed; opacity: .42; }
 .mic-icon { display: inline-grid; place-items: center; }
@@ -283,7 +283,7 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .mic-permission-dialog p { margin: 12px 0 22px; color: #b8b8b8; font-size: 13px; line-height: 1.7; word-break: keep-all; overflow-wrap: anywhere; }
 .mic-permission-dialog .mic-permission-error { margin: -8px 0 18px; color: #ef9b9b; font-size: 12px; }
 .mic-permission-dialog > div { display: flex; justify-content: flex-end; gap: 8px; }
-.mic-permission-dialog button { min-height: 42px; padding: 0 17px; font-size: 12px; font-weight: 750; border-radius: 12px; cursor: pointer; }
+.mic-permission-dialog button { min-height: 44px; padding: 0 17px; font-size: 12px; font-weight: 750; border-radius: 12px; cursor: pointer; }
 .mic-later-button { color: #c7c7c7; background: #2a2a2a; border: 1px solid #424242; }
 .mic-allow-button { color: #111; background: #f4f4f4; border: 1px solid #f4f4f4; }
 .mic-allow-button:disabled { cursor: wait; opacity: .58; }

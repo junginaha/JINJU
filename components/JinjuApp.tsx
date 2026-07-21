@@ -215,7 +215,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       await startRecording(permissionStream);
     } catch (error) {
       const denied = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError");
-      setMicPromptError(denied ? "마이크가 허용되지 않았어요. 아래 버튼을 눌러 다시 허용할 수 있습니다." : "마이크를 시작하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      setMicPromptError(denied ? "마이크가 허용되지 않았어요. 다시 시도하거나 이 브라우저의 키보드 마이크를 이용해주세요." : "마이크를 시작하지 못했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setMicPermissionBusy(false);
     }
