@@ -27,13 +27,6 @@ const NOUNS = [
   "모닥불", "별빛", "새벽", "노을", "파도", "여름비", "은행잎", "조약돌",
 ];
 
-const NICKNAME_TAILS = [
-  "오후", "산책", "메모", "쉼표", "안부", "미소", "한마디", "여백",
-  "소풍", "창가", "골목", "작은방", "책상", "주말", "퇴근길", "아침",
-  "저녁", "낮잠", "커피", "차 한 잔", "우체통", "정류장", "벤치", "마중",
-  "발걸음", "편지", "노래", "파도", "구름", "별 하나", "오늘", "새벽길",
-];
-
 const RULES: Array<{ match: RegExp; pair: [string, string, string] }> = [
   { match: /잘 쉬셨|월요일/, pair: ["저 말 들으면 일단 긴장함 ㅋㅋ 안부만 묻고 끝난 적이 별로 없어서", "잘 쉬긴 했는데요… 그렇다고 배터리가 백 퍼센트는 아닙니다", "월요일의 안부는 왜 늘 업무 파일을 품고 오는지. 다음엔 정말 안부만 두고 갔으면 좋겠네요."] },
   { match: /실수.*커피|커피.*실수/, pair: ["우리 회사도 이거 있어요. 웃으면서 내긴 하는데 솔직히 은근 부담됨", "날짜 고치고 재발 방지하면 됐지 커피 열 잔까지는 좀 ㅋㅋ", "실수는 수정했고 커피는 각자 주문하면 됩니다. 체크리스트가 카페인보다 오래 가죠."] },
@@ -142,8 +135,12 @@ function nickname(postId: string, variant: number) {
   const seed = hash(`${postId}:jinju`);
   const adjective = ADJECTIVES[(seed + variant * 11) % ADJECTIVES.length];
   const noun = NOUNS[(Math.floor(seed / ADJECTIVES.length) + variant * 7) % NOUNS.length];
-  const tail = NICKNAME_TAILS[(Math.floor(seed / (ADJECTIVES.length * NOUNS.length)) + variant * 13) % NICKNAME_TAILS.length];
-  return `${adjective} ${noun}의 ${tail}`;
+  return `${adjective} ${noun}`;
+}
+
+function withinTwoSentences(body: string) {
+  const sentences = body.match(/[^.!?…]+(?:[.!?…]+|$)/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [body];
+  return sentences.slice(0, 2).join(" ");
 }
 
 function genericPair(post: CommentSourcePost): [string, string, string] {
@@ -163,7 +160,7 @@ export function supplementalComments(post: CommentSourcePost): SupplementalComme
   const baseTime = Number.isFinite(Date.parse(post.createdAt)) ? Date.parse(post.createdAt) : Date.now();
   return pair.map((body, index) => ({
     id: `jinju-tone-${post.id}-${index + 1}`,
-    body,
+    body: withinTwoSentences(body),
     displayName: nickname(post.id, index),
     createdAt: new Date(baseTime + [9, 21, 37][index] * 60_000).toISOString(),
   }));
