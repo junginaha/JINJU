@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://xn--o55b9n.kr";
-const siteDescription = "개인정보 없이 인간적으로 할 말을 하는 익명 의견 커뮤니티입니다.";
+const siteDescription = "개인정보 없이 할 말은 하는 익명 커뮤니티";
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
