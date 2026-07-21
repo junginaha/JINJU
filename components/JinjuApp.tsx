@@ -43,7 +43,7 @@ export type Post = {
 };
 
 const topics = ["전체", "일상", "관계", "직장", "돈", "사회", "제안", "질문", "광고 홍보"];
-const POST_DRAFT_KEY="jinju-post-draft-v1",POST_DELETE_KEYS="jinju-owned-posts-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1";
+const POST_DRAFT_KEY="jinju-post-draft-v1",POST_DELETE_KEYS="jinju-owned-posts-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1",REACTION_KEYS="jinju-reacted-posts-v1";
 const MAX_RECORDING_MS=120_000,TRANSCRIPTION_TIMEOUT_MS=25_000;
 
 function readKeys(storageKey:string):DeleteKeys{try{return JSON.parse(localStorage.getItem(storageKey)||"{}") as DeleteKeys}catch{return {}}}
@@ -135,6 +135,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [draftReady,setDraftReady]=useState(false);
   const [postDeleteKeys,setPostDeleteKeys]=useState<DeleteKeys>({});
   const [commentDeleteKeys,setCommentDeleteKeys]=useState<DeleteKeys>({});
+  const [reactedPosts,setReactedPosts]=useState<Record<string,boolean>>({});
   const [voiceState,setVoiceState]=useState<VoiceState>("idle");
   const [activeVoiceField,setActiveVoiceField]=useState<VoiceField>("body");
   const [voiceMessage,setVoiceMessage]=useState("");
@@ -170,6 +171,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     try{const draft=JSON.parse(sessionStorage.getItem(POST_DRAFT_KEY)||"null") as {title?:string;body?:string;category?:string}|null;if(draft){setTitle(draft.title||"");setBody(draft.body||"");if(draft.category) setCategory(draft.category)}}catch{/* Ignore a damaged local draft. */}
     setPostDeleteKeys(readKeys(POST_DELETE_KEYS));
     setCommentDeleteKeys(readKeys(COMMENT_DELETE_KEYS));
+    try{setReactedPosts(JSON.parse(localStorage.getItem(REACTION_KEYS)||"{}") as Record<string,boolean>)}catch{/* Ignore damaged reaction history. */}
     setDraftReady(true);
   },[]);
 
@@ -461,13 +463,16 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   }
 
   async function react(postId: string, kind: "heard" | "same") {
-    setPosts((current) => current.map((post) => post.id === postId ? { ...post, [kind]: post[kind] + 1 } : post));
+    if(reactedPosts[postId])return;
     try {
       const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/react`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind }) });
-      if (!response.ok) setPosts((current) => current.map((post) => post.id === postId ? { ...post, [kind]: Math.max(0, post[kind] - 1) } : post));
-    } catch {
-      setPosts((current) => current.map((post) => post.id === postId ? { ...post, [kind]: Math.max(0, post[kind] - 1) } : post));
-    }
+      const data=await response.json() as {post?:{heard:number;same:number}};
+      if(!response.ok||!data.post)return;
+      setPosts((current)=>current.map((post)=>post.id===postId?{...post,heard:data.post!.heard,same:data.post!.same}:post));
+      const next={...reactedPosts,[postId]:true};
+      setReactedPosts(next);
+      try{localStorage.setItem(REACTION_KEYS,JSON.stringify(next))}catch{/* Server-side one-time protection remains active. */}
+    } catch {/* Keep the current public counts when the request fails. */}
   }
 
   async function share(post: Post) {
@@ -514,6 +519,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           post={selectedPost}
           onBack={closePost}
           onReact={(kind) => react(selectedPost.id, kind)}
+          reacted={Boolean(reactedPosts[selectedPost.id])}
           onShare={() => share(selectedPost)}
           onComment={(comment) => addComment(selectedPost.id, comment)}
           canDeletePost={Boolean(postDeleteKeys[selectedPost.id])}
@@ -541,7 +547,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
             <div className="feed-shell">
               <header className="feed-heading">
-                <div><p className="eyebrow">공개 베타 · 아무도 몰라요 · 개인정보 0%</p><h1>새로운 익명 의견</h1></div>
+                <div><p className="eyebrow">공개 베타 · 아무도 몰라요 · 개인정보 0%</p><h1>새로운 의견</h1></div>
                 <span>{posts.length}개의 공개 의견</span>
               </header>
 
@@ -565,14 +571,14 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="post-feed" aria-label="익명 의견 목록">
                 {filteredPosts.slice(0, 3).map((post) => (
-                  <PostCard key={post.id} post={post} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} />
+                  <PostCard key={post.id} post={post} reacted={Boolean(reactedPosts[post.id])} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} />
                 ))}
               </section>
 
               <section className="chat-composer-section" id="write" aria-labelledby="write-title">
                 <div className="composer-intro">
                   <Pearl size={58} />
-                  <div><p className="eyebrow">하세요!</p><h2 id="write-title">익명 의견 남기기</h2><p>익명의 무게만큼, 책임의 무게도 함께 들어주세요.</p></div>
+                  <div><p className="eyebrow">하세요!</p><h2 id="write-title">의견 남기기</h2><p>책임의 무게도 함께 들어주세요.</p></div>
                 </div>
                 <form className="chat-composer" onSubmit={publish}>
                   {reviewFeedback && <div className="review-overlay" role="dialog" aria-modal="true" aria-labelledby="review-dialog-title">
@@ -611,7 +617,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                   </div>}
                   <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1, 8).map((item) => <option key={item}>{item}</option>)}</select></div>
                   <input ref={titleInputRef} className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
-                  <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"익명의 무게만큼, 책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
+                  <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
                   <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
                   {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
                   {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
@@ -621,7 +627,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="post-feed continued-feed" aria-label="더 많은 익명 의견">
                 {filteredPosts.slice(3).map((post) => (
-                  <PostCard key={post.id} post={post} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} />
+                  <PostCard key={post.id} post={post} reacted={Boolean(reactedPosts[post.id])} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} />
                 ))}
               </section>
 
@@ -658,8 +664,9 @@ function Sidebar({ topic, sort, onTopic, onSort, mobileOpen }: {
   );
 }
 
-function PostCard({ post, onOpen, onReact, onShare }: {
+function PostCard({ post, reacted, onOpen, onReact, onShare }: {
   post: Post;
+  reacted: boolean;
   onOpen: () => void;
   onReact: (kind: "heard" | "same") => void;
   onShare: () => void;
@@ -667,13 +674,13 @@ function PostCard({ post, onOpen, onReact, onShare }: {
   return (
     <article className="feed-post">
       <a className="post-main-link" href={`/post/${encodeURIComponent(post.id)}`} onClick={(event) => { event.preventDefault(); onOpen(); }}>
-        <div className="post-meta"><span>{post.category}</span><span>익명</span><time>{post.date}</time></div>
+        <div className="post-meta"><span>{post.category}</span><time>{post.date}</time></div>
         <h2>{post.title}</h2><p>{post.content}</p>
       </a>
       <PostTemperature likes={post.heard} dislikes={post.same} />
       <div className="post-actions">
-        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요</button>
-        <button onClick={() => onReact("same")} type="button">싫어요</button>
+        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reacted}><Pearl size={16} /><span>좋아요</span><strong>{post.heard}</strong></button>
+        <button onClick={() => onReact("same")} type="button" disabled={reacted}>싫어요</button>
         <button onClick={onOpen} type="button">댓글 <span>{post.comments.length}</span></button>
         <button className="share-post-button" onClick={onShare} type="button">공유하기</button>
         <a className="post-report" href="mailto:hello@xn--o55b9n.kr">의견 보내기</a>
@@ -682,8 +689,9 @@ function PostCard({ post, onOpen, onReact, onShare }: {
   );
 }
 
-function PostDetail({ post, onBack, onReact, onShare, onComment, canDeletePost, canDeleteComment, onDeletePost, onDeleteComment }: {
+function PostDetail({ post, reacted, onBack, onReact, onShare, onComment, canDeletePost, canDeleteComment, onDeletePost, onDeleteComment }: {
   post: Post;
+  reacted: boolean;
   onBack: () => void;
   onReact: (kind: "heard" | "same") => void;
   onShare: () => void;
@@ -749,12 +757,12 @@ function PostDetail({ post, onBack, onReact, onShare, onComment, canDeletePost, 
       <header className="detail-header"><button onClick={onBack} type="button">← 목록으로</button><a href="#comment">댓글 쓰기</a></header>
       <div className="detail-shell">
         <article className="detail-post">
-          <div className="post-meta"><span>{post.category}</span><span>익명</span><time>{post.date}</time></div>
+          <div className="post-meta"><span>{post.category}</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />
-          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button"><Pearl size={16} />좋아요</button><button onClick={() => onReact("same")} type="button">싫어요</button><button onClick={onShare} type="button">공유하기</button>{canDeletePost&&<button className="own-delete-button" onClick={removePost} disabled={deleteBusy==="post"} type="button">{deleteBusy==="post"?"삭제 중…":"내 글 삭제"}</button>}<a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a></div>
+          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reacted}><Pearl size={16} /><span>좋아요</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reacted}>싫어요</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button">공유하기</button><a href="mailto:hello@xn--o55b9n.kr">의견 보내기</a>{canDeletePost&&<button className="own-delete-button" onClick={removePost} disabled={deleteBusy==="post"} type="button">{deleteBusy==="post"?"삭제 중…":"내 글 삭제"}</button>}</div>
         </article>
-        <section className="comment-list" aria-label="댓글 목록">
+        <section className="comment-list" id="comment-list" aria-label="댓글 목록">
           <h2>댓글 {commentsLoading ? "…" : detailComments.length}</h2>
           {commentsLoading
             ? <p className="comments-loading" aria-live="polite">댓글을 불러오는 중입니다.</p>
@@ -765,7 +773,7 @@ function PostDetail({ post, onBack, onReact, onShare, onComment, canDeletePost, 
                 : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>
-          <textarea value={comment} onChange={(event) => setComment(event.target.value.slice(0, 2000))} maxLength={2000} rows={5} placeholder="익명으로 댓글을 남겨주세요" aria-label="댓글 내용" />
+          <textarea value={comment} onChange={(event) => setComment(event.target.value.slice(0, 2000))} maxLength={2000} rows={5} placeholder="댓글을 남겨주세요" aria-label="댓글 내용" />
           {commentError && <p className="comment-error" role="alert">{commentError}</p>}
           <div><span>{comment.length}/2,000 · 입력 내용은 등록 전까지 이 기기에 보관됩니다</span><button type="submit" disabled={commentBusy}>{commentBusy?"등록 중…":"댓글 남기기"}</button></div>
         </form>

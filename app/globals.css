@@ -245,13 +245,15 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .post-temperature.interactive .temperature-track { height: 9px; cursor: grab; touch-action: none; }
 .post-temperature.interactive .temperature-track:active { cursor: grabbing; }
 .post-temperature.interactive .temperature-marker { width: 28px; height: 28px; transition: none; will-change: left,transform; }
-.post-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 15px; }
-.post-actions button, .post-actions a, .detail-stats button, .detail-stats a { padding: 7px 9px; color: #aaa; font-size: 11px; cursor: pointer; background: transparent; border: 0; border-radius: 8px; }
+.post-actions, .detail-stats { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); align-items: stretch; gap: 4px; margin-top: 15px; }
+.post-actions button, .post-actions a, .detail-stats button, .detail-stats a { display: inline-flex; min-width: 0; min-height: 44px; align-items: center; justify-content: center; gap: 4px; padding: 7px 3px; color: #aaa; font-size: 10px; line-height: 1.2; text-align: center; white-space: nowrap; cursor: pointer; background: transparent; border: 0; border-radius: 8px; }
 .post-actions button:hover, .post-actions a:hover, .detail-stats button:hover, .detail-stats a:hover { color: #e8e8e8; background: #242424; }
-.post-actions span { margin-left: 2px; color: #9b9b96; }
+.post-actions span, .detail-stats span { color: #9b9b96; }
+.post-actions strong, .detail-stats strong { color: #f2f2f2; font-size: 10px; font-variant-numeric: tabular-nums; }
 .post-actions .pearl-reaction, .detail-stats .pearl-reaction { display: inline-flex; align-items: center; gap: 5px; }
 .post-actions .pearl-reaction img, .detail-stats .pearl-reaction img { width: 16px; height: 16px; object-fit: contain; filter: drop-shadow(0 2px 5px #ffffff29); }
-.post-actions .post-report { margin-left: auto; }
+.post-actions button:disabled, .detail-stats button:disabled { cursor: default; opacity: .62; }
+.post-actions button:disabled:hover, .detail-stats button:disabled:hover { color: #aaa; background: transparent; }
 .chat-composer-section { margin-top: 56px; padding-top: 52px; border-top: 1px solid #292929; scroll-margin-top: 30px; }
 .composer-intro { display: flex; align-items: center; gap: 15px; margin-bottom: 24px; }
 .composer-intro img { width: 52px; height: 52px; object-fit: contain; filter: drop-shadow(0 4px 10px #ffffff12); transform: scale(1.12); }
@@ -331,7 +333,8 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .detail-post { padding-bottom: 36px; border-bottom: 1px solid #292929; }
 .detail-post h1 { margin: 18px 0 20px; color: #f2f2f2; font-size: clamp(28px,5vw,42px); line-height: 1.3; letter-spacing: -.045em; }
 .detail-post > p { color: #c6c6c6; font-size: 15px; line-height: 1.9; white-space: pre-wrap; }
-.detail-stats { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 18px; }
+.detail-stats { margin-top: 18px; }
+.detail-stats .own-delete-button { grid-column: 1 / -1; }
 .comment-list { padding: 38px 0 18px; border-bottom: 1px solid #292929; }
 .comment-list h2 { margin: 0 0 20px; font-size: 18px; }
 .comment-list article { padding: 18px 0; border-top: 1px solid #292929; }
@@ -374,6 +377,16 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .admin-decision-buttons { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; margin-top: 16px; }
 .admin-reject { color: #efb1b1; background: #2a2020; border: 1px solid #5a3333; }
 .admin-approve { color: #111; background: #f4f4f4; border: 0; }
+.admin-reaction-manager { margin-top: 52px; padding-top: 28px; border-top: 1px solid #303030; }
+.admin-reaction-manager > div > p { margin: 0 0 6px; color: #7fd4dc; font-size: 10px; font-weight: 750; letter-spacing: .11em; }
+.admin-reaction-manager > div > h2 { margin: 0 0 20px; font-size: 23px; }
+.admin-reaction-manager article { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 16px; padding: 16px 0; border-top: 1px solid #2d2d2d; }
+.admin-reaction-manager h3 { margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.admin-reaction-fields { display: flex; align-items: end; gap: 7px; }
+.admin-reaction-fields label { display: grid; gap: 5px; color: #aaa; font-size: 9px; }
+.admin-reaction-fields input { width: 76px; min-height: 40px; padding: 0 9px; color: #f3f3f3; font-size: 14px; background: #171717; border: 1px solid #3c3c3c; border-radius: 9px; }
+.admin-reaction-fields button { min-width: 66px; min-height: 40px; color: #111; font-weight: 750; background: #f4f4f4; border: 0; border-radius: 9px; cursor: pointer; }
+.admin-reaction-fields button:disabled { cursor: wait; opacity: .5; }
 .mobile-menu-scrim { display: none; }
 
 @media (max-width: 760px) {
@@ -382,6 +395,10 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
   .review-dialog-actions { grid-template-columns: 1fr; }
   .admin-review-page { width: min(100% - 24px,860px); padding-top: 28px; }
   .admin-pending-list article { padding: 18px 15px; }
+  .admin-reaction-manager article { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .admin-reaction-fields { display: grid; grid-template-columns: 1fr 1fr; }
+  .admin-reaction-fields input { width: 100%; }
+  .admin-reaction-fields button { grid-column: 1 / -1; }
   .chat-sidebar { display: none; }
   .chat-sidebar.mobile-open { position: fixed; z-index: 60; display: flex; width: min(82vw,300px); box-shadow: 18px 0 50px #0009; }
   .mobile-menu-scrim { position: fixed; z-index: 50; inset: 0; display: block; width: 100%; height: 100%; background: #0008; border: 0; }
@@ -408,9 +425,9 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
   .feed-post { padding: 22px 1px 18px; }
   .feed-post h2 { font-size: 18px; }
   .feed-post .post-main-link > p { display: block; overflow: visible; white-space: pre-wrap; -webkit-line-clamp: unset; }
-  .post-actions { gap: 1px; }
-  .post-actions button, .post-actions a { min-height: 44px; padding: 7px 7px; }
-  .detail-stats button, .detail-stats a, .comment-composer button { min-height: 44px; }
+  .post-actions, .detail-stats { gap: 1px; }
+  .post-actions button, .post-actions a, .detail-stats button, .detail-stats a { min-height: 44px; padding: 7px 2px; font-size: 9.5px; }
+  .comment-composer button { min-height: 44px; }
   .composer-intro { align-items: flex-start; }
   .composer-intro h2 { font-size: 21px; }
   .composer-intro p:last-child { line-height: 1.55; }
