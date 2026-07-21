@@ -263,7 +263,7 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .chat-title { width: 100%; min-height: 50px; padding: 6px 5px 12px; color: #f3f3f3; font-size: 18px; font-weight: 720; background: transparent; border: 0; border-bottom: 1px solid #363636; outline: 0; }
 .chat-composer textarea, .comment-composer textarea { width: 100%; min-height: 150px; padding: 15px 5px; color: #f3f3f3; font-size: 14px; line-height: 1.75; resize: vertical; background: transparent; border: 0; outline: 0; }
 .composer-guide { margin: -3px 5px 12px; color: #aaa; font-size: 10px; line-height: 1.55; }
-.composer-status, .comment-error { margin: 0 5px 12px; color: #d9c8a8; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+.composer-status, .comment-error { margin: 0 5px 12px; color: #d9c8a8; font-size: 11px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
 .comment-error { color: #ef9b9b; }
 .composer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-top: 8px; border-top: 1px solid #363636; }
 .composer-bottom > span { color: #aaa; font-size: 10px; }
@@ -290,6 +290,28 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .voice-target { box-shadow: inset 0 0 0 1px #78a8ff40; }
 .submit-review-button { display: inline-flex; align-items: center; gap: 9px; padding: 0 8px 0 14px !important; border-radius: 999px !important; }
 .submit-review-button .send-arrow { display: grid; width: 28px; height: 28px; place-items: center; color: #fff; font-size: 17px; font-weight: 850; line-height: 1; background: #3b82f6; border-radius: 999px; }
+.review-overlay { position: fixed; z-index: 1300; inset: 0; display: grid; padding: 18px; place-items: center; background: #000000c4; backdrop-filter: blur(10px); }
+.review-dialog, .pending-dialog { width: min(460px,calc(100vw - 30px)); max-height: min(760px,calc(100dvh - 30px)); padding: 26px; overflow-y: auto; color: #f4f4f4; background: #202020; border: 1px solid #454545; border-radius: 24px; box-shadow: 0 28px 90px #000c; }
+.review-symbol, .pending-symbol { display: grid; width: 48px; height: 48px; margin-bottom: 15px; place-items: center; color: #ef9b83; font-size: 22px; background: #ef6f6f1c; border: 1px solid #ef6f6f59; border-radius: 999px; }
+.review-eyebrow { margin: 0 0 5px !important; color: #ef9b83 !important; font-size: 10px !important; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.review-dialog h3, .pending-dialog h3 { margin: 0 0 15px; font-size: 22px; letter-spacing: -.04em; }
+.review-dialog > p, .pending-dialog p { color: #c8c8c8; font-size: 13px; line-height: 1.7; word-break: keep-all; overflow-wrap: anywhere; }
+.review-dialog ul { margin: 0 0 14px; padding: 12px 14px 12px 32px; color: #e5c4ba; font-size: 12px; line-height: 1.65; background: #ef6f6f12; border-radius: 12px; }
+.review-suggestion { display: grid; gap: 6px; margin: 16px 0; padding: 14px; background: #ffffff0a; border: 1px solid #3a3a3a; border-radius: 14px; }
+.review-suggestion strong { color: #7fd4dc; font-size: 11px; }
+.review-suggestion span { color: #d4d4d4; font-size: 12px; line-height: 1.65; }
+.review-pii-warning { color: #ef9b9b !important; }
+.review-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 20px; }
+.review-dialog-actions button, .pending-dialog button { min-height: 46px; padding: 0 14px; font-size: 12px; font-weight: 760; border-radius: 12px; cursor: pointer; }
+.review-edit-button { color: #f0f0f0; background: #292929; border: 1px solid #454545; }
+.review-hold-button, .pending-dialog button { color: #111; background: #f4f4f4; border: 1px solid #f4f4f4; }
+.review-dialog-actions button:disabled { cursor: wait; opacity: .55; }
+.review-dialog small { display: block; margin-top: 10px; color: #929292; font-size: 10px; line-height: 1.55; text-align: center; }
+.pending-dialog { text-align: center; }
+.pending-dialog .pending-symbol { margin-right: auto; margin-left: auto; color: #ef6f6f; }
+.pending-dialog p { margin: 0 0 13px; color: #f1d4ce; font-size: 18px; font-weight: 720; line-height: 1.55; }
+.pending-dialog > span:not(.pending-symbol) { display: block; margin-bottom: 22px; color: #aaa; font-size: 11px; line-height: 1.65; }
+.pending-dialog button { width: 100%; }
 .continued-feed { margin-top: 56px; }
 .feed-empty { padding: 52px 0; text-align: center; border-top: 1px solid #292929; }
 .feed-empty h2 { color: #f2f2f2; }
@@ -314,6 +336,8 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .comment-list h2 { margin: 0 0 20px; font-size: 18px; }
 .comment-list article { padding: 18px 0; border-top: 1px solid #292929; }
 .comment-list article > div { display: flex; justify-content: space-between; color: #aaa; font-size: 11px; }
+.comment-list article > div > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
+.seed-comment-label { padding: 2px 6px; border: 1px solid #3a3a3a; border-radius: 999px; color: #7fd4dc; font-size: 9px; font-weight: 500; letter-spacing: .02em; }
 .comment-list article > div > span:last-child { display: inline-flex; align-items: center; gap: 9px; }
 .comment-delete-button { min-height: 32px; padding: 0 7px; color: #999; font-size: 10px; background: transparent; border: 0; border-radius: 7px; cursor: pointer; }
 .comment-delete-button:hover, .own-delete-button:hover { color: #ef9b9b !important; }
@@ -328,10 +352,37 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .comment-composer > div { display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid #363636; }
 .comment-composer span { color: #aaa; font-size: 10px; }
 .comment-composer button { min-height: 40px; padding: 0 15px; color: #111; font-size: 11px; font-weight: 700; background: #f4f4f4; border: 0; border-radius: 10px; cursor: pointer; }
+.admin-review-page { width: min(100% - 32px,860px); min-height: 100dvh; margin: 0 auto; padding: 48px 0 100px; color: #f2f2f2; }
+.admin-review-page header { position: relative; padding-bottom: 24px; border-bottom: 1px solid #303030; }
+.admin-review-page header p { margin: 0 0 7px; color: #7fd4dc; font-size: 10px; font-weight: 750; letter-spacing: .13em; }
+.admin-review-page h1 { margin: 0; font-size: clamp(28px,7vw,42px); letter-spacing: -.05em; }
+.admin-review-page header a { position: absolute; top: 0; right: 0; color: #aaa; font-size: 11px; }
+.admin-login { display: grid; gap: 11px; max-width: 420px; margin: 42px auto; padding: 22px; background: #202020; border: 1px solid #383838; border-radius: 18px; }
+.admin-login label { color: #bbb; font-size: 12px; }
+.admin-login input { min-height: 48px; padding: 0 13px; color: #f3f3f3; font-size: 16px; background: #171717; border: 1px solid #3c3c3c; border-radius: 11px; }
+.admin-login button, .admin-decision-buttons button { min-height: 46px; font-weight: 760; border-radius: 11px; cursor: pointer; }
+.admin-login button { color: #111; background: #f4f4f4; border: 0; }
+.admin-login button:disabled { cursor: not-allowed; opacity: .4; }
+.admin-message { margin: 24px 0; color: #d9c8a8; font-size: 12px; }
+.admin-pending-list { display: grid; gap: 16px; margin-top: 28px; }
+.admin-pending-list article { padding: 22px; background: #202020; border: 1px solid #343434; border-radius: 18px; }
+.admin-post-meta { display: flex; justify-content: space-between; gap: 12px; color: #999; font-size: 10px; }
+.admin-pending-list h2 { margin: 15px 0 12px; font-size: 20px; line-height: 1.4; }
+.admin-post-content { color: #c8c8c8; font-size: 13px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.admin-review-reason { margin-top: 18px; padding: 14px; color: #d7b9b1; font-size: 11px; line-height: 1.65; background: #ef6f6f0d; border-radius: 12px; }
+.admin-review-reason ul { margin: 8px 0; padding-left: 20px; }
+.admin-review-reason p { margin: 8px 0 0; }
+.admin-decision-buttons { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; margin-top: 16px; }
+.admin-reject { color: #efb1b1; background: #2a2020; border: 1px solid #5a3333; }
+.admin-approve { color: #111; background: #f4f4f4; border: 0; }
 .mobile-menu-scrim { display: none; }
 
 @media (max-width: 760px) {
   .chat-title, .chat-composer textarea, .comment-composer textarea { font-size: 16px; }
+  .review-dialog, .pending-dialog { padding: 22px 18px; border-radius: 20px; }
+  .review-dialog-actions { grid-template-columns: 1fr; }
+  .admin-review-page { width: min(100% - 24px,860px); padding-top: 28px; }
+  .admin-pending-list article { padding: 18px 15px; }
   .chat-sidebar { display: none; }
   .chat-sidebar.mobile-open { position: fixed; z-index: 60; display: flex; width: min(82vw,300px); box-shadow: 18px 0 50px #0009; }
   .mobile-menu-scrim { position: fixed; z-index: 50; inset: 0; display: block; width: 100%; height: 100%; background: #0008; border: 0; }

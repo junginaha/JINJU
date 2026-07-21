@@ -18,6 +18,18 @@ export type Comment = {
   body: string;
   createdAt: string;
   displayName?: string;
+  isSeeded?: boolean;
+};
+
+type ReviewFeedback = {
+  decision?: "allow" | "revise";
+  riskLevel?: string;
+  detectedIssues?: string[];
+  explanation?: string;
+  suggestion?: string;
+  containsPii?: boolean;
+  suggestedTitle?: string;
+  reviewToken?: string;
 };
 
 export type Post = {
@@ -118,6 +130,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [body, setBody] = useState("");
   const [submitStatus, setSubmitStatus] = useState("");
   const [submitBusy,setSubmitBusy]=useState(false);
+  const [reviewFeedback,setReviewFeedback]=useState<ReviewFeedback|null>(null);
+  const [pendingNotice,setPendingNotice]=useState(false);
   const [draftReady,setDraftReady]=useState(false);
   const [postDeleteKeys,setPostDeleteKeys]=useState<DeleteKeys>({});
   const [commentDeleteKeys,setCommentDeleteKeys]=useState<DeleteKeys>({});
@@ -130,6 +144,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [micPermissionReady,setMicPermissionReady]=useState(false);
   const [micPromptError,setMicPromptError]=useState("");
   const recognitionRef=useRef<SpeechRecognitionLike|null>(null),recorderRef=useRef<MediaRecorder|null>(null),streamRef=useRef<MediaStream|null>(null),chunksRef=useRef<Blob[]>([]),voiceFieldRef=useRef<VoiceField>("body"),voiceBaseRef=useRef(""),browserTranscriptRef=useRef("");
+  const bodyInputRef=useRef<HTMLTextAreaElement|null>(null);
 
   const loadPosts = useCallback(async () => {
     try {
@@ -330,29 +345,78 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     await startRecording();
   }
 
+  function clearPublishedDraft() {
+    try{sessionStorage.removeItem(POST_DRAFT_KEY)}catch{/* already clear */}
+    setTitle("");
+    setBody("");
+    setTopic("전체");
+  }
+
+  async function submitReviewedPost(finalTitle: string, acceptReviewHold: boolean, reviewToken = reviewFeedback?.reviewToken || "") {
+    const response = await fetch("/api/posts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: finalTitle, content: body, category, acceptReviewHold, reviewToken }),
+    });
+    const data = await response.json() as { error?:string; id?:string; deleteKey?:string; status?:"approved"|"pending"|"revision_required"; review?:ReviewFeedback };
+    if (response.status === 422 && data.review) {
+      setReviewFeedback({ ...data.review, suggestedTitle: finalTitle });
+      setSubmitStatus(data.error || "조금만 다듬으면 바로 게시할 수 있어요.");
+      return false;
+    }
+    if (!response.ok) { setSubmitStatus(data.error || "지금은 저장할 수 없습니다."); return false; }
+    if(data.id&&data.deleteKey){const next={...postDeleteKeys,[data.id]:data.deleteKey};setPostDeleteKeys(next);saveKeys(POST_DELETE_KEYS,next)}
+    clearPublishedDraft();
+    setReviewFeedback(null);
+    if (data.status === "pending") {
+      setSubmitStatus("운영자 승인 대기 상태로 안전하게 보관했습니다.");
+      setPendingNotice(true);
+      return true;
+    }
+    setSubmitStatus("검수를 통과해 바로 게시되었습니다.");
+    await loadPosts();
+    document.getElementById("feed")?.scrollIntoView({ behavior: "smooth" });
+    return true;
+  }
+
   async function publish(event: FormEvent) {
     event.preventDefault();
     if (body.trim().length < 8) { setSubmitStatus("본문을 8자 이상 적어주세요."); return; }
     if(submitBusy)return;
     setSubmitBusy(true);
-    setSubmitStatus("안전하게 확인하고 있습니다…");
+    setReviewFeedback(null);
+    setSubmitStatus("AI가 개인정보와 위험 표현을 확인하고 있어요…");
     try {
-      const reviewResponse = await fetch("/api/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, text: body }) });
-      const review = await reviewResponse.json() as { error?: string; riskLevel?: string; explanation?: string; suggestedTitle?: string };
-      if (!reviewResponse.ok || ["high", "urgent"].includes(review.riskLevel ?? "")) { setSubmitStatus(review.error || review.explanation || "표현을 한 번 더 확인해주세요."); return; }
-      const response = await fetch("/api/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: title.trim() || review.suggestedTitle, content: body, category }) });
-      const data = await response.json() as { error?: string;id?:string;deleteKey?:string };
-      if (!response.ok) { setSubmitStatus(data.error || "지금은 저장할 수 없습니다."); return; }
-      if(data.id&&data.deleteKey){const next={...postDeleteKeys,[data.id]:data.deleteKey};setPostDeleteKeys(next);saveKeys(POST_DELETE_KEYS,next)}
-      try{sessionStorage.removeItem(POST_DRAFT_KEY)}catch{/* already clear */}
-      setTitle(""); setBody(""); setTopic("전체"); setSubmitStatus("의견이 안전하게 등록되었습니다.");
-      await loadPosts();
-      document.getElementById("feed")?.scrollIntoView({ behavior: "smooth" });
+      const reviewResponse = await fetch("/api/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, text: body, category }) });
+      const review = await reviewResponse.json() as ReviewFeedback & { error?: string };
+      if (!reviewResponse.ok) { setSubmitStatus(review.error || "검수하지 못했습니다. 잠시 후 다시 시도해주세요."); return; }
+      const finalTitle = title.trim() || review.suggestedTitle || "익명의 의견";
+      if (review.decision === "revise") {
+        setReviewFeedback({ ...review, suggestedTitle: finalTitle });
+        setSubmitStatus("고칠 부분을 확인해주세요. 수정하면 다시 검수합니다.");
+        return;
+      }
+      await submitReviewedPost(finalTitle, false, review.reviewToken);
     } catch {
-      setSubmitStatus("연결을 확인한 뒤 다시 시도해주세요.");
+      setSubmitStatus("연결을 확인한 뒤 다시 시도해주세요. 초안은 그대로 보관되어 있습니다.");
     } finally {
       setSubmitBusy(false);
     }
+  }
+
+  function returnToEdit() {
+    setReviewFeedback(null);
+    setSubmitStatus("수정한 뒤 AI 검수를 다시 눌러주세요.");
+    requestAnimationFrame(() => bodyInputRef.current?.focus());
+  }
+
+  async function submitPending() {
+    if(submitBusy || !reviewFeedback || reviewFeedback.containsPii)return;
+    setSubmitBusy(true);
+    setSubmitStatus("운영자 승인 대기로 안전하게 옮기고 있어요…");
+    try { await submitReviewedPost(title.trim() || reviewFeedback.suggestedTitle || "익명의 의견", true); }
+    catch { setSubmitStatus("연결을 확인한 뒤 다시 시도해주세요. 초안은 그대로 보관되어 있습니다."); }
+    finally { setSubmitBusy(false); }
   }
 
   async function react(postId: string, kind: "heard" | "same") {
@@ -470,6 +534,31 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                   <div><p className="eyebrow">하세요!</p><h2 id="write-title">익명 의견 남기기</h2><p>익명의 무게만큼, 책임의 무게도 함께 들어주세요.</p></div>
                 </div>
                 <form className="chat-composer" onSubmit={publish}>
+                  {reviewFeedback && <div className="review-overlay" role="dialog" aria-modal="true" aria-labelledby="review-dialog-title">
+                    <div className="review-dialog">
+                      <span className="review-symbol" aria-hidden="true">♨</span>
+                      <p className="review-eyebrow">AI 검수 결과</p>
+                      <h3 id="review-dialog-title">조금만 다듬어 주세요</h3>
+                      {reviewFeedback.detectedIssues?.length ? <ul>{reviewFeedback.detectedIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul> : null}
+                      <p>{reviewFeedback.explanation}</p>
+                      {reviewFeedback.suggestion && <div className="review-suggestion"><strong>이렇게 고쳐보세요</strong><span>{reviewFeedback.suggestion}</span></div>}
+                      {reviewFeedback.containsPii && <p className="review-pii-warning">개인정보는 승인 대기로도 저장하지 않습니다. 해당 정보를 지운 뒤 다시 검수해주세요.</p>}
+                      <div className="review-dialog-actions">
+                        <button className="review-edit-button" onClick={returnToEdit} type="button">수정하기</button>
+                        {!reviewFeedback.containsPii && <button className="review-hold-button" onClick={submitPending} disabled={submitBusy} type="button">{submitBusy ? "보류 접수 중…" : "그대로 제출"}</button>}
+                      </div>
+                      {!reviewFeedback.containsPii && <small>그대로 제출하면 공개되지 않고 운영자 승인 대기로 이동합니다.</small>}
+                    </div>
+                  </div>}
+                  {pendingNotice && <div className="review-overlay" role="dialog" aria-modal="true" aria-labelledby="pending-dialog-title">
+                    <div className="pending-dialog">
+                      <span className="pending-symbol" aria-hidden="true">●</span>
+                      <h3 id="pending-dialog-title">앗, 너무 뜨거워요</h3>
+                      <p>잠시 식힐게요.<br />운영자 승인이 필요합니다.</p>
+                      <span>글은 공개되지 않고 승인 대기 상태로 안전하게 보관되었습니다.</span>
+                      <button type="button" onClick={() => setPendingNotice(false)}>확인</button>
+                    </div>
+                  </div>}
                   {micPromptOpen && <div className="mic-permission-overlay" role="dialog" aria-modal="true" aria-labelledby="mic-permission-title">
                     <div className="mic-permission-dialog">
                       <span className="mic-permission-symbol" aria-hidden="true">●</span>
@@ -481,11 +570,11 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                   </div>}
                   <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1, 8).map((item) => <option key={item}>{item}</option>)}</select></div>
                   <input className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
-                  <textarea className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"익명의 무게만큼, 책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
+                  <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"익명의 무게만큼, 책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
                   <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
                   {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
                   {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
-                  <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${voiceState === "idle" ? "" : " listening"}`} onClick={toggleVoice} type="button" disabled={voiceState === "transcribing"} aria-pressed={voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy}><span>{submitBusy?"등록 중":"확인"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
+                  <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${voiceState === "idle" ? "" : " listening"}`} onClick={toggleVoice} type="button" disabled={voiceState === "transcribing"} aria-pressed={voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy}><span>{submitBusy?"검수 중…":"AI 검수"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
                 </form>
               </section>
 
@@ -631,7 +720,7 @@ function PostDetail({ post, onBack, onReact, onShare, onComment, canDeletePost, 
             : commentsLoadError
               ? <div className="comments-load-error" role="alert"><p>{commentsLoadError}</p><button type="button" onClick={()=>void loadComments()}>다시 시도</button></div>
               : detailComments.length
-                ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><span><time>{item.createdAt}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>)
+                ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}{item.isSeeded&&<small className="seed-comment-label">대화 씨앗</small>}</span><span><time>{item.createdAt}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>)
                 : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>

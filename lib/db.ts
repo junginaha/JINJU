@@ -44,12 +44,12 @@ export async function ensureSchema() {
           delete_key_hash TEXT NOT NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )`;
+      await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_issues TEXT NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_explanation TEXT NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_source TEXT NOT NULL DEFAULT 'rules'`;
+      await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`;
       await sql`CREATE INDEX IF NOT EXISTS posts_status_created_idx ON posts(status, created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS comments_post_created_idx ON comments(post_id, created_at ASC)`;
-      await sql`UPDATE posts SET status = 'hidden', updated_at = NOW() WHERE id = 'unused-subscriptions'`;
-      await sql`UPDATE comments SET status = 'hidden' WHERE post_id = 'unused-subscriptions'`;
-      await sql`UPDATE posts SET status = 'deleted', updated_at = NOW() WHERE id = '53446x5m240c181m1n5c'`;
-      await sql`UPDATE comments SET status = 'hidden' WHERE post_id = '53446x5m240c181m1n5c'`;
       await sql`
         UPDATE posts AS post
         SET comment_count = (

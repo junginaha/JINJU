@@ -34,7 +34,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   const payload = await request.json().catch(() => ({})) as { deleteKey?: string };
   if (!payload.deleteKey) return Response.json({ error: "이 글을 삭제할 권한을 확인할 수 없습니다." }, { status: 403 });
   await ensureSchema();
-  const rows = await db()`SELECT delete_key_hash FROM posts WHERE id = ${id} AND status = 'approved' LIMIT 1`;
+  const rows = await db()`SELECT delete_key_hash FROM posts WHERE id = ${id} AND status IN ('approved','pending') LIMIT 1`;
   if (!rows[0] || String(rows[0].delete_key_hash) !== await hash(payload.deleteKey)) {
     return Response.json({ error: "이 글을 삭제할 권한을 확인할 수 없습니다." }, { status: 403 });
   }
