@@ -27,7 +27,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     ? Response.json({ comments: normalizeCommentTimes(publicPost.createdAt, applyCommentOverrides(fallback, overrides)).map(publicComment) }, { headers: { "cache-control": "no-store" } })
     : Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   await ensureSchema();
-  const postRows = await db()`SELECT id, title, content, category, created_at FROM posts WHERE id = ${id} AND status = 'approved' LIMIT 1`;
+  const postRows = await db()`SELECT id, title, content, category, created_at FROM posts WHERE id = ${id} AND status = 'approved' AND visibility = 'public' LIMIT 1`;
   const row = postRows[0] as Record<string, unknown> | undefined;
   if (!row && !editorial) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   const autoRows = editorial ? [] : await db()`
@@ -65,7 +65,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const review = reviewText(content);
   if (content.length < 2 || content.length > 2000 || hasPii(content) || ["high", "urgent"].includes(review.riskLevel)) return Response.json({ error: "개인정보와 위험 표현을 제거하고 2~2,000자로 작성해주세요." }, { status: 400 });
   await ensureSchema();
-  let rows = await db()`SELECT id FROM posts WHERE id = ${postId} AND status = 'approved' LIMIT 1`;
+  let rows = await db()`SELECT id FROM posts WHERE id = ${postId} AND status = 'approved' AND visibility = 'public' LIMIT 1`;
   if (!rows[0]) {
     const fallback = editorialPost(postId);
     if (!fallback) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
