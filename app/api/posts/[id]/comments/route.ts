@@ -6,13 +6,18 @@ import { supplementalComments } from "../../../../../lib/supplemental-comments";
 
 export const dynamic = "force-dynamic";
 
+type PublicComment = { id: string; body: string; displayName: string; createdAt: string };
+function publicComment(comment: PublicComment): PublicComment {
+  return { id: String(comment.id), body: String(comment.body), displayName: String(comment.displayName || "익명"), createdAt: String(comment.createdAt) };
+}
+
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   const editorial = editorialPost(id);
   const fallback = editorialComments(id);
   if (!databaseEnabled()) return editorial
-    ? Response.json({ comments: fallback }, { headers: { "cache-control": "no-store" } })
+    ? Response.json({ comments: fallback.map(publicComment) }, { headers: { "cache-control": "no-store" } })
     : Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   await ensureSchema();
   const postRows = await db()`SELECT id, title, content, category, created_at FROM posts WHERE id = ${id} AND status = 'approved' LIMIT 1`;
@@ -28,10 +33,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         createdAt: new Date(String(row?.created_at)).toISOString(),
       });
   const rows = await db()`SELECT id, content, display_name, created_at FROM comments WHERE post_id = ${id} AND status = 'approved' ORDER BY created_at ASC LIMIT 200`;
-  const stored = rows.map((row: Record<string, unknown>) => ({ id: String(row.id), body: String(row.content), displayName: String(row.display_name || "익명"), createdAt: new Date(String(row.created_at)).toISOString(), isSeeded: false }));
+  const stored = rows.map((row: Record<string, unknown>) => ({ id: String(row.id), body: String(row.content), displayName: String(row.display_name || "익명"), createdAt: new Date(String(row.created_at)).toISOString() }));
   const merged = new Map(baseComments.map((comment) => [String(comment.id), comment]));
   for (const comment of stored) merged.set(String(comment.id), comment);
-  return Response.json({ comments: [...merged.values()].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)) }, { headers: { "cache-control": "no-store" } });
+  return Response.json({ comments: [...merged.values()].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)).map(publicComment) }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
