@@ -63,6 +63,19 @@ export async function ensureSchema() {
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )`;
       await sql`ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'admin'`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS admin_content_overrides (
+          kind TEXT NOT NULL CHECK (kind IN ('post', 'comment')),
+          id TEXT NOT NULL,
+          post_id TEXT NOT NULL DEFAULT '',
+          title TEXT,
+          content TEXT,
+          category TEXT,
+          display_name TEXT,
+          hidden BOOLEAN NOT NULL DEFAULT FALSE,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (kind, id)
+        )`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_issues TEXT NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_explanation TEXT NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_source TEXT NOT NULL DEFAULT 'rules'`;
@@ -70,6 +83,7 @@ export async function ensureSchema() {
       await sql`CREATE INDEX IF NOT EXISTS posts_status_created_idx ON posts(status, created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS comments_post_created_idx ON comments(post_id, created_at ASC)`;
       await sql`CREATE INDEX IF NOT EXISTS post_reactions_created_idx ON post_reactions(created_at DESC)`;
+      await sql`CREATE INDEX IF NOT EXISTS admin_content_overrides_post_idx ON admin_content_overrides(post_id, kind)`;
       await sql`
         UPDATE posts AS post
         SET comment_count = (

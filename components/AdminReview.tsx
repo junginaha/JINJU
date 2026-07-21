@@ -21,11 +21,22 @@ type ReactionPost = {
   same: number;
 };
 
+type ManagedComment = { id: string; body: string; displayName: string; createdAt: string };
+type ManagedPost = {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  createdAt: string;
+  comments: ManagedComment[];
+};
+
 export default function AdminReview() {
   const [username, setUsername] = useState("junginaha");
   const [secret, setSecret] = useState("");
   const [posts, setPosts] = useState<PendingPost[]>([]);
   const [reactions, setReactions] = useState<ReactionPost[]>([]);
+  const [managedContent, setManagedContent] = useState<ManagedPost[] | null>(null);
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState("");
   const [ready, setReady] = useState(false);
@@ -53,6 +64,11 @@ export default function AdminReview() {
     } catch { /* Private browsing. */ }
     setPosts(data.posts || []);
     setReactions(data.reactions || []);
+    const contentResponse = await fetch("/api/admin/content", { headers: adminHeaders(), cache: "no-store" });
+    if (contentResponse.ok) {
+      const contentData = await contentResponse.json() as { content?: ManagedPost[] };
+      setManagedContent(contentData.content || []);
+    } else setManagedContent(null);
     setReady(true);
     setMessage(data.posts?.length ? "" : "현재 승인 대기 중인 글이 없습니다.");
   }
@@ -89,6 +105,60 @@ export default function AdminReview() {
     setBusyId("");
   }
 
+  async function updateManaged(payload: Record<string, unknown>) {
+    const response = await fetch("/api/admin/content", {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...adminHeaders() },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) throw new Error(data.error || "처리하지 못했습니다.");
+  }
+
+  async function savePost(post: ManagedPost) {
+    setBusyId(`post:${post.id}`);
+    setMessage("");
+    try {
+      await updateManaged({ entity: "post", action: "update", id: post.id, title: post.title, content: post.content, category: post.category });
+      setMessage("게시글 수정을 저장했습니다.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "게시글을 저장하지 못했습니다."); }
+    setBusyId("");
+  }
+
+  async function deletePost(id: string) {
+    if (!window.confirm("이 게시글과 공개된 댓글을 사이트에서 삭제할까요?")) return;
+    setBusyId(`post:${id}`);
+    setMessage("");
+    try {
+      await updateManaged({ entity: "post", action: "delete", id, postId: id });
+      setManagedContent((current) => current?.filter((post) => post.id !== id) || null);
+      setMessage("게시글을 삭제했습니다.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "게시글을 삭제하지 못했습니다."); }
+    setBusyId("");
+  }
+
+  async function saveComment(postId: string, comment: ManagedComment) {
+    setBusyId(`comment:${comment.id}`);
+    setMessage("");
+    try {
+      await updateManaged({ entity: "comment", action: "update", id: comment.id, postId, content: comment.body, displayName: comment.displayName });
+      setMessage("댓글 수정을 저장했습니다.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "댓글을 저장하지 못했습니다."); }
+    setBusyId("");
+  }
+
+  async function deleteComment(postId: string, commentId: string) {
+    if (!window.confirm("이 댓글을 사이트에서 삭제할까요?")) return;
+    setBusyId(`comment:${commentId}`);
+    setMessage("");
+    try {
+      await updateManaged({ entity: "comment", action: "delete", id: commentId, postId });
+      setManagedContent((current) => current?.map((post) => post.id === postId ? { ...post, comments: post.comments.filter((comment) => comment.id !== commentId) } : post) || null);
+      setMessage("댓글을 삭제했습니다.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "댓글을 삭제하지 못했습니다."); }
+    setBusyId("");
+  }
+
   return (
     <main className="admin-review-page">
       <header><p>JINJU · 운영</p><h1>승인 대기 글</h1><a href="/">사이트로 돌아가기</a></header>
@@ -121,6 +191,26 @@ export default function AdminReview() {
             </div>
           </article>)}
         </section>
+        {managedContent && <section className="admin-content-manager">
+          <div><p>주관리자 전용</p><h2>게시글·댓글 수정 및 삭제</h2></div>
+          {managedContent.map((post) => <details key={post.id}>
+            <summary>{post.title}<span>댓글 {post.comments.length}</span></summary>
+            <div className="admin-content-editor">
+              <label>제목<input value={post.title} maxLength={80} onChange={(event) => setManagedContent((current) => current?.map((item) => item.id === post.id ? { ...item, title: event.target.value } : item) || null)} /></label>
+              <label>분류<select value={post.category} onChange={(event) => setManagedContent((current) => current?.map((item) => item.id === post.id ? { ...item, category: event.target.value } : item) || null)}>{["일상", "관계", "직장", "돈", "사회", "제안", "질문"].map((category) => <option key={category}>{category}</option>)}</select></label>
+              <label>본문<textarea value={post.content} maxLength={2000} rows={6} onChange={(event) => setManagedContent((current) => current?.map((item) => item.id === post.id ? { ...item, content: event.target.value } : item) || null)} /></label>
+              <div className="admin-content-actions"><button type="button" disabled={busyId === `post:${post.id}`} onClick={() => deletePost(post.id)}>게시글 삭제</button><button type="button" disabled={busyId === `post:${post.id}`} onClick={() => savePost(post)}>게시글 저장</button></div>
+              <div className="admin-comment-manager">
+                <h3>댓글 {post.comments.length}</h3>
+                {post.comments.map((comment) => <article key={comment.id}>
+                  <label>이름<input value={comment.displayName} maxLength={12} onChange={(event) => setManagedContent((current) => current?.map((item) => item.id === post.id ? { ...item, comments: item.comments.map((entry) => entry.id === comment.id ? { ...entry, displayName: event.target.value } : entry) } : item) || null)} /></label>
+                  <label>내용<textarea value={comment.body} maxLength={2000} rows={3} onChange={(event) => setManagedContent((current) => current?.map((item) => item.id === post.id ? { ...item, comments: item.comments.map((entry) => entry.id === comment.id ? { ...entry, body: event.target.value } : entry) } : item) || null)} /></label>
+                  <div className="admin-content-actions"><button type="button" disabled={busyId === `comment:${comment.id}`} onClick={() => deleteComment(post.id, comment.id)}>댓글 삭제</button><button type="button" disabled={busyId === `comment:${comment.id}`} onClick={() => saveComment(post.id, comment)}>댓글 저장</button></div>
+                </article>)}
+              </div>
+            </div>
+          </details>)}
+        </section>}
       </>}
     </main>
   );

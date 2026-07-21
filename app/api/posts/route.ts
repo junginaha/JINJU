@@ -7,6 +7,7 @@ import { generateCoreTitle } from "../../../lib/title";
 import { dedupePosts, isDuplicatePost } from "../../../lib/dedup";
 import { rateLimit } from "../../../lib/rate-limit";
 import { verifyReviewToken } from "../../../lib/review-token";
+import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "../../../lib/content-overrides";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
   const query = url.searchParams.get("q")?.trim().toLocaleLowerCase("ko-KR") || "";
   const sort = url.searchParams.get("sort") === "popular" ? "popular" : "latest";
   let stored: ReturnType<typeof cleanRow>[] = [];
+  const overrides = await contentOverrides();
   if (databaseEnabled()) {
     await ensureSchema();
     const rows = await db()`
@@ -47,7 +49,13 @@ export async function GET(request: Request) {
   }
   const byId = new Map(editorialPosts.map((post) => [post.id, { ...post, commentCount: editorialComments(post.id).length }]));
   for (const post of stored) byId.set(post.id, post);
-  let posts = dedupePosts([...byId.values()]).filter((post) => category === "전체" || post.category === category);
+  const hiddenCounts = hiddenCommentCounts(overrides);
+  let posts = dedupePosts([...byId.values()])
+    .flatMap((post) => {
+      const visible = applyPostOverride(post, overrides);
+      return visible ? [{ ...visible, commentCount: Math.max(0, visible.commentCount - (hiddenCounts.get(visible.id) || 0)) }] : [];
+    })
+    .filter((post) => category === "전체" || post.category === category);
   if (query) posts = posts.filter((post) => `${post.title} ${post.content} ${post.category}`.toLocaleLowerCase("ko-KR").includes(query));
   posts.sort((a, b) => sort === "popular"
     ? (b.heard + b.same + b.commentCount * 3) - (a.heard + a.same + a.commentCount * 3)

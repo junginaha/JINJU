@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import JinjuApp from "@/components/JinjuApp";
-import { dedupePosts } from "@/lib/dedup";
-import { editorialPosts } from "@/lib/editorial";
-import { getPublicPost, toClientPost } from "@/lib/public-posts";
+import { getPublicPost, getPublicPosts, toClientPost } from "@/lib/public-posts";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -28,7 +26,7 @@ export default async function PostPage({ params }: PageProps) {
   const { id } = await params;
   const selected = await getPublicPost(id);
   if (!selected) notFound();
-  const byId = new Map(dedupePosts(editorialPosts).map((post) => [post.id, post]));
+  const byId = new Map((await getPublicPosts()).map((post) => [post.id, post]));
   byId.set(selected.id, selected);
   const initialPosts = [...byId.values()].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).map(toClientPost);
   return <JinjuApp initialPosts={initialPosts} initialPostId={selected.id} />;

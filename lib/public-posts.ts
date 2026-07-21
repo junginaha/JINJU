@@ -1,5 +1,6 @@
 import { cache } from "react";
-import { db, databaseEnabled } from "./db";
+import { db, databaseEnabled, ensureSchema } from "./db";
+import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "./content-overrides";
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
 import { editorialComments, editorialPost, editorialPosts, type EditorialPost } from "./editorial";
 import { supplementalComments } from "./supplemental-comments";
@@ -48,8 +49,10 @@ export function toClientPost(post: EditorialPost): Post {
 
 export const getPublicPosts = cache(async () => {
   const byId = new Map(editorialPosts.map((post) => [post.id, editorialWithVisibleCommentCount(post)]));
+  let overrides = await contentOverrides();
   if (databaseEnabled()) {
     try {
+      await ensureSchema();
       const rows = await db()`
         SELECT post.id, post.title, post.content, post.category, post.created_at,
                post.heard, post.same, post.support,
@@ -67,15 +70,25 @@ export const getPublicPosts = cache(async () => {
       }
     } catch {
       // Editorial content keeps public pages readable during a database cold start.
+      overrides = new Map();
     }
   }
-  return dedupePosts([...byId.values()]).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const hiddenCounts = hiddenCommentCounts(overrides);
+  return dedupePosts([...byId.values()])
+    .flatMap((post) => {
+      const visible = applyPostOverride(post, overrides);
+      return visible ? [{ ...visible, commentCount: Math.max(0, visible.commentCount - (hiddenCounts.get(visible.id) || 0)) }] : [];
+    })
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 });
 
 export const getPublicPost = cache(async (id: string) => {
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return null;
+  const overrides = await contentOverrides();
+  const hiddenCount = hiddenCommentCounts(overrides).get(id) || 0;
   if (databaseEnabled()) {
     try {
+      await ensureSchema();
       const rows = await db()`
         SELECT post.id, post.title, post.content, post.category, post.created_at,
                post.heard, post.same, post.support,
@@ -83,11 +96,16 @@ export const getPublicPost = cache(async (id: string) => {
         FROM posts AS post
         WHERE post.id = ${id} AND post.status = 'approved'
         LIMIT 1`;
-      if (rows[0]) return withVisibleCommentCount(cleanRow(rows[0] as Record<string, unknown>));
+      if (rows[0]) {
+        const post = applyPostOverride(withVisibleCommentCount(cleanRow(rows[0] as Record<string, unknown>)), overrides);
+        return post ? { ...post, commentCount: Math.max(0, post.commentCount - hiddenCount) } : null;
+      }
     } catch {
       // Fall through to the built-in editorial copy.
     }
   }
   const fallback = editorialPost(id);
-  return fallback ? editorialWithVisibleCommentCount(fallback) : null;
+  if (!fallback) return null;
+  const post = applyPostOverride(editorialWithVisibleCommentCount(fallback), overrides);
+  return post ? { ...post, commentCount: Math.max(0, post.commentCount - hiddenCount) } : null;
 });

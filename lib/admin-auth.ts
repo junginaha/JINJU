@@ -36,17 +36,24 @@ export async function createAdminCredential(password: string) {
   return { salt, passwordHash: await derivePasswordHash(password, salt, PASSWORD_ITERATIONS), iterations: PASSWORD_ITERATIONS };
 }
 
-export async function isAdminRequest(request: Request) {
+export type AdminIdentity = { id: string; role: "admin" | "superadmin" };
+
+export async function getAdminIdentity(request: Request): Promise<AdminIdentity | null> {
   const expected = process.env.ADMIN_REVIEW_SECRET;
   const supplied = request.headers.get("x-admin-secret") || "";
   const username = (request.headers.get("x-admin-username") || "owner").trim().toLowerCase();
-  if (!supplied) return false;
-  if (expected && username === "owner" && timingSafeEqual(expected, supplied)) return true;
-  if (!/^[a-z0-9_-]{1,64}$/.test(username)) return false;
-  if (!databaseEnabled()) return false;
+  if (!supplied) return null;
+  if (expected && username === "owner" && timingSafeEqual(expected, supplied)) return { id: "owner", role: "admin" };
+  if (!/^[a-z0-9_-]{1,64}$/.test(username)) return null;
+  if (!databaseEnabled()) return null;
   await ensureSchema();
-  const rows = await db()`SELECT password_salt, password_hash, password_iterations FROM admin_credentials WHERE id = ${username} LIMIT 1`;
-  if (!rows[0]) return false;
+  const rows = await db()`SELECT password_salt, password_hash, password_iterations, role FROM admin_credentials WHERE id = ${username} LIMIT 1`;
+  if (!rows[0]) return null;
   const actual = await derivePasswordHash(supplied, String(rows[0].password_salt), Number(rows[0].password_iterations));
-  return timingSafeEqual(String(rows[0].password_hash), actual);
+  if (!timingSafeEqual(String(rows[0].password_hash), actual)) return null;
+  return { id: username, role: String(rows[0].role) === "superadmin" ? "superadmin" : "admin" };
+}
+
+export async function isAdminRequest(request: Request) {
+  return Boolean(await getAdminIdentity(request));
 }
