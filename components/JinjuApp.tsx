@@ -482,7 +482,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
   async function share(post: Post) {
     const url = `${window.location.origin}/post/${encodeURIComponent(post.id)}?share=jinju`;
-    const shareText = "인간적으로, 할 말은 하세요!\n\n안전하고 개운하게 속마음을 털어놓으세요";
+    const shareText = "개인정보 없이 할 말은 하는 익명 커뮤니티";
     const sharedMessage = `${shareText}\n\n${url}`;
     if (navigator.share) {
       await navigator.share({ title: post.title, text: sharedMessage }).catch(() => undefined);
