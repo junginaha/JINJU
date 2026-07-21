@@ -21,10 +21,10 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
   };
 }
 
-function withVisibleCommentCount(post: EditorialPost) {
+function withVisibleCommentCount(post: EditorialPost, hasAutoComments = false) {
   const builtInCount = editorialPost(post.id)
     ? editorialComments(post.id).length
-    : supplementalComments(post).length;
+    : hasAutoComments ? 0 : supplementalComments(post).length;
   return { ...post, commentCount: post.commentCount + builtInCount };
 }
 
@@ -58,16 +58,21 @@ export const getPublicPosts = cache(async () => {
       const rows = await db()`
         SELECT post.id, post.title, post.content, post.category, post.created_at,
                post.heard, post.same, post.support,
-               COUNT(comment.id)::INTEGER AS stored_comment_count
+               COUNT(comment.id)::INTEGER AS stored_comment_count,
+               EXISTS (
+                 SELECT 1 FROM comments AS auto_comment
+                 WHERE auto_comment.post_id = post.id AND auto_comment.id LIKE 'jinju-auto-%'
+               ) AS has_auto_comments
         FROM posts AS post
         LEFT JOIN comments AS comment
-          ON comment.post_id = post.id AND comment.status = 'approved'
+          ON comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()
         WHERE post.status = 'approved'
         GROUP BY post.id
         ORDER BY post.created_at DESC
         LIMIT 500`;
       for (const row of rows) {
-        const post = withVisibleCommentCount(cleanRow(row as Record<string, unknown>));
+        const record = row as Record<string, unknown>;
+        const post = withVisibleCommentCount(cleanRow(record), Boolean(record.has_auto_comments));
         if (!HIDDEN_DUPLICATE_POST_IDS.has(post.id)) byId.set(post.id, post);
       }
     } catch {
@@ -94,12 +99,17 @@ export const getPublicPost = cache(async (id: string) => {
       const rows = await db()`
         SELECT post.id, post.title, post.content, post.category, post.created_at,
                post.heard, post.same, post.support,
-               (SELECT COUNT(*)::INTEGER FROM comments AS comment WHERE comment.post_id = post.id AND comment.status = 'approved') AS stored_comment_count
+               (SELECT COUNT(*)::INTEGER FROM comments AS comment WHERE comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()) AS stored_comment_count,
+               EXISTS (
+                 SELECT 1 FROM comments AS auto_comment
+                 WHERE auto_comment.post_id = post.id AND auto_comment.id LIKE 'jinju-auto-%'
+               ) AS has_auto_comments
         FROM posts AS post
         WHERE post.id = ${id} AND post.status = 'approved'
         LIMIT 1`;
       if (rows[0]) {
-        const post = applyPostOverride(withVisibleCommentCount(cleanRow(rows[0] as Record<string, unknown>)), overrides);
+        const record = rows[0] as Record<string, unknown>;
+        const post = applyPostOverride(withVisibleCommentCount(cleanRow(record), Boolean(record.has_auto_comments)), overrides);
         return post ? { ...post, commentCount: Math.max(0, post.commentCount - hiddenCount) } : null;
       }
     } catch {
