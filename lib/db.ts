@@ -48,6 +48,8 @@ export async function ensureSchema() {
       await sql`CREATE INDEX IF NOT EXISTS comments_post_created_idx ON comments(post_id, created_at ASC)`;
       await sql`UPDATE posts SET status = 'hidden', updated_at = NOW() WHERE id = 'unused-subscriptions'`;
       await sql`UPDATE comments SET status = 'hidden' WHERE post_id = 'unused-subscriptions'`;
+      await sql`UPDATE posts SET status = 'deleted', updated_at = NOW() WHERE id = '53446x5m240c181m1n5c'`;
+      await sql`UPDATE comments SET status = 'hidden' WHERE post_id = '53446x5m240c181m1n5c'`;
     })().catch((error) => {
       schemaReady = null;
       throw error;

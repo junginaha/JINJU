@@ -1,4 +1,7 @@
-export const HIDDEN_DUPLICATE_POST_IDS = new Set(["unused-subscriptions"]);
+export const HIDDEN_DUPLICATE_POST_IDS = new Set([
+  "unused-subscriptions",
+  "53446x5m240c181m1n5c",
+]);
 
 type ComparablePost = {
   id: string;
