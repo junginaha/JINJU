@@ -57,6 +57,7 @@ export const getPublicPosts = cache(async () => {
       await ensureSchema();
       const rows = await db()`
         SELECT post.id, post.title, post.content, post.category, post.created_at,
+               post.status, post.visibility,
                post.heard, post.same, post.support,
                COUNT(comment.id)::INTEGER AS stored_comment_count,
                EXISTS (
@@ -66,12 +67,15 @@ export const getPublicPosts = cache(async () => {
         FROM posts AS post
         LEFT JOIN comments AS comment
           ON comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()
-        WHERE post.status = 'approved'
         GROUP BY post.id
         ORDER BY post.created_at DESC
         LIMIT 500`;
       for (const row of rows) {
         const record = row as Record<string, unknown>;
+        if (String(record.status) !== "approved" || String(record.visibility) !== "public") {
+          byId.delete(String(record.id));
+          continue;
+        }
         const post = withVisibleCommentCount(cleanRow(record), Boolean(record.has_auto_comments));
         if (!HIDDEN_DUPLICATE_POST_IDS.has(post.id)) byId.set(post.id, post);
       }
@@ -98,6 +102,7 @@ export const getPublicPost = cache(async (id: string) => {
       await ensureSchema();
       const rows = await db()`
         SELECT post.id, post.title, post.content, post.category, post.created_at,
+               post.status, post.visibility,
                post.heard, post.same, post.support,
                (SELECT COUNT(*)::INTEGER FROM comments AS comment WHERE comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()) AS stored_comment_count,
                EXISTS (
@@ -105,10 +110,11 @@ export const getPublicPost = cache(async (id: string) => {
                  WHERE auto_comment.post_id = post.id AND auto_comment.id LIKE 'jinju-auto-%'
                ) AS has_auto_comments
         FROM posts AS post
-        WHERE post.id = ${id} AND post.status = 'approved'
+        WHERE post.id = ${id}
         LIMIT 1`;
       if (rows[0]) {
         const record = rows[0] as Record<string, unknown>;
+        if (String(record.status) !== "approved" || String(record.visibility) !== "public") return null;
         const post = applyPostOverride(withVisibleCommentCount(cleanRow(record), Boolean(record.has_auto_comments)), overrides);
         return post ? { ...post, commentCount: Math.max(0, post.commentCount - hiddenCount) } : null;
       }
