@@ -12,8 +12,8 @@ function unavailable() {
 export async function GET(request: Request) {
   const limit = rateLimit(request, "admin-review", 12, 10 * 60_000);
   if (!limit.allowed) return Response.json({ error: "인증 요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
-  if (!databaseEnabled() || !process.env.ADMIN_REVIEW_SECRET) return unavailable();
-  if (!isAdminRequest(request)) return Response.json({ error: "운영자 인증을 확인해주세요." }, { status: 401 });
+  if (!databaseEnabled()) return unavailable();
+  if (!await isAdminRequest(request)) return Response.json({ error: "운영자 비밀번호를 확인해주세요." }, { status: 401 });
   await ensureSchema();
   const rows = await db()`
     SELECT id, title, content, category, risk_level, review_issues,
@@ -48,8 +48,8 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   const limit = rateLimit(request, "admin-review", 30, 10 * 60_000);
   if (!limit.allowed) return Response.json({ error: "처리 요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
-  if (!databaseEnabled() || !process.env.ADMIN_REVIEW_SECRET) return unavailable();
-  if (!isAdminRequest(request)) return Response.json({ error: "운영자 인증을 확인해주세요." }, { status: 401 });
+  if (!databaseEnabled()) return unavailable();
+  if (!await isAdminRequest(request)) return Response.json({ error: "운영자 비밀번호를 확인해주세요." }, { status: 401 });
   const payload = await request.json().catch(() => ({})) as { id?: string; action?: "approve" | "reject" | "set-reactions"; heard?: number; same?: number };
   if (!payload.id || !["approve", "reject", "set-reactions"].includes(payload.action || "")) {
     return Response.json({ error: "처리할 글과 승인 여부를 확인해주세요." }, { status: 400 });

@@ -82,7 +82,7 @@ export default function AdminReview() {
     <main className="admin-review-page">
       <header><p>JINJU · 운영</p><h1>승인 대기 글</h1><a href="/">사이트로 돌아가기</a></header>
       {!ready && <form onSubmit={load} className="admin-login">
-        <label htmlFor="admin-secret">운영자 승인 암호</label>
+        <label htmlFor="admin-secret">운영자 비밀번호</label>
         <input id="admin-secret" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} autoComplete="current-password" />
         <button type="submit" disabled={!secret}>대기 목록 열기</button>
       </form>}

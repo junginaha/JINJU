@@ -52,6 +52,15 @@ export async function ensureSchema() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           PRIMARY KEY (post_id, voter_hash)
         )`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS admin_credentials (
+          id TEXT PRIMARY KEY,
+          password_salt TEXT NOT NULL,
+          password_hash TEXT NOT NULL,
+          password_iterations INTEGER NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_issues TEXT NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_explanation TEXT NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_source TEXT NOT NULL DEFAULT 'rules'`;
