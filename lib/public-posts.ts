@@ -31,7 +31,7 @@ function editorialWithVisibleCommentCount(post: EditorialPost) {
 }
 
 export function toClientPost(post: EditorialPost): Post {
-  const comments = editorialComments(post.id);
+  const comments = editorialComments(post.id).map(({ id, body, displayName, createdAt }) => ({ id, body, displayName, createdAt }));
   return {
     id: post.id,
     title: post.title,
