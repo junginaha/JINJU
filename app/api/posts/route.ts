@@ -8,6 +8,7 @@ import { dedupePosts, isDuplicatePost } from "../../../lib/dedup";
 import { rateLimit } from "../../../lib/rate-limit";
 import { verifyReviewToken } from "../../../lib/review-token";
 import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "../../../lib/content-overrides";
+import { generateAutoCommentBodies, storeAutoComments } from "../../../lib/auto-comments";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +32,14 @@ export async function GET(request: Request) {
     const rows = await db()`
       SELECT post.id, post.title, post.content, post.category, post.created_at,
              post.heard, post.same, post.support,
-             COUNT(comment.id)::INTEGER AS stored_comment_count
+             COUNT(comment.id)::INTEGER AS stored_comment_count,
+             EXISTS (
+               SELECT 1 FROM comments AS auto_comment
+               WHERE auto_comment.post_id = post.id AND auto_comment.id LIKE 'jinju-auto-%'
+             ) AS has_auto_comments
       FROM posts AS post
       LEFT JOIN comments AS comment
-        ON comment.post_id = post.id AND comment.status = 'approved'
+        ON comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()
       WHERE post.status = 'approved'
       GROUP BY post.id
       ORDER BY post.created_at DESC
@@ -43,7 +48,7 @@ export async function GET(request: Request) {
       const post = cleanRow(row);
       const baseCount = editorialPost(post.id)
         ? editorialComments(post.id).length
-        : supplementalComments(post).length;
+        : Boolean(row.has_auto_comments) ? 0 : supplementalComments(post).length;
       return { ...post, commentCount: post.commentCount + baseCount };
     });
   }
@@ -75,6 +80,13 @@ export async function POST(request: Request) {
   if (!allowed.includes(category) || title.length < 2 || content.length < 8 || content.length > 2000 || hasPii(`${title} ${content}`)) {
     return Response.json({ error: "개인정보를 제거하고 제목 2~80자, 본문 8~2,000자로 작성해주세요." }, { status: 400 });
   }
+  const autoCommentBodies = generateAutoCommentBodies({
+    id: "pending",
+    title,
+    content,
+    category,
+    createdAt: new Date().toISOString(),
+  });
   const review = await verifyReviewToken(payload.reviewToken || "", title, content, category)
     || await reviewSubmission(title, content);
   if (review.containsPii) {
@@ -99,14 +111,22 @@ export async function POST(request: Request) {
   const id = token(10);
   const deleteKey = token(16);
   const status = review.decision === "allow" ? "approved" : "pending";
-  await db()`
+  const inserted = await db()`
     INSERT INTO posts (
       id, title, content, category, delete_key_hash, status, risk_level,
       review_issues, review_explanation, review_source
     ) VALUES (
       ${id}, ${title}, ${content}, ${category}, ${await hash(deleteKey)}, ${status}, ${review.riskLevel},
       ${review.detectedIssues.join(" · ")}, ${review.explanation}, ${review.source}
-    )`;
+    )
+    RETURNING created_at`;
+  await storeAutoComments({
+    id,
+    title,
+    content,
+    category,
+    createdAt: new Date(String(inserted[0]?.created_at || Date.now())).toISOString(),
+  }, await autoCommentBodies).catch(() => false);
   return Response.json({ id, deleteKey, status, review }, {
     status: status === "approved" ? 201 : 202,
     headers: { "cache-control": "no-store" },
