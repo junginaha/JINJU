@@ -58,9 +58,11 @@ export async function ensureSchema() {
           password_salt TEXT NOT NULL,
           password_hash TEXT NOT NULL,
           password_iterations INTEGER NOT NULL,
+          role TEXT NOT NULL DEFAULT 'admin',
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )`;
+      await sql`ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'admin'`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_issues TEXT NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_explanation TEXT NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_source TEXT NOT NULL DEFAULT 'rules'`;

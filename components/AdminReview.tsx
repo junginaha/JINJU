@@ -22,6 +22,7 @@ type ReactionPost = {
 };
 
 export default function AdminReview() {
+  const [username, setUsername] = useState("junginaha");
   const [secret, setSecret] = useState("");
   const [posts, setPosts] = useState<PendingPost[]>([]);
   const [reactions, setReactions] = useState<ReactionPost[]>([]);
@@ -30,16 +31,26 @@ export default function AdminReview() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try { setSecret(sessionStorage.getItem("jinju-admin-review-secret") || ""); } catch { /* Private browsing. */ }
+    try {
+      setUsername(sessionStorage.getItem("jinju-admin-username") || "junginaha");
+      setSecret(sessionStorage.getItem("jinju-admin-review-secret") || "");
+    } catch { /* Private browsing. */ }
   }, []);
+
+  function adminHeaders() {
+    return { "x-admin-username": username.trim().toLowerCase(), "x-admin-secret": secret };
+  }
 
   async function load(event?: FormEvent) {
     event?.preventDefault();
     setMessage("승인 대기 글을 불러오는 중입니다…");
-    const response = await fetch("/api/admin/posts", { headers: { "x-admin-secret": secret }, cache: "no-store" });
+    const response = await fetch("/api/admin/posts", { headers: adminHeaders(), cache: "no-store" });
     const data = await response.json() as { posts?: PendingPost[]; reactions?: ReactionPost[]; error?: string };
     if (!response.ok) { setMessage(data.error || "불러오지 못했습니다."); setReady(false); return; }
-    try { sessionStorage.setItem("jinju-admin-review-secret", secret); } catch { /* Private browsing. */ }
+    try {
+      sessionStorage.setItem("jinju-admin-username", username.trim().toLowerCase());
+      sessionStorage.setItem("jinju-admin-review-secret", secret);
+    } catch { /* Private browsing. */ }
     setPosts(data.posts || []);
     setReactions(data.reactions || []);
     setReady(true);
@@ -52,7 +63,7 @@ export default function AdminReview() {
     setMessage("");
     const response = await fetch("/api/admin/posts", {
       method: "PATCH",
-      headers: { "content-type": "application/json", "x-admin-secret": secret },
+      headers: { "content-type": "application/json", ...adminHeaders() },
       body: JSON.stringify({ id, action }),
     });
     const data = await response.json() as { error?: string };
@@ -66,7 +77,7 @@ export default function AdminReview() {
     setMessage("");
     const response = await fetch("/api/admin/posts", {
       method: "PATCH",
-      headers: { "content-type": "application/json", "x-admin-secret": secret },
+      headers: { "content-type": "application/json", ...adminHeaders() },
       body: JSON.stringify({ id: post.id, action: "set-reactions", heard: post.heard, same: post.same }),
     });
     const data = await response.json() as { heard?: number; same?: number; error?: string };
@@ -82,9 +93,11 @@ export default function AdminReview() {
     <main className="admin-review-page">
       <header><p>JINJU · 운영</p><h1>승인 대기 글</h1><a href="/">사이트로 돌아가기</a></header>
       {!ready && <form onSubmit={load} className="admin-login">
+        <label htmlFor="admin-username">운영자 아이디</label>
+        <input id="admin-username" type="text" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} />
         <label htmlFor="admin-secret">운영자 비밀번호</label>
         <input id="admin-secret" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} autoComplete="current-password" />
-        <button type="submit" disabled={!secret}>대기 목록 열기</button>
+        <button type="submit" disabled={!username.trim() || !secret}>대기 목록 열기</button>
       </form>}
       {message && <p className="admin-message" role="status">{message}</p>}
       {ready && <>
