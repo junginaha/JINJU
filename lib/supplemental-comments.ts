@@ -105,11 +105,11 @@ function nickname(postId: string, variant: number) {
 }
 
 function hook(title: string) {
-  const clean = title.replace(/[“”"?!.]/g, "").trim();
-  if (clean.length <= 22) return clean;
-  const clipped = clean.slice(0, 22);
+  const clean = title.replace(/[“”"]/g, "").replace(/[!.]+$/g, "").trim();
+  if (clean.length <= 28) return clean;
+  const clipped = clean.slice(0, 28);
   const lastSpace = clipped.lastIndexOf(" ");
-  return lastSpace >= 12 ? clipped.slice(0, lastSpace) : clipped;
+  return `${lastSpace >= 12 ? clipped.slice(0, lastSpace) : clipped}…`;
 }
 
 function genericPair(post: CommentSourcePost): [string, string] {
