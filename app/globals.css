@@ -380,6 +380,7 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .admin-reaction-manager { margin-top: 52px; padding-top: 28px; border-top: 1px solid #303030; }
 .admin-reaction-manager > div > p { margin: 0 0 6px; color: #7fd4dc; font-size: 10px; font-weight: 750; letter-spacing: .11em; }
 .admin-reaction-manager > div > h2 { margin: 0 0 20px; font-size: 23px; }
+.admin-reaction-manager > div > span { display: block; margin: -12px 0 20px; color: #888; font-size: 10px; line-height: 1.6; }
 .admin-reaction-manager article { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 16px; padding: 16px 0; border-top: 1px solid #2d2d2d; }
 .admin-reaction-manager h3 { margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .admin-reaction-fields { display: flex; align-items: end; gap: 7px; }
@@ -387,6 +388,8 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .admin-reaction-fields input { width: 76px; min-height: 40px; padding: 0 9px; color: #f3f3f3; font-size: 14px; background: #171717; border: 1px solid #3c3c3c; border-radius: 9px; }
 .admin-reaction-fields button { min-width: 66px; min-height: 40px; color: #111; font-weight: 750; background: #f4f4f4; border: 0; border-radius: 9px; cursor: pointer; }
 .admin-reaction-fields button:disabled { cursor: wait; opacity: .5; }
+.admin-like-quick-actions { display: flex; gap: 5px; }
+.admin-like-quick-actions button { min-width: 48px; padding: 0 9px; color: #d7edef; background: #203033; border: 1px solid #365158; }
 .admin-content-manager { margin-top: 52px; padding-top: 28px; border-top: 1px solid #303030; }
 .admin-content-manager > div > p { margin: 0 0 6px; color: #7fd4dc; font-size: 10px; font-weight: 750; letter-spacing: .11em; }
 .admin-content-manager > div > h2 { margin: 0 0 20px; font-size: 23px; }
@@ -471,6 +474,8 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
   .admin-reaction-fields { display: grid; grid-template-columns: 1fr 1fr; }
   .admin-reaction-fields input { width: 100%; }
   .admin-reaction-fields button { grid-column: 1 / -1; }
+  .admin-like-quick-actions { grid-column: 1 / -1; }
+  .admin-like-quick-actions button { grid-column: auto; flex: 1; }
   .admin-content-manager summary { align-items: flex-start; }
   .admin-content-editor input, .admin-content-editor select, .admin-content-editor textarea { font-size: 16px; }
   .chat-sidebar { display: none; }

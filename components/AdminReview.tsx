@@ -140,6 +140,10 @@ export default function AdminReview() {
     setBusyId("");
   }
 
+  async function addLikes(post: ReactionPost, amount: 1 | 5 | 10) {
+    await saveReactions({ ...post, heard: post.heard + amount });
+  }
+
   async function updateManaged(payload: Record<string, unknown>) {
     const response = await fetch("/api/admin/content", {
       method: "PATCH",
@@ -245,12 +249,13 @@ export default function AdminReview() {
           </article>)}
         </section>
         <section className="admin-reaction-manager">
-          <div><p>공개 클릭 수</p><h2>좋아요·싫어요 관리</h2></div>
+          <div><p>공개 클릭 수</p><h2>좋아요·싫어요 관리</h2><span>숫자를 직접 입력하거나 좋아요를 필요한 만큼 반복해서 추가할 수 있습니다.</span></div>
           {reactions.map((post) => <article key={post.id}>
             <h3>{post.title}</h3>
             <div className="admin-reaction-fields">
               <label>좋아요<input type="number" min="0" inputMode="numeric" value={post.heard} onChange={(event) => setReactions((current) => current.map((item) => item.id === post.id ? { ...item, heard: Math.max(0, Number(event.target.value)) } : item))} /></label>
               <label>싫어요<input type="number" min="0" inputMode="numeric" value={post.same} onChange={(event) => setReactions((current) => current.map((item) => item.id === post.id ? { ...item, same: Math.max(0, Number(event.target.value)) } : item))} /></label>
+              <div className="admin-like-quick-actions" aria-label={`${post.title} 좋아요 빠른 추가`}><button type="button" disabled={busyId === `reaction:${post.id}`} onClick={() => addLikes(post, 1)}>좋아요 +1</button><button type="button" disabled={busyId === `reaction:${post.id}`} onClick={() => addLikes(post, 5)}>+5</button><button type="button" disabled={busyId === `reaction:${post.id}`} onClick={() => addLikes(post, 10)}>+10</button></div>
               <button type="button" disabled={busyId === `reaction:${post.id}`} onClick={() => saveReactions(post)}>{busyId === `reaction:${post.id}` ? "저장 중…" : "저장"}</button>
             </div>
           </article>)}
