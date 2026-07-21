@@ -28,6 +28,10 @@ export function normalizeCommentTimes<T extends TimedComment>(postCreatedAt: str
   const latestAllowed = Math.max(postTime + comments.length, now);
 
   const ordered = comments
+    .filter((comment) => {
+      const timestamp = parsedTime(comment.createdAt);
+      return timestamp === null || timestamp <= now;
+    })
     .map((comment, index) => ({ comment, index, timestamp: parsedTime(comment.createdAt) }))
     .sort((left, right) => {
       if (left.timestamp === null && right.timestamp === null) return left.index - right.index;
@@ -50,17 +54,10 @@ export function normalizeCommentTimes<T extends TimedComment>(postCreatedAt: str
 export function formatCommentTime(value: string) {
   const timestamp = parsedTime(value);
   if (timestamp === null) return "시간 확인 중";
-  const parts = new Intl.DateTimeFormat("ko-KR", {
+  return new Intl.DateTimeFormat("ko-KR", {
     timeZone: SEOUL_TIME_ZONE,
     year: "numeric",
     month: "long",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).formatToParts(new Date(timestamp));
-  return parts.map((part) => {
-    if (part.type !== "dayPeriod") return part.value;
-    return part.value === "AM" ? "오전" : part.value === "PM" ? "오후" : part.value;
-  }).join("");
+  }).format(new Date(timestamp));
 }
