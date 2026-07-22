@@ -7,6 +7,7 @@ import { applyCommentOverrides, contentOverrides } from "../../../../../lib/cont
 import { getPublicPost } from "../../../../../lib/public-posts";
 import { normalizeCommentTimes } from "../../../../../lib/comment-time";
 import { rateLimit } from "../../../../../lib/rate-limit";
+import { generateUniqueJinjuDisplayName } from "../../../../../lib/display-name";
 
 export const dynamic = "force-dynamic";
 
@@ -59,12 +60,19 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (HIDDEN_DUPLICATE_POST_IDS.has(postId)) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
   const publicPost = await getPublicPost(postId);
   if (!publicPost) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
-  const payload = await request.json() as { content?: string; displayName?: string };
+  const payload = await request.json() as { content?: string };
   const content = payload.content?.trim() ?? "";
-  const displayName = (payload.displayName?.trim() || "익명").slice(0, 12);
   const review = reviewText(content);
   if (content.length < 2 || content.length > 2000 || hasPii(content) || ["high", "urgent"].includes(review.riskLevel)) return Response.json({ error: "개인정보와 위험 표현을 제거하고 2~2,000자로 작성해주세요." }, { status: 400 });
   await ensureSchema();
+  const displayName = await generateUniqueJinjuDisplayName(async (candidate) => {
+    const rows = await db()`
+      SELECT 1 FROM posts WHERE display_name = ${candidate}
+      UNION ALL
+      SELECT 1 FROM comments WHERE display_name = ${candidate}
+      LIMIT 1`;
+    return Boolean(rows[0]);
+  });
   let rows = await db()`SELECT id FROM posts WHERE id = ${postId} AND status = 'approved' AND visibility = 'public' LIMIT 1`;
   if (!rows[0]) {
     const fallback = editorialPost(postId);
