@@ -5,7 +5,6 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import Intro from "./Intro";
 import PostTemperature from "./PostTemperature";
 import FeedbackDialog from "./FeedbackDialog";
-import InAppBrowserBanner from "./InAppBrowserBanner";
 import { formatCommentTime } from "../lib/comment-time";
 
 type SpeechRecognitionLike = { lang:string; continuous:boolean; interimResults:boolean; maxAlternatives?:number; start:()=>void; stop:()=>void; abort:()=>void; onresult:((event:{resultIndex:number;results:ArrayLike<{isFinal:boolean;0:{transcript:string}}>})=>void)|null; onend:(()=>void)|null; onerror:((event:{error?:string})=>void)|null };
@@ -40,6 +39,7 @@ export type Post = {
   date: string;
   title: string;
   content: string;
+  displayName?: string;
   heard: number;
   same: number;
   comments: Comment[];
@@ -145,10 +145,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [activeVoiceField,setActiveVoiceField]=useState<VoiceField>("body");
   const [voiceMessage,setVoiceMessage]=useState("");
   const [voiceUndo,setVoiceUndo]=useState<VoiceSnapshot|null>(null);
-  const [micPromptOpen,setMicPromptOpen]=useState(false);
-  const [micPermissionBusy,setMicPermissionBusy]=useState(false);
-  const [micPermissionReady,setMicPermissionReady]=useState(false);
-  const [micPromptError,setMicPromptError]=useState("");
   const recognitionRef=useRef<SpeechRecognitionLike|null>(null),recorderRef=useRef<MediaRecorder|null>(null),streamRef=useRef<MediaStream|null>(null),chunksRef=useRef<Blob[]>([]),voiceFieldRef=useRef<VoiceField>("body"),voiceBaseRef=useRef(""),browserTranscriptRef=useRef("");
   const speechSegmentsRef=useRef<Map<number,string>>(new Map()),speechPrefixRef=useRef(""),voiceSessionRef=useRef(0),voiceAutoStopRef=useRef<ReturnType<typeof setTimeout>|null>(null),speechRestartRef=useRef<ReturnType<typeof setTimeout>|null>(null),transcriptionAbortRef=useRef<AbortController|null>(null),fieldRevisionRef=useRef({title:0,body:0});
   const titleInputRef=useRef<HTMLInputElement|null>(null);
@@ -225,26 +221,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     selectVoiceField(field);
   }
 
-  async function allowAndStartMicrophone() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setMicPromptError("이 브라우저에서는 음성 입력이 제한됩니다. 키보드의 마이크를 이용해주세요.");
-      return;
-    }
-    setMicPermissionBusy(true);
-    try {
-      setMicPromptError("");
-      const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true,noiseSuppression:true,autoGainControl:true } });
-      setMicPermissionReady(true);
-      setMicPromptOpen(false);
-      await startRecording(permissionStream);
-    } catch (error) {
-      const denied = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError");
-      setMicPromptError(denied ? "마이크가 허용되지 않았어요. 다시 시도하거나 이 브라우저의 키보드 마이크를 이용해주세요." : "마이크를 시작하지 못했습니다. 잠시 후 다시 시도해주세요.");
-    } finally {
-      setMicPermissionBusy(false);
-    }
-  }
-
   function selectVoiceField(field:VoiceField){voiceFieldRef.current=field;setActiveVoiceField(field)}
   function joinVoice(base:string,addition:string,field:VoiceField){return field==="title"?[base.trim(),addition.trim()].filter(Boolean).join(" ").replace(/\s+/g," ").slice(0,80):[base.trimEnd(),addition.trim()].filter(Boolean).join(base.trim()?"\n":"").slice(0,2000)}
   function showLiveTranscript(target:VoiceField,text:string){const value=joinVoice(voiceBaseRef.current,text,target),input=target==="title"?titleInputRef.current:bodyInputRef.current;if(input)input.value=value}
@@ -310,7 +286,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       setVoiceUndo({ field: target, title, body });
       setVoiceMessage("마이크 연결 중…");
       const stream = authorizedStream||await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-      setMicPermissionReady(true);
       const mime = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((type) => MediaRecorder.isTypeSupported(type));
       const recorder = mime ? new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 128000 }) : new MediaRecorder(stream);
       streamRef.current = stream;
@@ -389,7 +364,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     if (voiceState === "recording") { recorderRef.current?.stop(); return; }
     if (voiceState === "transcribing") {transcriptionAbortRef.current?.abort();setVoiceState("idle");await startRecording();return;}
     if (voiceState === "listening") { stopVoice(); return; }
-    if(!micPermissionReady){setMicPromptError("");setMicPromptOpen(true);return}
     await startRecording();
   }
 
@@ -406,7 +380,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ title: finalTitle, content: body, category, acceptReviewHold, reviewToken }),
     });
-    const data = await response.json() as { error?:string; id?:string; deleteKey?:string; status?:"approved"|"pending"|"revision_required"; review?:ReviewFeedback };
+    const data = await response.json() as { error?:string; id?:string; deleteKey?:string; displayName?:string; status?:"approved"|"pending"|"revision_required"; review?:ReviewFeedback };
     if (response.status === 422 && data.review) {
       setReviewFeedback({ ...data.review, suggestedTitle: finalTitle });
       setSubmitStatus(data.error || "조금만 다듬으면 바로 게시할 수 있어요.");
@@ -485,9 +459,15 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     const shareText = "개인정보 없이 할 말은 하는 익명 커뮤니티";
     const sharedMessage = `${shareText}\n\n${url}`;
     if (navigator.share) {
-      await navigator.share({ title: post.title, text: sharedMessage }).catch(() => undefined);
-    } else {
-      await navigator.clipboard?.writeText(sharedMessage);
+      try {
+        await navigator.share({ title: post.title, text: sharedMessage });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(sharedMessage).catch(() => undefined);
     }
   }
 
@@ -520,7 +500,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   return (
     <>
       {!introReady ? <div className="intro-bootstrap" aria-hidden="true" /> : showIntro && <Intro onComplete={completeIntro} />}
-      <InAppBrowserBanner />
       {feedbackPost && <FeedbackDialog postId={feedbackPost.id} postTitle={feedbackPost.title} onClose={() => setFeedbackPost(null)} />}
       {selectedPost ? (
         <PostDetail
@@ -618,15 +597,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                       <button type="button" onClick={() => setPendingNotice(false)}>확인</button>
                     </div>
                   </div>}
-                  {micPromptOpen && <div className="mic-permission-overlay" role="dialog" aria-modal="true" aria-labelledby="mic-permission-title">
-                    <div className="mic-permission-dialog">
-                      <span className="mic-permission-symbol" aria-hidden="true">●</span>
-                      <h3 id="mic-permission-title">음성으로 작성할까요?</h3>
-                      <p>허용을 누르면 바로 듣기 시작하고, 인식한 문장을 선택한 입력칸에 보여드립니다.</p>
-                      {micPromptError&&<p className="mic-permission-error" role="alert">{micPromptError}</p>}
-                      <div><button className="mic-later-button" onClick={() => setMicPromptOpen(false)} type="button">취소</button><button className="mic-allow-button" onClick={allowAndStartMicrophone} disabled={micPermissionBusy} type="button">{micPermissionBusy ? "마이크 여는 중…" : "허용하고 바로 말하기"}</button></div>
-                    </div>
-                  </div>}
                   <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1).map((item) => <option key={item}>{item}</option>)}</select></div>
                   <input ref={titleInputRef} className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
                   <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
@@ -688,7 +658,7 @@ function PostCard({ post, reacted, onOpen, onReact, onShare, onFeedback }: {
   return (
     <article className="feed-post">
       <a className="post-main-link" href={`/post/${encodeURIComponent(post.id)}`} onClick={(event) => { event.preventDefault(); onOpen(); }}>
-        <div className="post-meta"><span>{post.category}</span><time>{post.date}</time></div>
+        <div className="post-meta"><span>{post.category}{post.displayName ? ` · ${post.displayName}` : ""}</span><time>{post.date}</time></div>
         <h2>{post.title}</h2><p>{post.content}</p>
       </a>
       <PostTemperature likes={post.heard} dislikes={post.same} />
@@ -772,7 +742,7 @@ function PostDetail({ post, reacted, onBack, onReact, onShare, onFeedback, onCom
       <header className="detail-header"><button onClick={onBack} type="button">← 목록으로</button><a href="#comment">댓글 쓰기</a></header>
       <div className="detail-shell">
         <article className="detail-post">
-          <div className="post-meta"><span>{post.category}</span><time>{post.date}</time></div>
+          <div className="post-meta"><span>{post.category}{post.displayName ? ` · ${post.displayName}` : ""}</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />
           <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reacted}><Pearl size={16} /><span>좋아요</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reacted}>싫어요</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button">공유하기</button><button type="button" onClick={onFeedback}>의견 보내기</button>{canDeletePost&&<button className="own-delete-button" onClick={removePost} disabled={deleteBusy==="post"} type="button">{deleteBusy==="post"?"삭제 중…":"내 글 삭제"}</button>}</div>
