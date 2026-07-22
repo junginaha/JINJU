@@ -26,6 +26,7 @@ export async function ensureSchema() {
           visibility TEXT NOT NULL DEFAULT 'public',
           risk_level TEXT NOT NULL DEFAULT 'low',
           status TEXT NOT NULL DEFAULT 'approved',
+          display_name TEXT NOT NULL DEFAULT '익명',
           delete_key_hash TEXT NOT NULL,
           heard INTEGER NOT NULL DEFAULT 0,
           same INTEGER NOT NULL DEFAULT 0,
@@ -107,6 +108,7 @@ export async function ensureSchema() {
           PRIMARY KEY (kind, id)
         )`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_issues TEXT NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT '익명'`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_explanation TEXT NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_source TEXT NOT NULL DEFAULT 'rules'`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`;
