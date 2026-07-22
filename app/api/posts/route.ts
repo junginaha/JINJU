@@ -9,12 +9,14 @@ import { rateLimit } from "../../../lib/rate-limit";
 import { verifyReviewToken } from "../../../lib/review-token";
 import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "../../../lib/content-overrides";
 import { generateAutoCommentBodies, storeAutoComments } from "../../../lib/auto-comments";
+import { generateUniqueJinjuDisplayName } from "../../../lib/display-name";
 
 export const dynamic = "force-dynamic";
 
 function cleanRow(row: Record<string, unknown>) {
   return {
     id: String(row.id), title: String(row.title), content: String(row.content), category: String(row.category),
+    displayName: String(row.display_name || "익명"),
     createdAt: new Date(String(row.created_at)).toISOString(), heard: Number(row.heard), same: Number(row.same),
     support: Number(row.support), commentCount: Number(row.stored_comment_count ?? row.comment_count ?? 0),
   };
@@ -30,7 +32,7 @@ export async function GET(request: Request) {
   if (databaseEnabled()) {
     await ensureSchema();
     const rows = await db()`
-      SELECT post.id, post.title, post.content, post.category, post.created_at,
+      SELECT post.id, post.title, post.content, post.category, post.display_name, post.created_at,
              post.status, post.visibility,
              post.heard, post.same, post.support,
              COUNT(comment.id)::INTEGER AS stored_comment_count,
@@ -114,13 +116,21 @@ export async function POST(request: Request) {
   }
   const id = token(10);
   const deleteKey = token(16);
+  const displayName = await generateUniqueJinjuDisplayName(async (candidate) => {
+    const rows = await db()`
+      SELECT 1 FROM posts WHERE display_name = ${candidate}
+      UNION ALL
+      SELECT 1 FROM comments WHERE display_name = ${candidate}
+      LIMIT 1`;
+    return Boolean(rows[0]);
+  });
   const status = review.decision === "allow" ? "approved" : "pending";
   const inserted = await db()`
     INSERT INTO posts (
-      id, title, content, category, delete_key_hash, status, risk_level,
+      id, title, content, category, display_name, delete_key_hash, status, risk_level,
       review_issues, review_explanation, review_source
     ) VALUES (
-      ${id}, ${title}, ${content}, ${category}, ${await hash(deleteKey)}, ${status}, ${review.riskLevel},
+      ${id}, ${title}, ${content}, ${category}, ${displayName}, ${await hash(deleteKey)}, ${status}, ${review.riskLevel},
       ${review.detectedIssues.join(" · ")}, ${review.explanation}, ${review.source}
     )
     RETURNING created_at`;
@@ -131,7 +141,7 @@ export async function POST(request: Request) {
     category,
     createdAt: new Date(String(inserted[0]?.created_at || Date.now())).toISOString(),
   }, await autoCommentBodies).catch(() => false);
-  return Response.json({ id, deleteKey, status, review }, {
+  return Response.json({ id, deleteKey, displayName, status, review }, {
     status: status === "approved" ? 201 : 202,
     headers: { "cache-control": "no-store" },
   });
