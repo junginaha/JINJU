@@ -13,6 +13,7 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
     title: String(row.title),
     content: String(row.content),
     category: String(row.category),
+    displayName: String(row.display_name || "익명"),
     createdAt: new Date(String(row.created_at)).toISOString(),
     heard: Number(row.heard),
     same: Number(row.same),
@@ -40,6 +41,7 @@ export function toClientPost(post: EditorialPost): Post {
     title: post.title,
     content: post.content,
     category: post.category,
+    displayName: post.displayName,
     date: new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(post.createdAt)),
     heard: post.heard,
     same: post.same,
@@ -56,7 +58,7 @@ export const getPublicPosts = cache(async () => {
     try {
       await ensureSchema();
       const rows = await db()`
-        SELECT post.id, post.title, post.content, post.category, post.created_at,
+        SELECT post.id, post.title, post.content, post.category, post.display_name, post.created_at,
                post.status, post.visibility,
                post.heard, post.same, post.support,
                COUNT(comment.id)::INTEGER AS stored_comment_count,
@@ -101,7 +103,7 @@ export const getPublicPost = cache(async (id: string) => {
     try {
       await ensureSchema();
       const rows = await db()`
-        SELECT post.id, post.title, post.content, post.category, post.created_at,
+        SELECT post.id, post.title, post.content, post.category, post.display_name, post.created_at,
                post.status, post.visibility,
                post.heard, post.same, post.support,
                (SELECT COUNT(*)::INTEGER FROM comments AS comment WHERE comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()) AS stored_comment_count,
