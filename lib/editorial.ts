@@ -4,6 +4,62 @@ export type EditorialPost = { id:string; title:string; content:string; category:
 export type EditorialComment = { id:string; body:string; displayName:string; createdAt:string };
 const POSTS: EditorialPost[] = [
   {
+    "id": "jinju-seed-20260722-late-honor-revocation",
+    "title": "잘못 준 훈장을 40년 뒤 거두면 역사는 바로잡힌 걸까요",
+    "content": "과거 잘못된 국가 행위와 관련해 수여됐던 정부 포상이 취소됐습니다.\n\n뒤늦게라도 바로잡는 일은 필요합니다. 하지만 훈장 하나를 거두는 것으로 피해자가 견딘 시간까지 원래대로 돌아가지는 않겠죠.\n\n기록을 고치는 일과 책임을 다하는 일은 어디까지 같고, 어디서부터 다를까요.\n\n늦은 정의도 정의인지, 너무 늦으면 사과의 시작일 뿐인지 묻게 됩니다.",
+    "category": "사회",
+    "displayName": "늦게 온 훈장",
+    "mode": "의견 묻기",
+    "createdAt": "2026-07-22T15:25:00+09:00",
+    "updatedAt": "2026-07-22T15:25:00+09:00",
+    "heard": 38,
+    "same": 14,
+    "support": 0,
+    "commentCount": 9
+  },
+  {
+    "id": "jinju-seed-20260722-math-apology-pressure",
+    "title": "수학을 못해서 미안하다는 말은 누구에게 배운 걸까요",
+    "content": "한국 학생들이 국제수학대회에서 모두 상을 받았다는 뉴스를 봤습니다. 진짜 대단하다고 생각했어요.\n\n그런데 옆에서 부모님이 “너도 저렇게 해봐”라고 하니까 축하하던 마음이 갑자기 작아졌습니다.\n\n저는 수학을 잘하지 못합니다. 대신 친구 이야기를 오래 들어주고, 어색한 분위기에서 먼저 말을 거는 건 조금 잘해요. 이런 능력에는 점수표가 없더라고요.\n\n상을 받은 학생은 마음껏 축하하고 싶습니다. 다만 그 메달로 다른 아이의 부족함까지 재지는 않았으면 좋겠어요.",
+    "category": "질문",
+    "displayName": "답안지 밖의 아이",
+    "mode": "털어놓기",
+    "createdAt": "2026-07-22T14:55:00+09:00",
+    "updatedAt": "2026-07-22T14:55:00+09:00",
+    "heard": 29,
+    "same": 3,
+    "support": 0,
+    "commentCount": 9
+  },
+  {
+    "id": "jinju-seed-20260722-friend-ai-comfort",
+    "title": "친구의 위로가 AI 도움을 받았다는 걸 알게 됐습니다",
+    "content": "힘든 일이 있어 친구에게 긴 메시지를 보냈습니다.\n\n친구도 길고 다정한 답장을 보내줬고, 저는 그 문장을 며칠 동안 다시 읽으며 버텼어요.\n\n나중에 친구가 무슨 말을 해야 할지 몰라 AI의 도움을 받았다고 털어놨습니다. 처음에는 제 고민에 대한 답장을 외주 준 기분이 들어 조금 서운했습니다.\n\n그래도 생각해보니 도구를 열고, 제 상황을 설명하고, 나온 문장을 다시 읽어 보낸 건 친구였습니다. 문장은 빌렸어도 저를 위로하고 싶었던 마음까지 빌린 건 아니겠죠.",
+    "category": "관계",
+    "displayName": "오래 남은 답장",
+    "mode": "털어놓기",
+    "createdAt": "2026-07-22T14:40:00+09:00",
+    "updatedAt": "2026-07-22T14:40:00+09:00",
+    "heard": 25,
+    "same": 12,
+    "support": 0,
+    "commentCount": 9
+  },
+  {
+    "id": "jinju-seed-20260722-human-ai-go-handicap",
+    "title": "두 점 먼저 놓고 이긴 것도 인간의 승리일까요",
+    "content": "신진서 9단이 바둑 AI 카타고를 상대로 1패 뒤 2연승을 거뒀습니다.\n\n바둑을 좋아하는 사람으로서 짜릿했습니다. 그런데 이번 경기는 인간이 돌 두 개를 먼저 놓는 접바둑이었죠.\n\n같은 조건이 아니니 ‘인간이 AI를 이겼다’는 표현은 과장이라는 말도 이해합니다. 반대로 두 점을 놓고 연습했을 때도 승률이 매우 낮았다니, 두 판을 연달아 이긴 집중력은 분명 대단하고요.\n\n저는 인간이 AI보다 강하다는 증명보다, 인간이 불리한 상대의 특징을 배우고 새로운 방법을 찾아냈다는 데 의미를 두고 싶습니다.\n\n다음 대국에서는 한 점만 먼저 놓아보면 어떨까요. 인간의 희망도 바둑처럼 한 수씩 줄여가며 확인해보죠.",
+    "category": "질문",
+    "displayName": "바둑판 옆 계산기",
+    "mode": "의견 묻기",
+    "createdAt": "2026-07-22T14:25:00+09:00",
+    "updatedAt": "2026-07-22T14:25:00+09:00",
+    "heard": 27,
+    "same": 21,
+    "support": 0,
+    "commentCount": 9
+  },
+  {
     "id": "jinju-seed-20260720-rested-then-work",
     "title": "“잘 쉬셨죠?”라는 말 뒤에는 왜 늘 일이 따라올까요",
     "content": "네, 잘 쉬었습니다.\n그래서 다시 쉬고 싶습니다.\n\n월요일 아침의 “잘 쉬셨죠?”는 안부보다 업무 시작 알림에 가깝습니다.\n진심은 한 줄인데, 오늘 할 일은 벌써 화면을 가득 채웠네요.",
@@ -1109,7 +1165,61 @@ const POSTS: EditorialPost[] = [
     "commentCount": 0
   }
 ];
+function scheduledComments(postId:string,createdAt:string,items:Array<[string,string,number]>):EditorialComment[]{
+  const base=Date.parse(createdAt);
+  return items.map(([displayName,body,minuteOffset],index)=>({
+    id:`${postId}-c${String(index+1).padStart(2,"0")}`,
+    body,
+    displayName,
+    createdAt:new Date(base+minuteOffset*60_000).toISOString(),
+  }));
+}
+
 const COMMENTS: Record<string, EditorialComment[]> = {
+  "jinju-seed-20260722-late-honor-revocation": scheduledComments("jinju-seed-20260722-late-honor-revocation","2026-07-22T15:25:00+09:00",[
+    ["뒤늦은 기록","취소는 끝이 아니라 시작이어야 합니다. 왜 잘못됐는지도 역사에 분명히 남겨야 해요.",6],
+    ["반듯한 역사책","늦었다고 아무것도 하지 않는 것보다는 지금이라도 바로잡는 게 맞습니다.",17],
+    ["졸린 상장","훈장은 떼어낼 수 있지만 그동안 붙어 있던 권위까지 자동으로 사라지지는 않겠죠.",31],
+    ["늦게 온 지우개","역사에는 수정 버튼은 있어도 피해자의 시간에 실행 취소는 없네요.",60],
+    ["반납된 리본","훈장 반납 안내보다 사과와 회복 안내가 더 두꺼워야 한다고 봅니다.",120],
+    ["기억하는 서랍","국가의 오답 정정은 채점표만 고치지 말고 피해자에게도 알려야죠.",180],
+    ["마른 잉크","결정은 오늘 취소됐어도 기록의 잉크는 수십 년 동안 사람을 눌렀을 겁니다.",240],
+    ["뒤집힌 액자","벽에서 상장은 내려와도 그 아래 찍은 기념사진은 너무 오래 남았겠네요.",300],
+    ["늦잠 잔 정의","정의가 너무 늦잠을 잤습니다. 이제라도 일어났으면 밀린 일부터 제대로 해야죠.",360],
+  ]),
+  "jinju-seed-20260722-math-apology-pressure": scheduledComments("jinju-seed-20260722-math-apology-pressure","2026-07-22T14:55:00+09:00",[
+    ["박수 치는 오답","상을 받은 친구에게는 박수를, 다른 아이에게는 비교 없이 자기 속도를 주면 좋겠습니다.",6],
+    ["점수 없는 친절","친구 이야기를 오래 들어주는 능력도 귀한 재능인데 시험지가 그걸 자꾸 빼먹네요.",17],
+    ["비교 멈춘 자","부모님은 동기부여라고 생각했겠지만 아이에게는 축하할 마음까지 작아지는 말이었군요.",31],
+    ["계산기 끈 엄마","아이보다 부모의 비교 속도가 더 빠를 때가 있습니다. 오늘은 계산기부터 꺼둘게요.",60],
+    ["평균 밖 산책","평균에서 조금 벗어나도 인생에서 퇴실 조치되는 건 아니니까 천천히 가도 됩니다.",120],
+    ["수포자의 축하","저도 수학은 놓쳤지만 축하 타이밍은 안 놓칩니다. 수상한 학생들 진짜 멋져요.",180],
+    ["시험지 아닌 사람","문제를 못 푼 날과 내가 부족한 사람인 날은 같은 날이 아닙니다.",240],
+    ["늦게 푸는 하루","인생 문제는 풀이 시간이 길어서 아직 채점할 때가 아니라고 말해주고 싶어요.",300],
+    ["메달 없는 재능","어색한 자리에서 먼저 말 거는 능력은 단체전 금메달감입니다. 시상식이 없을 뿐이죠.",360],
+  ]),
+  "jinju-seed-20260722-friend-ai-comfort": scheduledComments("jinju-seed-20260722-friend-ai-comfort","2026-07-22T14:40:00+09:00",[
+    ["솔직한 말풍선","위로받은 마음은 진짜였어도 나중에 알면 조금 멀게 느껴질 수 있을 것 같아요.",6],
+    ["문장 빌린 우산","친구가 더 잘 위로하고 싶어서 도움을 받은 거라면 마음까지 가짜라고 보긴 어렵죠.",17],
+    ["조심스러운 서버","내 고민이 외부 서비스에 입력됐다는 점은 따로 이야기해봐야 할 것 같습니다.",31],
+    ["답장 외주 팀장","고민은 친구에게 보냈는데 문장팀이 한 명 더 배정된 셈이네요.",60],
+    ["진심 검수자","초안을 누가 썼든 친구가 읽고 자기 마음으로 승인했다면 최종 책임자는 친구 아닐까요.",120],
+    ["말 고르는 로봇","AI는 문장을 골랐고 친구는 보낼 용기를 골랐다고 생각하면 조금 덜 서운할 듯해요.",180],
+    ["온도 남은 복사본","복사한 문장에도 보낸 사람의 온도가 남을 수 있다는 게 관계의 이상한 점이죠.",240],
+    ["키보드 옆 우정","저라면 서운하다고 말하되 그 답장 덕분에 버틴 것도 같이 이야기할 것 같아요.",300],
+    ["읽씹보다 긴 답","적어도 읽고 고민해서 답하려고 했네요. 제 친구는 아직 입력 중인 지 삼 년째입니다.",360],
+  ]),
+  "jinju-seed-20260722-human-ai-go-handicap": scheduledComments("jinju-seed-20260722-human-ai-go-handicap","2026-07-22T14:25:00+09:00",[
+    ["같은 판 다른 출발","두 점에 생각 시간까지 다르면 인간이 AI보다 강하다는 제목은 솔직히 과장이라고 봅니다.",6],
+    ["접바둑 계산서","정해진 조건 안에서 이겼으면 승리는 승리죠. 접바둑이라고 돌이 저절로 좋은 곳에 놓이는 건 아니잖아요.",17],
+    ["제목 뽑는 기자","인간이 유리한 조건에서 AI에 2승 1패라고 쓰면 정확하지만 클릭은 조금 덜 나오겠네요.",31],
+    ["한 점 줄여보기","다음에는 한 점, 그다음에는 호선으로 가면 되죠. 희망도 난이도를 올려가며 확인하면 됩니다.",60],
+    ["학습 끝난 인간","AI에게 배운 사람이 AI를 이겼다면 패배한 카타고가 사실 감독님이었던 것 아닙니까.",120],
+    ["카타고 변호인","피고 카타고는 두 점과 시간 조건을 정상참작해달라고 요청합니다. 그래도 2연패는 인정합니다.",180],
+    ["오래 생각한 돌","같은 출발선은 아니어도 AI의 약점을 읽고 흔들리지 않은 집중력은 사람이 보여준 성취라고 봐요.",240],
+    ["흑백 사이 관중","인간 승리냐 아니냐보다 이렇게 다시 바둑 이야기를 하게 된 게 제일 반갑습니다.",300],
+    ["다음 판 예약석","다음 대국 조건을 두고 벌써 싸우는 걸 보니 흥행은 인간이 확실히 이겼네요.",360],
+  ]),
   "jinju-seed-20260720-rested-then-work": [
     {
       "id": "jinju-seed-20260720-rested-then-work-c01",
@@ -3929,13 +4039,20 @@ const COMMENTS: Record<string, EditorialComment[]> = {
   ]
 };
 const DUPLICATE_POST_IDS = new Set(["jinju-seed-20260720-rested-then-work"]);
+const SCHEDULED_COMMENT_POST_IDS = new Set([
+  "jinju-seed-20260722-late-honor-revocation",
+  "jinju-seed-20260722-math-apology-pressure",
+  "jinju-seed-20260722-friend-ai-comfort",
+  "jinju-seed-20260722-human-ai-go-handicap",
+]);
 export const editorialPosts=POSTS.filter(post=>!DUPLICATE_POST_IDS.has(post.id));
 export function editorialPost(id:string){return DUPLICATE_POST_IDS.has(id)?null:POSTS.find(post=>post.id===id)??null}
 export function editorialComments(id:string){
   if(DUPLICATE_POST_IDS.has(id))return [];
   const post=POSTS.find(item=>item.id===id);
-  return post?[
-    ...(COMMENTS[id]??[]),
-    ...supplementalComments(post),
-  ]:[];
+  if(!post)return [];
+  const seeded=COMMENTS[id]??[];
+  const combined=SCHEDULED_COMMENT_POST_IDS.has(id)?seeded:[...seeded,...supplementalComments(post)];
+  const now=Date.now();
+  return combined.filter(comment=>Date.parse(comment.createdAt)<=now);
 }
