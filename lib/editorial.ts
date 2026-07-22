@@ -1,6 +1,6 @@
 import { supplementalComments } from "./supplemental-comments";
 
-export type EditorialPost = { id:string; title:string; content:string; category:string; mode?:string; createdAt:string; updatedAt?:string; heard:number; same:number; support:number; commentCount:number };
+export type EditorialPost = { id:string; title:string; content:string; category:string; displayName?:string; mode?:string; createdAt:string; updatedAt?:string; heard:number; same:number; support:number; commentCount:number };
 export type EditorialComment = { id:string; body:string; displayName:string; createdAt:string; isSeeded?:boolean };
 const POSTS: EditorialPost[] = [
   {
