@@ -5,6 +5,62 @@ export type EditorialPost = { id:string; title:string; content:string; category:
 export type EditorialComment = { id:string; body:string; displayName:string; createdAt:string };
 const POSTS: EditorialPost[] = [
   {
+    "id": "jinju-seed-20260724-growth-not-felt",
+    "title": "경제는 깜짝 성장했다는데 제 통장은 왜 안 놀랄까요",
+    "content": "우리나라 경제가 예상보다 많이 성장했다는 뉴스를 봤습니다. 반도체 수출이 잘된 덕이 크다고 하네요.\n\n좋은 소식인데 제 생활은 아직 잘 모르겠습니다. 장바구니 가격은 그대로고 월급날부터 다음 월급날까지의 거리는 더 길어진 느낌이에요.\n\n경제가 먼저 좋아지고 나중에 개인이 체감하는 거라면, 대체 얼마나 기다려야 하는 걸까요.\n\n성장률이 올랐다는 소식을 사람들이 가장 먼저 어디에서 느낄 수 있어야 할까요?",
+    "category": "돈",
+    "displayName": "통장만 제자리",
+    "mode": "의견 묻기",
+    "createdAt": "2026-07-24T05:00:00+09:00",
+    "updatedAt": "2026-07-24T05:00:00+09:00",
+    "heard": 62,
+    "same": 20,
+    "support": 0,
+    "commentCount": 5
+  },
+  {
+    "id": "jinju-seed-20260724-civil-complaint-discipline",
+    "title": "민원 처리가 늦으면 감봉, 화장실도 못 가는 직원은 누가 책임지나요",
+    "content": "정당한 이유 없이 업무를 미루거나 방치한 공무원은 최소 감봉하도록 징계기준이 강화된다고 합니다.\n\n민원 처리를 몇 달씩 기다려본 사람으로서는 반가운 소식입니다. 담당자가 바뀔 때마다 처음부터 설명했던 기억도 있고요.\n\n그런데 한편에서는 쌓인 민원을 처리하느라 화장실 갈 시간도 없다는 직원 이야기가 나왔습니다.\n\n일을 일부러 미루는 것과 사람이 부족해 늦어지는 것을 구분하지 않으면, 벌을 받아야 할 사람 대신 지친 사람이 더 벌을 받는 건 아닐까요?",
+    "category": "사회",
+    "displayName": "대기번호 47",
+    "mode": "의견 묻기",
+    "createdAt": "2026-07-24T04:30:00+09:00",
+    "updatedAt": "2026-07-24T04:30:00+09:00",
+    "heard": 49,
+    "same": 34,
+    "support": 0,
+    "commentCount": 5
+  },
+  {
+    "id": "jinju-seed-20260724-medical-research-data",
+    "title": "내 진료기록이 새 치료법을 만든다면 어디까지 내어줄 수 있나요",
+    "content": "정부가 검사 결과와 의료영상, 유전체 같은 보건의료 연구데이터를 함께 관리하고 연구에 활용하는 규정을 추진한다고 합니다.\n\n여러 자료가 모이면 새로운 치료법을 찾는 속도가 빨라질 수 있겠죠. 저도 가족이 아팠던 적이 있어 연구가 얼마나 절실한지 압니다.\n\n그래도 진료기록은 제가 가진 정보 중 가장 숨기고 싶은 정보이기도 합니다. 이름을 지웠다고 해도 어디에 어떻게 쓰였는지는 알고 싶어요.\n\n좋은 연구를 위해 내 기록을 제공한다면, 사용 내역 확인과 동의 철회 정도는 보장돼야 하지 않을까요?",
+    "category": "건강",
+    "displayName": "봉투 속 검사표",
+    "mode": "의견 묻기",
+    "createdAt": "2026-07-24T04:00:00+09:00",
+    "updatedAt": "2026-07-24T04:00:00+09:00",
+    "heard": 53,
+    "same": 31,
+    "support": 0,
+    "commentCount": 5
+  },
+  {
+    "id": "jinju-seed-20260724-gwanghwamun-hangul-sign",
+    "title": "광화문 현판에 한글도 함께 달면 역사가 흐려질까요",
+    "content": "광화문의 기존 한자 현판과 한글 현판을 함께 설치할지를 두고 국민 토론회가 열린다고 합니다.\n\n한글을 좋아하는 마음으로는 우리 글자가 광화문에 크게 걸리는 모습도 보고 싶습니다. 하지만 복원된 문화유산에 새로운 현판을 더하는 게 맞는지는 망설여져요.\n\n한글의 자부심과 문화유산의 원형을 꼭 둘 중 하나만 선택해야 할까요.\n\n여러분이라면 지금 모습을 유지하시겠어요, 한글 현판도 함께 다시겠어요?",
+    "category": "문화",
+    "displayName": "문 앞에서 올려다봄",
+    "mode": "의견 묻기",
+    "createdAt": "2026-07-24T03:30:00+09:00",
+    "updatedAt": "2026-07-24T03:30:00+09:00",
+    "heard": 43,
+    "same": 41,
+    "support": 0,
+    "commentCount": 5
+  },
+  {
     "id": "jinju-seed-20260723-thursday-feels-friday",
     "title": "목요일인데 금요일인 척 살고 있는 분 계신가요",
     "content": "오늘 아침에 달력을 두 번 봤습니다.\n\n진심으로 금요일인 줄 알았거든요.\n\n몸은 이미 주말인데 현실만 아직 목요일이네요.",
@@ -1303,6 +1359,134 @@ function scheduledComments(postId:string,createdAt:string,items:Array<[string,st
 }
 
 const COMMENTS: Record<string, EditorialComment[]> = {
+  "jinju-seed-20260724-growth-not-felt": [
+    {
+      "id": "jinju-seed-20260724-growth-not-felt-c01",
+      "body": "GDP가 올라도 월급이 그대로면 제 체감 성장률은 0입니다.",
+      "displayName": "월급날의 민수",
+      "createdAt": "2026-07-24T05:04:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-growth-not-felt-c02",
+      "body": "수출이 살아난 건 분명 좋은 일이죠. 골목까지 온기가 오는 데 시간이 걸릴 뿐.",
+      "displayName": "반도체 옆 자영업",
+      "createdAt": "2026-07-24T05:11:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-growth-not-felt-c03",
+      "body": "성장했다는 말보다 물가가 안 올랐다는 말을 먼저 듣고 싶어요.",
+      "displayName": "장바구니 계산중",
+      "createdAt": "2026-07-24T05:22:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-growth-not-felt-c04",
+      "body": "통계가 거짓말인 건 아니죠. 평균 날씨가 따뜻해도 내 자리는 추울 수 있는 거고요.",
+      "displayName": "숫자 믿는 은경",
+      "createdAt": "2026-07-24T05:34:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-growth-not-felt-c05",
+      "body": "매일 나쁜 소식만 듣다가 성장했다니 반갑긴 합니다. 이제 일자리와 소득으로 이어졌으면 좋겠어요.",
+      "displayName": "좋은 뉴스 기다림",
+      "createdAt": "2026-07-24T05:48:00+09:00"
+    }
+  ],
+  "jinju-seed-20260724-civil-complaint-discipline": [
+    {
+      "id": "jinju-seed-20260724-civil-complaint-discipline-c01",
+      "body": "민원인에게는 처리 지연 하루하루가 실제 피해입니다. 책임을 묻는 기준은 필요해요.",
+      "displayName": "답변 기다린 세 달",
+      "createdAt": "2026-07-24T04:34:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-civil-complaint-discipline-c02",
+      "body": "담당자 한 명에게 민원을 산처럼 주고 늦으면 벌주겠다는 건 해결이 아닙니다.",
+      "displayName": "점심 놓친 주무관",
+      "createdAt": "2026-07-24T04:41:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-civil-complaint-discipline-c03",
+      "body": "일부러 방치한 건지 업무량이 감당 불가능했는지 기록으로 구분해야죠.",
+      "displayName": "고의와 과로",
+      "createdAt": "2026-07-24T04:52:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-civil-complaint-discipline-c04",
+      "body": "민원 숫자만 줄이려고 대충 답하고 종결하는 일이 늘어날까 걱정됩니다.",
+      "displayName": "민원 많은 동네",
+      "createdAt": "2026-07-24T05:04:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-civil-complaint-discipline-c05",
+      "body": "실무자만 감봉하지 말고 인력 배치와 관리 책임도 함께 봐야 합니다.",
+      "displayName": "팀장도 책임",
+      "createdAt": "2026-07-24T05:18:00+09:00"
+    }
+  ],
+  "jinju-seed-20260724-medical-research-data": [
+    {
+      "id": "jinju-seed-20260724-medical-research-data-c01",
+      "body": "환자가 적은 병은 자료가 모여야 연구라도 시작할 수 있습니다. 안전장치를 두고 활용했으면 해요.",
+      "displayName": "희귀병 기다린 가족",
+      "createdAt": "2026-07-24T04:04:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-medical-research-data-c02",
+      "body": "연구 목적과 보관 기간을 제가 이해할 수 있는 말로 설명해줘야 합니다.",
+      "displayName": "동의서 끝까지",
+      "createdAt": "2026-07-24T04:11:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-medical-research-data-c03",
+      "body": "공공 연구와 기업의 상업적 이용은 따로 동의를 받아야 한다고 봐요.",
+      "displayName": "연구는 찬성",
+      "createdAt": "2026-07-24T04:22:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-medical-research-data-c04",
+      "body": "비식별이라고 해도 사고가 나면 책임지는 곳과 보상 기준이 먼저 보여야 합니다.",
+      "displayName": "유출 걱정",
+      "createdAt": "2026-07-24T04:34:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-medical-research-data-c05",
+      "body": "내 정보가 치료법을 만드는 데 쓰였다면 결과도 다시 국민에게 돌아왔으면 좋겠어요.",
+      "displayName": "병원 밖의 영희",
+      "createdAt": "2026-07-24T04:48:00+09:00"
+    }
+  ],
+  "jinju-seed-20260724-gwanghwamun-hangul-sign": [
+    {
+      "id": "jinju-seed-20260724-gwanghwamun-hangul-sign-c01",
+      "body": "대한민국을 대표하는 문에 한글이 보이는 것도 의미 있다고 생각합니다.",
+      "displayName": "한글 좋아하는 민정",
+      "createdAt": "2026-07-24T03:34:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-gwanghwamun-hangul-sign-c02",
+      "body": "문화유산은 지금 마음에 맞게 꾸미기보다 역사적 근거를 따라 복원해야죠.",
+      "displayName": "옛 사진 보는 사람",
+      "createdAt": "2026-07-24T03:41:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-gwanghwamun-hangul-sign-c03",
+      "body": "현판은 그대로 두고 한글 설명을 더 잘 보이게 설치하는 방법도 있습니다.",
+      "displayName": "여행객 안내판",
+      "createdAt": "2026-07-24T03:52:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-gwanghwamun-hangul-sign-c04",
+      "body": "한글도 좋고 기존 모습도 좋아서 못 고르겠어요. 그래서 토론하는 거겠죠.",
+      "displayName": "두 현판 고민",
+      "createdAt": "2026-07-24T04:04:00+09:00"
+    },
+    {
+      "id": "jinju-seed-20260724-gwanghwamun-hangul-sign-c05",
+      "body": "광화문은 안내판이 아니라 건축물입니다. 무언가 더 달 때는 아주 신중해야 해요.",
+      "displayName": "처마 밑 산책",
+      "createdAt": "2026-07-24T04:18:00+09:00"
+    }
+  ],
   "jinju-seed-20260723-thursday-feels-friday": scheduledComments("jinju-seed-20260723-thursday-feels-friday","2026-07-23T09:35:00+09:00",[
     ["퇴근 전 달력","저는 목요일 오후부터 금요일 대행 업무를 시작합니다. 문제는 주말이 정식 채용을 안 해준다는 거죠.",6],
     ["금요일 대리인","달력은 목요일인데 표정은 이미 토요일인 분들이 사무실에 꽤 많습니다.",17],
@@ -4202,6 +4386,12 @@ const COMMENTS: Record<string, EditorialComment[]> = {
   ]
 };
 const DUPLICATE_POST_IDS = new Set(["jinju-seed-20260720-rested-then-work"]);
+const FULL_COMMENT_POST_IDS = new Set([
+  "jinju-seed-20260724-growth-not-felt",
+  "jinju-seed-20260724-civil-complaint-discipline",
+  "jinju-seed-20260724-medical-research-data",
+  "jinju-seed-20260724-gwanghwamun-hangul-sign",
+]);
 export const editorialPosts=POSTS.filter(post=>!DUPLICATE_POST_IDS.has(post.id));
 export function editorialPost(id:string){return DUPLICATE_POST_IDS.has(id)?null:POSTS.find(post=>post.id===id)??null}
 export function editorialComments(id:string){
@@ -4209,6 +4399,10 @@ export function editorialComments(id:string){
   const post=POSTS.find(item=>item.id===id);
   if(!post)return [];
   const seeded=COMMENTS[id]??[];
+  if(FULL_COMMENT_POST_IDS.has(id)) {
+    const now=Date.now();
+    return seeded.filter(comment=>Date.parse(comment.createdAt)<=now);
+  }
   const postIndex=POSTS.findIndex(item=>item.id===id);
   const nameOffset=Math.max(0,postIndex)*2;
   const combined=seeded.length
