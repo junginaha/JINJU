@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
   verification: {
     other: {
-      "naver-site-verification": "c0a3a157bb1b4439341e302ee733cd137cab15db",
+      "naver-site-verification": "2d617f45396cbe01f3ec2d642cbec552fb64b827",
     },
   },
   openGraph: {
