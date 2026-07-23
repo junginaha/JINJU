@@ -4,6 +4,132 @@ export type EditorialPost = { id:string; title:string; content:string; category:
 export type EditorialComment = { id:string; body:string; displayName:string; createdAt:string };
 const POSTS: EditorialPost[] = [
   {
+    "id": "jinju-seed-20260723-thursday-feels-friday",
+    "title": "목요일인데 금요일인 척 살고 있는 분 계신가요",
+    "content": "오늘 아침에 달력을 두 번 봤습니다.\n\n진심으로 금요일인 줄 알았거든요.\n\n몸은 이미 주말인데 현실만 아직 목요일이네요.",
+    "category": "일상",
+    "displayName": "졸린 복사기",
+    "mode": "털어놓기",
+    "createdAt": "2026-07-23T09:35:00+09:00",
+    "updatedAt": "2026-07-23T09:35:00+09:00",
+    "heard": 0,
+    "same": 0,
+    "support": 0,
+    "commentCount": 2
+  },
+  {
+    "id": "jinju-seed-20260723-familiar-lunch-wins",
+    "title": "점심 메뉴는 결국 늘 가던 곳이 이깁니다",
+    "content": "“오늘은 새로운 거 먹자.”\n\n이 말이 나온 지 15분.\n\n결국 다 같이 익숙한 식당으로 걸어갔습니다.\n\n새로운 메뉴보다 익숙한 사람이 더 좋았던 걸지도 모르겠습니다.",
+    "category": "직장",
+    "displayName": "빈 도시락",
+    "mode": "털어놓기",
+    "createdAt": "2026-07-23T09:10:00+09:00",
+    "updatedAt": "2026-07-23T09:10:00+09:00",
+    "heard": 0,
+    "same": 0,
+    "support": 0,
+    "commentCount": 2
+  },
+  {
+    "id": "jinju-seed-20260723-reply-starts-with-apology",
+    "title": "읽씹보다 더 어려운 건 답장을 시작하는 일입니다",
+    "content": "답장이 귀찮은 게 아니라\n\n대충 보내기 싫어서 미루는 날이 있습니다.\n\n그 하루가 이틀이 되고,\n\n이제는 사과부터 써야 할 것 같네요.",
+    "category": "관계",
+    "displayName": "미완성 문장",
+    "mode": "털어놓기",
+    "createdAt": "2026-07-23T08:45:00+09:00",
+    "updatedAt": "2026-07-23T08:45:00+09:00",
+    "heard": 0,
+    "same": 0,
+    "support": 0,
+    "commentCount": 2
+  },
+  {
+    "id": "jinju-seed-20260723-ai-saved-time",
+    "title": "AI가 빨라질수록 사람의 시간은 정말 늘어나고 있을까요?",
+    "content": "요즘은 몇 분 걸리던 일이 몇 초 만에 끝납니다.\n\n그런데 이상하게 더 바빠졌다는 사람도 많습니다.\n\n우리는 시간을 아끼고 있는 걸까요,\n\n아니면 더 많은 일을 하게 된 걸까요?",
+    "category": "질문",
+    "displayName": "느린 시계",
+    "mode": "의견 묻기",
+    "createdAt": "2026-07-23T08:20:00+09:00",
+    "updatedAt": "2026-07-23T08:20:00+09:00",
+    "heard": 0,
+    "same": 0,
+    "support": 0,
+    "commentCount": 2
+  },
+  {
+    "id": "jinju-seed-20260723-apology-before-explanation",
+    "title": "요즘은 사과보다 설명이 먼저 나오는 것 같습니다",
+    "content": "미안하다는 말은 한 줄이면 되는데,\n\n설명은 점점 길어집니다.\n\n여러분은 사과를 들을 때,\n\n설명이 먼저인 게 편한가요,\n\n아니면 짧은 사과가 더 진심처럼 느껴지나요?",
+    "category": "관계",
+    "displayName": "늦은 한마디",
+    "mode": "의견 묻기",
+    "createdAt": "2026-07-23T07:55:00+09:00",
+    "updatedAt": "2026-07-23T07:55:00+09:00",
+    "heard": 0,
+    "same": 0,
+    "support": 0,
+    "commentCount": 2
+  },
+  {
+    "id": "jinju-seed-20260723-same-elevator-floor",
+    "title": "엘리베이터에서 같은 층 내리면 괜히 어색하지 않나요",
+    "content": "모르는 사람인데도\n\n괜히 제가 따라가는 사람처럼 걸어집니다.\n\n결국 휴대폰 보는 척하면서 속도를 늦췄습니다.\n\n저만 그런 건 아니죠?",
+    "category": "일상",
+    "displayName": "오른쪽 복도",
+    "mode": "털어놓기",
+    "createdAt": "2026-07-23T07:30:00+09:00",
+    "updatedAt": "2026-07-23T07:30:00+09:00",
+    "heard": 0,
+    "same": 0,
+    "support": 0,
+    "commentCount": 2
+  },
+  {
+    "id": "jinju-seed-20260723-lunch-meeting",
+    "title": "회사에서 가장 어려운 회의는 점심 회의입니다",
+    "content": "업무 회의는 20분.\n\n점심 메뉴 회의는 30분.\n\n결론은 또 김치찌개.\n\n우리 팀은 메뉴보다 결론을 빨리 바꾸는 법부터 배워야 할 것 같습니다.",
+    "category": "직장",
+    "displayName": "흔들린 메뉴판",
+    "mode": "털어놓기",
+    "createdAt": "2026-07-23T07:05:00+09:00",
+    "updatedAt": "2026-07-23T07:05:00+09:00",
+    "heard": 0,
+    "same": 0,
+    "support": 0,
+    "commentCount": 2
+  },
+  {
+    "id": "jinju-seed-20260723-five-second-crosswalk",
+    "title": "횡단보도 신호가 5초 남았을 때 뛰시나요, 기다리시나요?",
+    "content": "예전에는 무조건 뛰었습니다.\n\n요즘은 한 번 쉬어 가자는 마음이 먼저 들더라고요.\n\n언제부터 우리는 신호보다 여유를 선택하게 된 걸까요?",
+    "category": "질문",
+    "displayName": "천천히 걷는 사람",
+    "mode": "의견 묻기",
+    "createdAt": "2026-07-23T06:40:00+09:00",
+    "updatedAt": "2026-07-23T06:40:00+09:00",
+    "heard": 0,
+    "same": 0,
+    "support": 0,
+    "commentCount": 2
+  },
+  {
+    "id": "jinju-seed-20260723-safe-day",
+    "title": "오늘 하루도 무사했다는 말이 꽤 큰 위로였습니다",
+    "content": "예전에는 특별한 하루를 기대했습니다.\n\n요즘은 아무 일 없이 집에 돌아오는 날이 참 소중합니다.\n\n별일 없었다는 말이\n\n생각보다 큰 행운이라는 걸 조금씩 알게 됩니다.\n\n오늘도 무사해서 다행입니다.",
+    "category": "일상",
+    "displayName": "불 켜진 현관",
+    "mode": "털어놓기",
+    "createdAt": "2026-07-23T06:15:00+09:00",
+    "updatedAt": "2026-07-23T06:15:00+09:00",
+    "heard": 0,
+    "same": 0,
+    "support": 0,
+    "commentCount": 2
+  },
+  {
     "id": "jinju-seed-20260722-late-honor-revocation",
     "title": "잘못 준 훈장을 40년 뒤 거두면 역사는 바로잡힌 걸까요",
     "content": "과거 잘못된 국가 행위와 관련해 수여됐던 정부 포상이 취소됐습니다.\n\n뒤늦게라도 바로잡는 일은 필요합니다. 하지만 훈장 하나를 거두는 것으로 피해자가 견딘 시간까지 원래대로 돌아가지는 않겠죠.\n\n기록을 고치는 일과 책임을 다하는 일은 어디까지 같고, 어디서부터 다를까요.\n\n늦은 정의도 정의인지, 너무 늦으면 사과의 시작일 뿐인지 묻게 됩니다.",
@@ -1176,6 +1302,42 @@ function scheduledComments(postId:string,createdAt:string,items:Array<[string,st
 }
 
 const COMMENTS: Record<string, EditorialComment[]> = {
+  "jinju-seed-20260723-thursday-feels-friday": scheduledComments("jinju-seed-20260723-thursday-feels-friday","2026-07-23T09:35:00+09:00",[
+    ["퇴근 전 달력","저는 목요일 오후부터 금요일 대행 업무를 시작합니다. 문제는 주말이 정식 채용을 안 해준다는 거죠.",6],
+    ["금요일 대리인","달력은 목요일인데 표정은 이미 토요일인 분들이 사무실에 꽤 많습니다.",17],
+  ]),
+  "jinju-seed-20260723-familiar-lunch-wins": scheduledComments("jinju-seed-20260723-familiar-lunch-wins","2026-07-23T09:10:00+09:00",[
+    ["메뉴판 보안팀","새 식당 검색은 열심히 하고 결제는 늘 단골집에서 합니다. 실패 없는 점심이 직장인의 안전자산이죠.",6],
+    ["익숙한 숟가락","메뉴는 그대로여도 같이 걷는 사람이 편하면 그걸로 충분한 점심일 때가 있어요.",17],
+  ]),
+  "jinju-seed-20260723-reply-starts-with-apology": scheduledComments("jinju-seed-20260723-reply-starts-with-apology","2026-07-23T08:45:00+09:00",[
+    ["답장 앞 쉼표","잘 쓰려다 늦어지는 마음 알아요. 짧게라도 ‘답이 늦어 미안해’부터 보내면 문이 다시 열리더라고요.",6],
+    ["사과부터 쓰는 밤","답장 한 줄 쓰려다 서론이 반성문이 되는 순간부터 난도가 급상승합니다.",17],
+  ]),
+  "jinju-seed-20260723-ai-saved-time": scheduledComments("jinju-seed-20260723-ai-saved-time","2026-07-23T08:20:00+09:00",[
+    ["바쁜 초시계","AI가 열 분을 아껴주면 회사는 그 자리에 일 세 개를 얹더라고요. 제 여유는 아직 업데이트 전입니다.",6],
+    ["퇴근 못 한 자동화","도구가 만든 여유를 새 업무로 전부 채우지 않는 규칙도 같이 배워야 할 것 같습니다.",17],
+  ]),
+  "jinju-seed-20260723-apology-before-explanation": scheduledComments("jinju-seed-20260723-apology-before-explanation","2026-07-23T07:55:00+09:00",[
+    ["설명서 접은 사람","먼저 미안하다고 말해주면 그다음 설명은 들을 마음이 생깁니다. 순서가 진심의 온도를 바꾸는 것 같아요.",6],
+    ["한 줄 사과문","사과문이 길어질수록 제 잘못이 문장 사이에서 자꾸 실종되더라고요.",17],
+  ]),
+  "jinju-seed-20260723-same-elevator-floor": scheduledComments("jinju-seed-20260723-same-elevator-floor","2026-07-23T07:30:00+09:00",[
+    ["같은 층 남남","저도 일부러 우편함 한 번 보고 갑니다. 편지는 없지만 사회적 거리 확보에는 성공합니다.",6],
+    ["느려진 발걸음","상대도 따라오는 사람처럼 보일까 고민하고 있을지 몰라요. 두 사람 모두 휴대폰만 열심히 보는 평화로운 복도입니다.",17],
+  ]),
+  "jinju-seed-20260723-lunch-meeting": scheduledComments("jinju-seed-20260723-lunch-meeting","2026-07-23T07:05:00+09:00",[
+    ["김치찌개 의장","우리 팀 점심 회의도 자유토론으로 시작해 김치찌개 만장일치로 끝납니다.",6],
+    ["메뉴 회의록","식당은 늘 같은데 고민만 매일 신메뉴예요. 후보를 세 개로 줄이면 점심시간을 조금 되찾을 수 있겠네요.",17],
+  ]),
+  "jinju-seed-20260723-five-second-crosswalk": scheduledComments("jinju-seed-20260723-five-second-crosswalk","2026-07-23T06:40:00+09:00",[
+    ["신호 앞 여유","예전엔 5초면 가능성을 봤는데 요즘은 다음 신호에서 평화를 봅니다.",6],
+    ["다섯 초 철학자","뛰어서 아끼는 1분보다 숨 고르는 1분이 더 필요한 날이 있더라고요.",17],
+  ]),
+  "jinju-seed-20260723-safe-day": scheduledComments("jinju-seed-20260723-safe-day","2026-07-23T06:15:00+09:00",[
+    ["현관 불빛 수집가","집 현관 불이 켜지는 순간 오늘의 임무가 끝난 기분이 듭니다. 무사 귀가는 생각보다 큰 성취예요.",6],
+    ["무사 귀가자","특별한 일은 없었지만 양말 벗고 누울 수 있으면 오늘도 꽤 성공한 하루입니다.",17],
+  ]),
   "jinju-seed-20260722-late-honor-revocation": scheduledComments("jinju-seed-20260722-late-honor-revocation","2026-07-22T15:25:00+09:00",[
     ["뒤늦은 기록","취소는 끝이 아니라 시작이어야 합니다. 왜 잘못됐는지도 역사에 분명히 남겨야 해요.",6],
     ["반듯한 역사책","늦었다고 아무것도 하지 않는 것보다는 지금이라도 바로잡는 게 맞습니다.",17],
@@ -4040,6 +4202,15 @@ const COMMENTS: Record<string, EditorialComment[]> = {
 };
 const DUPLICATE_POST_IDS = new Set(["jinju-seed-20260720-rested-then-work"]);
 const SCHEDULED_COMMENT_POST_IDS = new Set([
+  "jinju-seed-20260723-thursday-feels-friday",
+  "jinju-seed-20260723-familiar-lunch-wins",
+  "jinju-seed-20260723-reply-starts-with-apology",
+  "jinju-seed-20260723-ai-saved-time",
+  "jinju-seed-20260723-apology-before-explanation",
+  "jinju-seed-20260723-same-elevator-floor",
+  "jinju-seed-20260723-lunch-meeting",
+  "jinju-seed-20260723-five-second-crosswalk",
+  "jinju-seed-20260723-safe-day",
   "jinju-seed-20260722-late-honor-revocation",
   "jinju-seed-20260722-math-apology-pressure",
   "jinju-seed-20260722-friend-ai-comfort",
