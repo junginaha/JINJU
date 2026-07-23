@@ -27,6 +27,37 @@ const NOUNS = [
   "모닥불", "별빛", "새벽", "노을", "파도", "여름비", "은행잎", "조약돌",
 ];
 
+const EXACT_PAIRS: Record<string, [string, string]> = {
+  "4x0s6a164i0p42345f3n": [
+    "진주 여행 찾다가 들어왔는데 여긴 다른 진주였네요 ㅋㅋ 그래도 일단 둘러봅니다.",
+    "익명이라 오히려 솔직한 얘기가 더 많이 나오겠네요.",
+  ],
+  "rested-then-work": [
+    "저 말 들으면 일단 긴장함 ㅋㅋ 안부만 묻고 끝난 적이 별로 없어서.",
+    "잘 쉬긴 했는데요… 그렇다고 배터리가 백 퍼센트는 아닙니다.",
+  ],
+  "jinju-story-affair-friend": [
+    "배우자보다 친구한테 더 배신감 들 것 같아요. 둘 다 다시 보긴 어려울 듯.",
+    "용서보다 일단 두 사람한테서 멀어질 시간이 먼저 필요해 보여요.",
+  ],
+  "jinju-story-love-no-dating": [
+    "혼자가 편해서 안 하는 거면 포기가 아니라 선택이죠.",
+    "가끔 외롭긴 한데 아무나 만나는 것보단 지금이 나아요.",
+  ],
+  "jinju-story-ai-pig": [
+    "저도 처음엔 웃었는데 AI 사진일 수 있다니까 갑자기 찝찝해졌어요.",
+    "이제는 웃긴 사진 하나 보면서도 진짜인지부터 의심해야 하네요 ㅠ",
+  ],
+  "jinju-story-superfood": [
+    "저희 집 찬장에도 건강해지려고 산 가루만 세 봉지 있습니다 ㅋㅋ",
+    "결국 꾸준히 먹은 건 밥이고 슈퍼푸드는 유통기한만 지났네요.",
+  ],
+  "jinju-story-teen-sleep": [
+    "밤 열 시에 집에 온 아이한테 운동까지 하라는 건 너무하긴 하네요.",
+    "학원 하나 빼고 푹 자게 해주는 게 체력에는 더 좋을 것 같아요.",
+  ],
+};
+
 const RULES: Array<{ match: RegExp; pair: [string, string, string] }> = [
   { match: /반가워요.*진주|안녕하세요.*진주|개인정보 0%|마음을.*꺼낼 수 있는 곳|자주 오세요/, pair: ["하고 싶은 말을 삼키던 사람들에게 문 하나가 생긴 기분이네요. 첫 손님처럼 조용히 앉아봅니다.", "누군지 밝히지 않아도 마음은 존중받아야 한다는 원칙이 좋습니다. 오래 편안한 공간이 되길 바라요.", "‘나가실 때 마음이 조금 가벼워지면’이라는 문장이 진주의 사용설명서 같네요. 개운하게, 자주 들르겠습니다."] },
   { match: /잘 쉬셨|월요일/, pair: ["저 말 들으면 일단 긴장함 ㅋㅋ 안부만 묻고 끝난 적이 별로 없어서", "잘 쉬긴 했는데요… 그렇다고 배터리가 백 퍼센트는 아닙니다", "월요일의 안부는 왜 늘 업무 파일을 품고 오는지. 다음엔 정말 안부만 두고 갔으면 좋겠네요."] },
@@ -269,16 +300,15 @@ function genericPair(post: CommentSourcePost): [string, string, string] {
 }
 
 export function supplementalComments(post: CommentSourcePost): SupplementalComment[] {
-  const combined = `${post.title}\n${post.content}`;
-  const matchedPair = RULES.find((rule) => rule.match.test(combined))?.pair;
-  // 관련성을 확신할 수 없는 글에는 댓글을 강제로 붙이지 않는다.
-  if (!matchedPair) return [];
-  const pair = matchedPair;
+  // 기존 글은 ID로 검수된 댓글만 사용한다. 키워드 우연 일치로
+  // 전혀 다른 주제의 댓글이 붙는 일을 막는다.
+  const pair = EXACT_PAIRS[post.id];
+  if (!pair) return [];
   const baseTime = Number.isFinite(Date.parse(post.createdAt)) ? Date.parse(post.createdAt) : Date.now();
   return pair.map((body, index) => ({
     id: `jinju-tone-${post.id}-${index + 1}`,
     body: withinTwoSentences(body),
     displayName: nickname(post.id, index),
-    createdAt: new Date(baseTime + [9, 21, 37][index] * 60_000).toISOString(),
+    createdAt: new Date(baseTime + [9, 21][index] * 60_000).toISOString(),
   }));
 }

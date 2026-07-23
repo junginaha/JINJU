@@ -9,13 +9,8 @@ export type AutoCommentPost = {
 };
 
 const COMMENT_OFFSETS_MS = [
-  3 * 60_000,
-  9 * 60_000,
-  21 * 60_000,
-  47 * 60_000,
-  5 * 60 * 60_000 + 11 * 60_000,
-  24 * 60 * 60_000 + 8 * 60_000,
-  25 * 60 * 60_000 + 19 * 60_000,
+  6 * 60_000,
+  17 * 60_000,
 ] as const;
 
 export function autoCommentSchedule(postCreatedAt: string) {
@@ -48,42 +43,52 @@ function nickname(postId: string, index: number) {
   return `${ADJECTIVES[seed % ADJECTIVES.length]} ${NOUNS[Math.floor(seed / ADJECTIVES.length) % NOUNS.length]}`;
 }
 
-function compact(value: string) {
-  return value.replace(/\s+/g, " ").trim();
-}
+const CATEGORY_COMMENTS: Record<string, [string, string]> = {
+  일상: [
+    "이거 저도 해봤어요 ㅋㅋ 다들 비슷하게 사는구나 싶네요.",
+    "별일 아닌데 이런 게 하루 종일 생각날 때 있죠.",
+  ],
+  관계: [
+    "저도 비슷한 일 있었어요. 그때 바로 말 못 한 게 오래 남더라고요.",
+    "좋아하는 마음이랑 서운한 마음은 같이 생기기도 하죠.",
+  ],
+  직장: [
+    "우리 회사 얘긴 줄 알았어요 ㅋㅋ 웃기지만 매일 겪으면 진짜 지칩니다.",
+    "저도 그 자리에서는 아무 말 못 하고 퇴근길에 할 말이 다 생각나더라고요.",
+  ],
+  돈: [
+    "몇천 원은 작다는데 왜 늘 제 통장에서만 사라지는지 모르겠어요 ㅋㅋ",
+    "저도 결제 내역 열어봤다가 생각보다 커서 조용히 닫았습니다.",
+  ],
+  사회: [
+    "뉴스로 볼 땐 한 줄인데 실제로 겪는 사람은 하루가 통째로 흔들리겠네요.",
+    "취지는 알겠는데 현장에서 어떻게 되는지부터 보고 싶어요.",
+  ],
+  제안: [
+    "이거 생기면 저부터 씁니다. 왜 아직 없었나 싶네요.",
+    "거창한 기능보다 이런 불편 하나 고쳐주는 게 더 반갑더라고요.",
+  ],
+  질문: [
+    "처음엔 한쪽이라고 생각했는데 읽고 나니 좀 헷갈리네요.",
+    "저는 아직 반반이에요. 다른 분들 생각도 궁금합니다.",
+  ],
+};
 
-function sentences(content: string) {
-  const parts = content
-    .split(/(?<=[.!?。！？])\s+|\n+/)
-    .map(compact)
-    .filter((value) => value.length >= 4);
-  return parts.length ? parts : [compact(content)];
-}
+const TOPIC_COMMENTS: Array<{ match: RegExp; comments: [string, string] }> = [
+  { match: /답장|읽씹/, comments: ["답장 미루다 사과문부터 쓰게 되는 거 저만 그런 줄 알았어요 ㅠ", "완벽하게 쓰려다 아예 못 보내는 날이 있죠."] },
+  { match: /AI|인공지능/, comments: ["편해진 건 맞는데 왜 저는 전보다 더 바쁜지 모르겠어요 ㅋㅋ", "결국 어디까지 맡길지는 사람이 정해야 하는 것 같아요."] },
+  { match: /회식/, comments: ["자유 참석이라면서 안 가면 이유 묻는 순간 자유는 끝이죠.", "가끔은 재밌는데 매번 좋아해야 하는 분위기가 더 피곤해요."] },
+  { match: /월급|통장|생활비|구독/, comments: ["저도 결제 내역 열어봤다가 생각보다 커서 조용히 닫았습니다.", "돈 들어온 날보다 빠져나가는 날이 더 또렷하더라고요."] },
+  { match: /엄마|아빠|부모|가족/, comments: ["가족 일은 고마움이랑 서운함이 같이 와서 더 어렵더라고요.", "가까운 사이라도 싫다고 한 건 한 번 들어줬으면 좋겠어요."] },
+  { match: /병원|진료|아프|응급/, comments: ["아픈데 설명까지 혼자 챙겨야 하면 더 막막하죠.", "저도 병원 다녀오고 집에 오면 질문이 꼭 하나씩 생각납니다."] },
+  { match: /폭염|폭우|날씨|재난/, comments: ["안전하게 하라는 말만 있고 쉴 수 있는 조건은 없을 때가 많죠.", "조금 늦어도 괜찮다는 분위기부터 생겼으면 좋겠어요."] },
+];
 
-function excerpt(value: string, maximum = 42) {
-  const cleaned = compact(value).replace(/[“”\"]/g, "");
-  return cleaned.length <= maximum ? cleaned : `${cleaned.slice(0, maximum).trim()}…`;
-}
-
-function contextualComments(post: AutoCommentPost) {
-  const details = sentences(post.content);
-  const title = excerpt(post.title, 46);
-  const detail = (index: number) => excerpt(details[index % details.length] || post.title, 46);
-  const asksQuestion = /[?？]|어떻게|어느 쪽|여러분|까요|인가요|할까요/.test(`${post.title} ${post.content}`);
-  const sensitive = /자살|자해|죽|사망|장례|폭력|성폭력|범죄|피해|상실|응급|병원|아프|괴롭힘/.test(`${post.title} ${post.content}`);
-  return [
-    `“${title}”라는 제목부터 무슨 마음인지 바로 전해졌어요. 이 이야기를 꺼내주셔서 고맙습니다.`,
-    `저는 “${detail(0)}”라는 대목에서 멈췄어요. 같은 상황이라면 저도 마음이 오래 남았을 것 같아요.`,
-    sensitive
-      ? `“${detail(1)}”이라는 말을 가볍게 넘길 수가 없네요. 혼자 감당해온 시간이 느껴집니다.`
-      : `“${detail(1)}”에서 살짝 웃었는데, 웃고 나니 마음이 좀 남네요. 정말 사람 사는 장면 같아요.`,
-    asksQuestion
-      ? `글에서 던진 질문, 쉽게 한쪽 답만 고르기 어렵네요. 저는 “${detail(2)}”를 기준으로 조금 더 생각해보겠습니다.`
-      : `“${detail(2)}”라는 말이 이 글의 중심처럼 느껴졌습니다. 그 마음을 이해하게 되네요.`,
-    `처음에는 제목이 눈에 들어왔는데 다시 읽으니 “${detail(3)}”가 오래 남습니다. 다른 각도에서도 생각하게 됐어요.`,
-    `하루 지나 다시 읽어도 “${detail(0)}”라는 문장이 마음에 남네요. 어제보다 뜻이 더 또렷하게 보입니다.`,
-    `마지막으로 “${detail(1)}”를 한 번 더 읽고 갑니다. 이 이야기를 문장으로 꺼내준 덕분에 저도 생각이 깊어졌어요.`,
-  ];
+function contextualComments(post: AutoCommentPost): [string, string] {
+  const combined = `${post.title}\n${post.content}`;
+  return TOPIC_COMMENTS.find((rule) => rule.match.test(combined))?.comments
+    || CATEGORY_COMMENTS[post.category]
+    || CATEGORY_COMMENTS.일상;
 }
 
 export async function generateAutoCommentBodies(post: AutoCommentPost) {

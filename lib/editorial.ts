@@ -1,4 +1,5 @@
 import { supplementalComments } from "./supplemental-comments";
+import { curateEditorialComments, curatedDisplayName } from "./comment-curation";
 
 export type EditorialPost = { id:string; title:string; content:string; category:string; displayName?:string; mode?:string; createdAt:string; updatedAt?:string; heard:number; same:number; support:number; commentCount:number };
 export type EditorialComment = { id:string; body:string; displayName:string; createdAt:string };
@@ -4201,21 +4202,6 @@ const COMMENTS: Record<string, EditorialComment[]> = {
   ]
 };
 const DUPLICATE_POST_IDS = new Set(["jinju-seed-20260720-rested-then-work"]);
-const SCHEDULED_COMMENT_POST_IDS = new Set([
-  "jinju-seed-20260723-thursday-feels-friday",
-  "jinju-seed-20260723-familiar-lunch-wins",
-  "jinju-seed-20260723-reply-starts-with-apology",
-  "jinju-seed-20260723-ai-saved-time",
-  "jinju-seed-20260723-apology-before-explanation",
-  "jinju-seed-20260723-same-elevator-floor",
-  "jinju-seed-20260723-lunch-meeting",
-  "jinju-seed-20260723-five-second-crosswalk",
-  "jinju-seed-20260723-safe-day",
-  "jinju-seed-20260722-late-honor-revocation",
-  "jinju-seed-20260722-math-apology-pressure",
-  "jinju-seed-20260722-friend-ai-comfort",
-  "jinju-seed-20260722-human-ai-go-handicap",
-]);
 export const editorialPosts=POSTS.filter(post=>!DUPLICATE_POST_IDS.has(post.id));
 export function editorialPost(id:string){return DUPLICATE_POST_IDS.has(id)?null:POSTS.find(post=>post.id===id)??null}
 export function editorialComments(id:string){
@@ -4223,7 +4209,11 @@ export function editorialComments(id:string){
   const post=POSTS.find(item=>item.id===id);
   if(!post)return [];
   const seeded=COMMENTS[id]??[];
-  const combined=SCHEDULED_COMMENT_POST_IDS.has(id)?seeded:[...seeded,...supplementalComments(post)];
+  const postIndex=POSTS.findIndex(item=>item.id===id);
+  const nameOffset=Math.max(0,postIndex)*2;
+  const combined=seeded.length
+    ? curateEditorialComments(id,seeded,2,nameOffset)
+    : supplementalComments(post).map((comment,index)=>({...comment,displayName:curatedDisplayName(nameOffset+index)}));
   const now=Date.now();
   return combined.filter(comment=>Date.parse(comment.createdAt)<=now);
 }
