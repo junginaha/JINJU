@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   keywords: ["진주.kr", "익명 커뮤니티", "익명 의견", "익명 게시판", "진실의 주둥이"],
   robots: { index: true, follow: true },
+  verification: {
+    other: {
+      "naver-site-verification": "c0a3a157bb1b4439341e302ee733cd137cab15db",
+    },
+  },
   openGraph: {
     title: "진주.kr — 익명 의견 커뮤니티",
     description: siteDescription,
