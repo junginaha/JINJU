@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const INTRO_STORAGE_KEY = "jinju-intro-seen-v1";
-const INTRO_DURATION = 9000;
+const INTRO_DURATION = 5000;
 const INTRO_FADE_DURATION = 560;
 
 export default function Intro({ onComplete }: { onComplete: () => void }) {
@@ -86,6 +86,7 @@ export default function Intro({ onComplete }: { onComplete: () => void }) {
         <div className="intro-message">
           <span>인간적으로,</span>
           <strong>할 말은 하세요!</strong>
+          <p className="intro-subcopy">안전하고 개운하게 속마음을 털어놓으세요</p>
         </div>
 
         <h1 className="intro-wordmark" aria-label="진실의 주둥이">
