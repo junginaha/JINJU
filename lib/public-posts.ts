@@ -3,16 +3,31 @@ import { db, databaseEnabled, ensureSchema } from "./db";
 import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "./content-overrides";
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
 import { editorialComments, editorialPost, editorialPosts, type EditorialPost } from "./editorial";
+import { launchEditorialComments, launchEditorialPost, launchEditorialPosts } from "./launch-editorial";
 import { supplementalComments } from "./supplemental-comments";
 import { normalizeCommentTimes } from "./comment-time";
 import type { Post } from "../components/JinjuApp";
+
+function normalizeCategory(category: string) {
+  if (category === "건강") return "사회";
+  if (category === "문화") return "질문";
+  return category;
+}
+
+function commentsFor(postId: string) {
+  return launchEditorialPost(postId) ? launchEditorialComments(postId) : editorialComments(postId);
+}
+
+function builtInPost(postId: string) {
+  return launchEditorialPost(postId) ?? editorialPost(postId);
+}
 
 function cleanRow(row: Record<string, unknown>): EditorialPost {
   return {
     id: String(row.id),
     title: String(row.title),
     content: String(row.content),
-    category: String(row.category),
+    category: normalizeCategory(String(row.category)),
     displayName: String(row.display_name || "익명"),
     createdAt: new Date(String(row.created_at)).toISOString(),
     heard: Number(row.heard),
@@ -23,24 +38,28 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
 }
 
 function withVisibleCommentCount(post: EditorialPost, hasAutoComments = false) {
-  const builtInCount = editorialPost(post.id)
-    ? editorialComments(post.id).length
+  const builtInCount = builtInPost(post.id)
+    ? commentsFor(post.id).length
     : hasAutoComments ? 0 : supplementalComments(post).length;
-  return { ...post, commentCount: post.commentCount + builtInCount };
+  return { ...post, category: normalizeCategory(post.category), commentCount: post.commentCount + builtInCount };
 }
 
 function editorialWithVisibleCommentCount(post: EditorialPost) {
-  return { ...post, commentCount: editorialComments(post.id).length };
+  return {
+    ...post,
+    category: normalizeCategory(post.category),
+    commentCount: commentsFor(post.id).length,
+  };
 }
 
 export function toClientPost(post: EditorialPost): Post {
-  const comments = normalizeCommentTimes(post.createdAt, editorialComments(post.id))
+  const comments = normalizeCommentTimes(post.createdAt, commentsFor(post.id))
     .map(({ id, body, displayName, createdAt }) => ({ id, body, displayName, createdAt }));
   return {
     id: post.id,
     title: post.title,
     content: post.content,
-    category: post.category,
+    category: normalizeCategory(post.category),
     displayName: post.displayName,
     date: new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(post.createdAt)),
     heard: post.heard,
@@ -52,7 +71,8 @@ export function toClientPost(post: EditorialPost): Post {
 }
 
 export const getPublicPosts = cache(async () => {
-  const byId = new Map(editorialPosts.map((post) => [post.id, editorialWithVisibleCommentCount(post)]));
+  const allEditorialPosts = [...launchEditorialPosts, ...editorialPosts];
+  const byId = new Map(allEditorialPosts.map((post) => [post.id, editorialWithVisibleCommentCount(post)]));
   let overrides = await contentOverrides();
   if (databaseEnabled()) {
     try {
@@ -90,7 +110,11 @@ export const getPublicPosts = cache(async () => {
   return dedupePosts([...byId.values()])
     .flatMap((post) => {
       const visible = applyPostOverride(post, overrides);
-      return visible ? [{ ...visible, commentCount: Math.max(0, visible.commentCount - (hiddenCounts.get(visible.id) || 0)) }] : [];
+      return visible ? [{
+        ...visible,
+        category: normalizeCategory(visible.category),
+        commentCount: Math.max(0, visible.commentCount - (hiddenCounts.get(visible.id) || 0)),
+      }] : [];
     })
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 });
@@ -118,14 +142,22 @@ export const getPublicPost = cache(async (id: string) => {
         const record = rows[0] as Record<string, unknown>;
         if (String(record.status) !== "approved" || String(record.visibility) !== "public") return null;
         const post = applyPostOverride(withVisibleCommentCount(cleanRow(record), Boolean(record.has_auto_comments)), overrides);
-        return post ? { ...post, commentCount: Math.max(0, post.commentCount - hiddenCount) } : null;
+        return post ? {
+          ...post,
+          category: normalizeCategory(post.category),
+          commentCount: Math.max(0, post.commentCount - hiddenCount),
+        } : null;
       }
     } catch {
       // Fall through to the built-in editorial copy.
     }
   }
-  const fallback = editorialPost(id);
+  const fallback = builtInPost(id);
   if (!fallback) return null;
   const post = applyPostOverride(editorialWithVisibleCommentCount(fallback), overrides);
-  return post ? { ...post, commentCount: Math.max(0, post.commentCount - hiddenCount) } : null;
+  return post ? {
+    ...post,
+    category: normalizeCategory(post.category),
+    commentCount: Math.max(0, post.commentCount - hiddenCount),
+  } : null;
 });
