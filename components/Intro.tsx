@@ -86,7 +86,9 @@ export default function Intro({ onComplete }: { onComplete: () => void }) {
         <div className="intro-message">
           <span>인간적으로,</span>
           <strong>할 말은 하세요!</strong>
-          <p className="intro-subcopy">안전하고 개운하게 속마음을 털어놓으세요</p>
+          <p style={{ margin: "11px 0 0", color: "#c9c5bd", fontSize: "clamp(13px, 1.8vw, 17px)", lineHeight: 1.55, letterSpacing: "-0.025em" }}>
+            안전하고 개운하게 속마음을 털어놓으세요
+          </p>
         </div>
 
         <h1 className="intro-wordmark" aria-label="진실의 주둥이">
