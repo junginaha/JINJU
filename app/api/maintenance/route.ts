@@ -8,6 +8,9 @@ export async function GET() {
   await Promise.all([
     db()`DELETE FROM admin_sessions WHERE expires_at <= NOW()`,
     db()`DELETE FROM rate_limits WHERE expires_at <= NOW()`,
+    db()`DELETE FROM zk_members WHERE expires_at <= NOW()`,
+    db()`DELETE FROM zk_group_roots WHERE expires_at <= NOW()`,
+    db()`DELETE FROM zk_nullifiers WHERE expires_at <= NOW()`,
     db()`DELETE FROM feedback_reports WHERE expires_at <= NOW()`,
     db()`DELETE FROM post_reactions WHERE created_at <= NOW() - INTERVAL '30 days'`,
   ]);
