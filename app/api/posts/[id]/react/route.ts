@@ -2,16 +2,8 @@ import { db, databaseEnabled, ensureSchema, hash } from "../../../../../lib/db";
 import { editorialPost } from "../../../../../lib/editorial";
 import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 import { rateLimit } from "../../../../../lib/rate-limit";
-
-const REACTION_COOKIE = "jinju-reaction-device";
-
-function reactionDevice(request: Request) {
-  const cookies = request.headers.get("cookie") || "";
-  const current = cookies.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${REACTION_COOKIE}=`))?.slice(REACTION_COOKIE.length + 1);
-  if (current && /^[a-zA-Z0-9-]{20,80}$/.test(current)) return { id: current, setCookie: "" };
-  const id = crypto.randomUUID();
-  return { id, setCookie: `${REACTION_COOKIE}=${id}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax` };
-}
+import { parseSemaphoreProof, reactionProofMessage, reactionProofScope } from "../../../../../lib/zk-shared";
+import { anonymousProofExpiry, verifyAnonymousAction } from "../../../../../lib/zk-server";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const limit = await rateLimit(request, "reaction", 30, 10 * 60_000);
@@ -19,12 +11,36 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
   const { id } = await context.params;
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return Response.json({ error: "의견을 찾을 수 없습니다." }, { status: 404 });
-  const { kind } = await request.json() as { kind?: "heard" | "same" };
+  const payload = await request.json() as { kind?: "heard" | "same"; proof?: unknown };
+  const { kind } = payload;
   if (!kind || !["heard", "same"].includes(kind)) return Response.json({ error: "올바른 반응을 선택해주세요." }, { status: 400 });
+  const proof = parseSemaphoreProof(payload.proof);
+  if (!proof) {
+    return Response.json(
+      { error: "익명 이용 증명이 필요합니다.", code: "anonymous_proof_required" },
+      { status: 428 },
+    );
+  }
   await ensureSchema();
   await db()`DELETE FROM post_reactions WHERE created_at <= NOW() - INTERVAL '30 days'`;
-  const device = reactionDevice(request);
-  const voterHash = await hash(`reaction:${device.id}`);
+  const checked = await verifyAnonymousAction(
+    proof,
+    reactionProofMessage(id, kind),
+    reactionProofScope(id),
+  );
+  if (!checked.valid) {
+    return Response.json(
+      {
+        error: checked.reason === "expired_root"
+          ? "익명 이용 증명을 새로 준비해주세요."
+          : "익명 이용 증명을 확인하지 못했습니다.",
+        code: checked.reason === "expired_root" ? "anonymous_proof_expired" : "anonymous_proof_invalid",
+      },
+      { status: 403 },
+    );
+  }
+
+  const voterHash = await hash(`zk-reaction:${proof.nullifier}`);
   let rows = await db()`SELECT id FROM posts WHERE id = ${id} LIMIT 1`;
   if (!rows[0]) {
     const fallback = editorialPost(id);
@@ -32,15 +48,21 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await db()`INSERT INTO posts (id, title, content, category, mode, visibility, risk_level, status, delete_key_hash, heard, same, support, comment_count, created_at, updated_at) VALUES (${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, '털어놓기', 'public', 'low', 'approved', ${await hash(`editorial:${fallback.id}`)}, ${fallback.heard}, ${fallback.same}, ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.createdAt}) ON CONFLICT (id) DO NOTHING`;
   }
   const inserted = await db()`
+    WITH consumed AS (
+      INSERT INTO zk_nullifiers (nullifier, action, scope, expires_at)
+      VALUES (${proof.nullifier}, 'reaction', ${proof.scope}, ${anonymousProofExpiry()})
+      ON CONFLICT (nullifier) DO NOTHING
+      RETURNING nullifier
+    )
     INSERT INTO post_reactions (post_id, voter_hash, kind)
-    VALUES (${id}, ${voterHash}, ${kind})
+    SELECT ${id}, ${voterHash}, ${kind}
+    FROM consumed
     ON CONFLICT (post_id, voter_hash) DO NOTHING
     RETURNING kind`;
   if (!inserted[0]) {
     rows = await db()`SELECT heard, same FROM posts WHERE id = ${id} LIMIT 1`;
     return Response.json(
       { ok: true, alreadyReacted: true, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
-      { headers: device.setCookie ? { "set-cookie": device.setCookie } : undefined },
     );
   }
   rows = kind === "heard"
@@ -48,6 +70,5 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     : await db()`UPDATE posts SET same = same + 1, updated_at = NOW() WHERE id = ${id} RETURNING heard, same`;
   return Response.json(
     { ok: true, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
-    { headers: device.setCookie ? { "set-cookie": device.setCookie } : undefined },
   );
 }
