@@ -81,6 +81,28 @@ export async function ensureSchema() {
           PRIMARY KEY (scope, actor_hash, window_start)
         )`;
       await sql`
+        CREATE TABLE IF NOT EXISTS zk_members (
+          member_index BIGSERIAL PRIMARY KEY,
+          commitment TEXT NOT NULL UNIQUE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          expires_at TIMESTAMPTZ NOT NULL
+        )`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS zk_group_roots (
+          root TEXT PRIMARY KEY,
+          tree_depth INTEGER NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          expires_at TIMESTAMPTZ NOT NULL
+        )`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS zk_nullifiers (
+          nullifier TEXT PRIMARY KEY,
+          action TEXT NOT NULL,
+          scope TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          expires_at TIMESTAMPTZ NOT NULL
+        )`;
+      await sql`
         CREATE TABLE IF NOT EXISTS feedback_reports (
           receipt TEXT PRIMARY KEY,
           post_id TEXT NOT NULL,
@@ -118,6 +140,9 @@ export async function ensureSchema() {
       await sql`CREATE INDEX IF NOT EXISTS admin_content_overrides_post_idx ON admin_content_overrides(post_id, kind)`;
       await sql`CREATE INDEX IF NOT EXISTS admin_sessions_expiry_idx ON admin_sessions(expires_at)`;
       await sql`CREATE INDEX IF NOT EXISTS rate_limits_expiry_idx ON rate_limits(expires_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS zk_members_expiry_idx ON zk_members(expires_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS zk_group_roots_expiry_idx ON zk_group_roots(expires_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS zk_nullifiers_expiry_idx ON zk_nullifiers(expires_at)`;
       await sql`CREATE INDEX IF NOT EXISTS feedback_reports_post_created_idx ON feedback_reports(post_id, created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS feedback_reports_expiry_idx ON feedback_reports(expires_at)`;
       await sql`
