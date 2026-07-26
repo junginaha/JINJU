@@ -6,6 +6,8 @@ import Intro from "./Intro";
 import PostTemperature from "./PostTemperature";
 import FeedbackDialog from "./FeedbackDialog";
 import { formatCommentTime } from "../lib/comment-time";
+import { createAnonymousProof, resetAnonymousMembership } from "../lib/zk-client";
+import { reactionProofMessage, reactionProofScope } from "../lib/zk-shared";
 
 type SpeechRecognitionLike = { lang:string; continuous:boolean; interimResults:boolean; maxAlternatives?:number; start:()=>void; stop:()=>void; abort:()=>void; onresult:((event:{resultIndex:number;results:ArrayLike<{isFinal:boolean;0:{transcript:string}}>})=>void)|null; onend:(()=>void)|null; onerror:((event:{error?:string})=>void)|null };
 type SpeechRecognitionConstructor = new()=>SpeechRecognitionLike;
@@ -141,6 +143,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [postDeleteKeys,setPostDeleteKeys]=useState<DeleteKeys>({});
   const [commentDeleteKeys,setCommentDeleteKeys]=useState<DeleteKeys>({});
   const [reactedPosts,setReactedPosts]=useState<Record<string,boolean>>({});
+  const [reacting,setReacting]=useState<{postId:string;kind:"heard"|"same"}|null>(null);
   const [voiceState,setVoiceState]=useState<VoiceState>("idle");
   const [activeVoiceField,setActiveVoiceField]=useState<VoiceField>("body");
   const [voiceMessage,setVoiceMessage]=useState("");
@@ -442,16 +445,38 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   }
 
   async function react(postId: string, kind: "heard" | "same") {
-    if(reactedPosts[postId])return;
+    if(reactedPosts[postId]||reacting)return;
+    setReacting({postId,kind});
     try {
-      const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/react`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind }) });
-      const data=await response.json() as {post?:{heard:number;same:number}};
-      if(!response.ok||!data.post)return;
+      const sendReaction = async () => {
+        const proof = await createAnonymousProof(
+          reactionProofMessage(postId, kind),
+          reactionProofScope(postId),
+        );
+        const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/react`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ kind, proof }),
+        });
+        const data=await response.json() as {error?:string;code?:string;post?:{heard:number;same:number}};
+        return {response,data};
+      };
+      let result=await sendReaction();
+      if(!result.response.ok&&result.data.code==="anonymous_proof_expired"){
+        await resetAnonymousMembership();
+        result=await sendReaction();
+      }
+      if(!result.response.ok||!result.data.post)throw new Error(result.data.error||"반응을 남기지 못했습니다.");
+      const data=result.data;
       setPosts((current)=>current.map((post)=>post.id===postId?{...post,heard:data.post!.heard,same:data.post!.same}:post));
       const next={...reactedPosts,[postId]:true};
       setReactedPosts(next);
       try{localStorage.setItem(REACTION_KEYS,JSON.stringify(next))}catch{/* Server-side one-time protection remains active. */}
-    } catch {/* Keep the current public counts when the request fails. */}
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "익명 이용 증명을 만들지 못했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setReacting(null);
+    }
   }
 
   async function share(post: Post) {
@@ -508,6 +533,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           onBack={closePost}
           onReact={(kind) => react(selectedPost.id, kind)}
           reacted={Boolean(reactedPosts[selectedPost.id])}
+          reactingKind={reacting?.postId===selectedPost.id?reacting.kind:null}
           onShare={() => share(selectedPost)}
           onFeedback={() => setFeedbackPost(selectedPost)}
           onComment={(comment) => addComment(selectedPost.id, comment)}
@@ -562,7 +588,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="post-feed" aria-label="익명 의견 목록">
                 {filteredPosts.slice(0, 3).map((post) => (
-                  <PostCard key={post.id} post={post} reacted={Boolean(reactedPosts[post.id])} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
+                  <PostCard key={post.id} post={post} reacted={Boolean(reactedPosts[post.id])} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
                 ))}
               </section>
 
@@ -609,7 +635,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="post-feed continued-feed" aria-label="더 많은 익명 의견">
                 {filteredPosts.slice(3).map((post) => (
-                  <PostCard key={post.id} post={post} reacted={Boolean(reactedPosts[post.id])} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
+                  <PostCard key={post.id} post={post} reacted={Boolean(reactedPosts[post.id])} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
                 ))}
               </section>
 
@@ -647,9 +673,10 @@ function Sidebar({ topic, sort, onTopic, onSort, mobileOpen }: {
   );
 }
 
-function PostCard({ post, reacted, onOpen, onReact, onShare, onFeedback }: {
+function PostCard({ post, reacted, reactingKind, onOpen, onReact, onShare, onFeedback }: {
   post: Post;
   reacted: boolean;
+  reactingKind: "heard" | "same" | null;
   onOpen: () => void;
   onReact: (kind: "heard" | "same") => void;
   onShare: () => void;
@@ -663,8 +690,8 @@ function PostCard({ post, reacted, onOpen, onReact, onShare, onFeedback }: {
       </a>
       <PostTemperature likes={post.heard} dislikes={post.same} />
       <div className="post-actions">
-        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reacted}><Pearl size={16} /><span>좋아요</span><strong>{post.heard}</strong></button>
-        <button onClick={() => onReact("same")} type="button" disabled={reacted}>싫어요</button>
+        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reacted||Boolean(reactingKind)} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button>
+        <button onClick={() => onReact("same")} type="button" disabled={reacted||Boolean(reactingKind)} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button>
         <button onClick={onOpen} type="button">댓글 <span>{post.comments.length}</span></button>
         <button className="share-post-button" onClick={onShare} type="button">공유하기</button>
         <button className="post-report" type="button" onClick={onFeedback}>의견 보내기</button>
@@ -673,9 +700,10 @@ function PostCard({ post, reacted, onOpen, onReact, onShare, onFeedback }: {
   );
 }
 
-function PostDetail({ post, reacted, onBack, onReact, onShare, onFeedback, onComment, canDeletePost, canDeleteComment, onDeletePost, onDeleteComment }: {
+function PostDetail({ post, reacted, reactingKind, onBack, onReact, onShare, onFeedback, onComment, canDeletePost, canDeleteComment, onDeletePost, onDeleteComment }: {
   post: Post;
   reacted: boolean;
+  reactingKind: "heard" | "same" | null;
   onBack: () => void;
   onReact: (kind: "heard" | "same") => void;
   onShare: () => void;
@@ -745,7 +773,7 @@ function PostDetail({ post, reacted, onBack, onReact, onShare, onFeedback, onCom
           <div className="post-meta"><span>{post.category}{post.displayName ? ` · ${post.displayName}` : ""}</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />
-          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reacted}><Pearl size={16} /><span>좋아요</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reacted}>싫어요</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button">공유하기</button><button type="button" onClick={onFeedback}>의견 보내기</button>{canDeletePost&&<button className="own-delete-button" onClick={removePost} disabled={deleteBusy==="post"} type="button">{deleteBusy==="post"?"삭제 중…":"내 글 삭제"}</button>}</div>
+          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reacted||Boolean(reactingKind)} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reacted||Boolean(reactingKind)} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button">공유하기</button><button type="button" onClick={onFeedback}>의견 보내기</button>{canDeletePost&&<button className="own-delete-button" onClick={removePost} disabled={deleteBusy==="post"} type="button">{deleteBusy==="post"?"삭제 중…":"내 글 삭제"}</button>}</div>
         </article>
         <section className="comment-list" id="comment-list" aria-label="댓글 목록">
           <h2>댓글 {commentsLoading ? "…" : detailComments.length}</h2>
