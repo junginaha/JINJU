@@ -24,10 +24,10 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
   };
 }
 
-function withVisibleCommentCount(post: EditorialPost, hasAutoComments = false) {
+function withVisibleCommentCount(post: EditorialPost, _hasAutoComments = false) {
   const builtInCount = builtInPost(post.id)
     ? builtInComments(post.id).length
-    : hasAutoComments ? 0 : supplementalComments(post).length;
+    : supplementalComments(post).length;
   return {
     ...post,
     category: normalizePublicCategory(post.category),
