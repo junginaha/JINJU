@@ -1,5 +1,6 @@
 import { supplementalComments } from "./supplemental-comments";
 import { curateEditorialComments, curatedDisplayName } from "./comment-curation";
+import { editorialCommentAdditions } from "./editorial-comment-additions";
 
 export type EditorialPost = { id:string; title:string; content:string; category:string; displayName?:string; mode?:string; createdAt:string; updatedAt?:string; heard:number; same:number; support:number; commentCount:number };
 export type EditorialComment = { id:string; body:string; displayName:string; createdAt:string };
@@ -4872,16 +4873,17 @@ export function editorialComments(id:string){
   if(DUPLICATE_POST_IDS.has(id))return [];
   const post=POSTS.find(item=>item.id===id);
   if(!post)return [];
-  const seeded=COMMENTS[id]??[];
+  const seeded=[...(COMMENTS[id]??[]),...editorialCommentAdditions(id,post.createdAt)];
   if(FULL_COMMENT_POST_IDS.has(id)) {
     const now=Date.now();
     return seeded.filter(comment=>Date.parse(comment.createdAt)<=now);
   }
   const postIndex=POSTS.findIndex(item=>item.id===id);
   const nameOffset=Math.max(0,postIndex)*2;
+  const addedNameOffset=POSTS.length*2+Math.max(0,postIndex)*3;
   const combined=seeded.length
-    ? curateEditorialComments(id,seeded,2,nameOffset)
-    : supplementalComments(post).map((comment,index)=>({...comment,displayName:curatedDisplayName(nameOffset+index)}));
+    ? curateEditorialComments(id,seeded,5,nameOffset).map((comment,index)=>index<2?comment:{...comment,displayName:curatedDisplayName(addedNameOffset+index-2)})
+    : supplementalComments(post).map((comment,index)=>({...comment,displayName:curatedDisplayName(index<2?nameOffset+index:addedNameOffset+index-2)}));
   const now=Date.now();
   return combined.filter(comment=>Date.parse(comment.createdAt)<=now);
 }
