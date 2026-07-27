@@ -1,13 +1,13 @@
-import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../../lib/db";
-import { editorialComments, editorialPost } from "../../../../../lib/editorial";
-import { hasPii, reviewText } from "../../../../../lib/safety";
-import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
-import { supplementalComments } from "../../../../../lib/supplemental-comments";
+import { builtInComments, builtInPost } from "../../../../../lib/built-in-content";
 import { applyCommentOverrides, contentOverrides } from "../../../../../lib/content-overrides";
-import { getPublicPost } from "../../../../../lib/public-posts";
 import { normalizeCommentTimes } from "../../../../../lib/comment-time";
-import { rateLimit } from "../../../../../lib/rate-limit";
+import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../../lib/db";
+import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 import { generateUniqueJinjuDisplayName } from "../../../../../lib/display-name";
+import { getPublicPost } from "../../../../../lib/public-posts";
+import { rateLimit } from "../../../../../lib/rate-limit";
+import { hasPii, reviewText } from "../../../../../lib/safety";
+import { supplementalComments } from "../../../../../lib/supplemental-comments";
 
 export const dynamic = "force-dynamic";
 
@@ -21,21 +21,21 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   const publicPost = await getPublicPost(id);
   if (!publicPost) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
-  const editorial = editorialPost(id);
-  const fallback = editorialComments(id);
+  const builtIn = builtInPost(id);
+  const fallback = builtInComments(id);
   const overrides = await contentOverrides();
-  if (!databaseEnabled()) return editorial
+  if (!databaseEnabled()) return builtIn
     ? Response.json({ comments: normalizeCommentTimes(publicPost.createdAt, applyCommentOverrides(fallback, overrides)).map(publicComment) }, { headers: { "cache-control": "no-store" } })
     : Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   await ensureSchema();
   const postRows = await db()`SELECT id, title, content, category, created_at FROM posts WHERE id = ${id} AND status = 'approved' AND visibility = 'public' LIMIT 1`;
   const row = postRows[0] as Record<string, unknown> | undefined;
-  if (!row && !editorial) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
-  const autoRows = editorial ? [] : await db()`
+  if (!row && !builtIn) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
+  const autoRows = builtIn ? [] : await db()`
     SELECT id FROM comments
     WHERE post_id = ${id} AND id LIKE 'jinju-auto-%'
     LIMIT 1`;
-  const baseComments = editorial
+  const baseComments = builtIn
     ? fallback
     : autoRows[0] ? [] : supplementalComments({
       id: String(row?.id),
@@ -45,7 +45,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       createdAt: new Date(String(row?.created_at)).toISOString(),
     });
   const rows = await db()`SELECT id, content, display_name, created_at FROM comments WHERE post_id = ${id} AND status = 'approved' AND created_at <= NOW() ORDER BY created_at ASC LIMIT 200`;
-  const stored = rows.map((row: Record<string, unknown>) => ({ id: String(row.id), body: String(row.content), displayName: String(row.display_name || "익명"), createdAt: new Date(String(row.created_at)).toISOString() }));
+  const stored = rows.map((storedRow: Record<string, unknown>) => ({ id: String(storedRow.id), body: String(storedRow.content), displayName: String(storedRow.display_name || "익명"), createdAt: new Date(String(storedRow.created_at)).toISOString() }));
   const merged = new Map(baseComments.map((comment) => [String(comment.id), comment]));
   for (const comment of stored) merged.set(String(comment.id), comment);
   const comments = normalizeCommentTimes(publicPost.createdAt, [...merged.values()]);
@@ -75,9 +75,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   });
   let rows = await db()`SELECT id FROM posts WHERE id = ${postId} AND status = 'approved' AND visibility = 'public' LIMIT 1`;
   if (!rows[0]) {
-    const fallback = editorialPost(postId);
+    const fallback = builtInPost(postId);
     if (!fallback) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
-    await db()`INSERT INTO posts (id, title, content, category, delete_key_hash, heard, same, support, comment_count, created_at, updated_at) VALUES (${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, ${await hash(`editorial:${fallback.id}`)}, ${fallback.heard}, ${fallback.same}, ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.createdAt}) ON CONFLICT (id) DO NOTHING`;
+    await db()`INSERT INTO posts (id, title, content, category, display_name, mode, visibility, risk_level, status, delete_key_hash, heard, same, support, comment_count, created_at, updated_at) VALUES (${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, ${fallback.displayName || "익명"}, ${fallback.mode || "털어놓기"}, 'public', 'low', 'approved', ${await hash(`editorial:${fallback.id}`)}, ${fallback.heard}, ${fallback.same}, ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.createdAt}) ON CONFLICT (id) DO NOTHING`;
   }
   const id = token(10);
   const deleteKey = token(14);
