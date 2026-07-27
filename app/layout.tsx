@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./production-hotfix.css";
 
 const baseUrl = "https://xn--o55b9n.kr";
 const siteName = "진주.kr";
