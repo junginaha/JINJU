@@ -1,74 +1,28 @@
-import { db, databaseEnabled, ensureSchema, hash, token } from "../../../lib/db";
-import { editorialComments, editorialPost, editorialPosts } from "../../../lib/editorial";
-import { supplementalComments } from "../../../lib/supplemental-comments";
-import { hasPii } from "../../../lib/safety";
+import { generateAutoCommentBodies, storeAutoComments } from "../../../lib/auto-comments";
 import { reviewSubmission } from "../../../lib/ai-review";
-import { generateCoreTitle } from "../../../lib/title";
-import { dedupePosts, isDuplicatePost } from "../../../lib/dedup";
+import { builtInPosts } from "../../../lib/built-in-content";
+import { normalizePublicCategory, PUBLIC_CATEGORIES } from "../../../lib/categories";
+import { db, databaseEnabled, ensureSchema, hash, token } from "../../../lib/db";
+import { isDuplicatePost } from "../../../lib/dedup";
+import { generateUniqueJinjuDisplayName } from "../../../lib/display-name";
+import { getPublicPosts } from "../../../lib/public-posts";
 import { rateLimit } from "../../../lib/rate-limit";
 import { verifyReviewToken } from "../../../lib/review-token";
-import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "../../../lib/content-overrides";
-import { generateAutoCommentBodies, storeAutoComments } from "../../../lib/auto-comments";
-import { generateUniqueJinjuDisplayName } from "../../../lib/display-name";
+import { hasPii } from "../../../lib/safety";
+import { generateCoreTitle } from "../../../lib/title";
 
 export const dynamic = "force-dynamic";
 
-function cleanRow(row: Record<string, unknown>) {
-  return {
-    id: String(row.id), title: String(row.title), content: String(row.content), category: String(row.category),
-    displayName: String(row.display_name || "익명"),
-    createdAt: new Date(String(row.created_at)).toISOString(), heard: Number(row.heard), same: Number(row.same),
-    support: Number(row.support), commentCount: Number(row.stored_comment_count ?? row.comment_count ?? 0),
-  };
-}
-
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const category = url.searchParams.get("category")?.trim() || "전체";
+  const requestedCategory = url.searchParams.get("category")?.trim() || "전체";
+  const category = requestedCategory === "전체" ? "전체" : normalizePublicCategory(requestedCategory);
   const query = url.searchParams.get("q")?.trim().toLocaleLowerCase("ko-KR") || "";
   const sort = url.searchParams.get("sort") === "popular" ? "popular" : "latest";
-  let stored: ReturnType<typeof cleanRow>[] = [];
-  const overrides = await contentOverrides();
-  if (databaseEnabled()) {
-    await ensureSchema();
-    const rows = await db()`
-      SELECT post.id, post.title, post.content, post.category, post.display_name, post.created_at,
-             post.status, post.visibility,
-             post.heard, post.same, post.support,
-             COUNT(comment.id)::INTEGER AS stored_comment_count,
-             EXISTS (
-               SELECT 1 FROM comments AS auto_comment
-               WHERE auto_comment.post_id = post.id AND auto_comment.id LIKE 'jinju-auto-%'
-             ) AS has_auto_comments
-      FROM posts AS post
-      LEFT JOIN comments AS comment
-        ON comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()
-      GROUP BY post.id
-      ORDER BY post.created_at DESC
-      LIMIT 100`;
-    stored = rows.filter((row: Record<string, unknown>) => String(row.status) === "approved" && String(row.visibility) === "public").map((row: Record<string, unknown>) => {
-      const post = cleanRow(row);
-      const baseCount = editorialPost(post.id)
-        ? editorialComments(post.id).length
-        : Boolean(row.has_auto_comments) ? 0 : supplementalComments(post).length;
-      return { ...post, commentCount: post.commentCount + baseCount };
-    });
-  }
-  const byId = new Map(editorialPosts.map((post) => [post.id, { ...post, commentCount: editorialComments(post.id).length }]));
-  if (databaseEnabled()) {
-    const storedStates = await db()`SELECT id, status, visibility FROM posts`;
-    for (const row of storedStates) if (String(row.status) !== "approved" || String(row.visibility) !== "public") byId.delete(String(row.id));
-  }
-  for (const post of stored) byId.set(post.id, post);
-  const hiddenCounts = hiddenCommentCounts(overrides);
-  let posts = dedupePosts([...byId.values()])
-    .flatMap((post) => {
-      const visible = applyPostOverride(post, overrides);
-      return visible ? [{ ...visible, commentCount: Math.max(0, visible.commentCount - (hiddenCounts.get(visible.id) || 0)) }] : [];
-    })
-    .filter((post) => category === "전체" || post.category === category);
+  let posts = await getPublicPosts();
+  if (category !== "전체") posts = posts.filter((post) => post.category === category);
   if (query) posts = posts.filter((post) => `${post.title} ${post.content} ${post.category}`.toLocaleLowerCase("ko-KR").includes(query));
-  posts.sort((a, b) => sort === "popular"
+  posts = [...posts].sort((a, b) => sort === "popular"
     ? (b.heard + b.same + b.commentCount * 3) - (a.heard + a.same + a.commentCount * 3)
     : Date.parse(b.createdAt) - Date.parse(a.createdAt));
   return Response.json({ posts: posts.slice(0, 100), total: posts.length, database: databaseEnabled() }, { headers: { "cache-control": "no-store" } });
@@ -81,9 +35,8 @@ export async function POST(request: Request) {
   const payload = await request.json() as { title?: string; content?: string; category?: string; acceptReviewHold?: boolean; reviewToken?: string };
   const content = payload.content?.trim() ?? "";
   const title = (payload.title?.trim() || generateCoreTitle(content)).slice(0, 80);
-  const category = payload.category?.trim() || "일상";
-  const allowed = ["일상", "관계", "직장", "돈", "사회", "제안", "질문"];
-  if (!allowed.includes(category) || title.length < 2 || content.length < 8 || content.length > 2000 || hasPii(`${title} ${content}`)) {
+  const category = normalizePublicCategory(payload.category?.trim() || "일상");
+  if (!PUBLIC_CATEGORIES.includes(category) || title.length < 2 || content.length < 8 || content.length > 2000 || hasPii(`${title} ${content}`)) {
     return Response.json({ error: "개인정보를 제거하고 제목 2~80자, 본문 8~2,000자로 작성해주세요." }, { status: 400 });
   }
   const autoCommentBodies = generateAutoCommentBodies({
@@ -108,7 +61,7 @@ export async function POST(request: Request) {
   await ensureSchema();
   const existingRows = await db()`SELECT title, content FROM posts WHERE status IN ('approved','pending') ORDER BY created_at DESC LIMIT 500`;
   const existingPosts = [
-    ...editorialPosts,
+    ...builtInPosts,
     ...existingRows.map((row: Record<string, unknown>) => ({ title: String(row.title), content: String(row.content) })),
   ];
   if (existingPosts.some((post) => isDuplicatePost({ title, content }, post))) {
