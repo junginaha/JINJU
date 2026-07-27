@@ -1,33 +1,20 @@
 import { cache } from "react";
+import { builtInComments, builtInPost, builtInPosts } from "./built-in-content";
+import { normalizePublicCategory } from "./categories";
 import { db, databaseEnabled, ensureSchema } from "./db";
 import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "./content-overrides";
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
-import { editorialComments, editorialPost, editorialPosts, type EditorialPost } from "./editorial";
-import { launchEditorialComments, launchEditorialPost, launchEditorialPosts } from "./launch-editorial";
+import type { EditorialPost } from "./editorial";
 import { supplementalComments } from "./supplemental-comments";
 import { normalizeCommentTimes } from "./comment-time";
 import type { Post } from "../components/JinjuApp";
-
-function normalizeCategory(category: string) {
-  if (category === "건강") return "사회";
-  if (category === "문화") return "질문";
-  return category;
-}
-
-function commentsFor(postId: string) {
-  return launchEditorialPost(postId) ? launchEditorialComments(postId) : editorialComments(postId);
-}
-
-function builtInPost(postId: string) {
-  return launchEditorialPost(postId) ?? editorialPost(postId);
-}
 
 function cleanRow(row: Record<string, unknown>): EditorialPost {
   return {
     id: String(row.id),
     title: String(row.title),
     content: String(row.content),
-    category: normalizeCategory(String(row.category)),
+    category: normalizePublicCategory(String(row.category)),
     displayName: String(row.display_name || "익명"),
     createdAt: new Date(String(row.created_at)).toISOString(),
     heard: Number(row.heard),
@@ -39,27 +26,31 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
 
 function withVisibleCommentCount(post: EditorialPost, hasAutoComments = false) {
   const builtInCount = builtInPost(post.id)
-    ? commentsFor(post.id).length
+    ? builtInComments(post.id).length
     : hasAutoComments ? 0 : supplementalComments(post).length;
-  return { ...post, category: normalizeCategory(post.category), commentCount: post.commentCount + builtInCount };
-}
-
-function editorialWithVisibleCommentCount(post: EditorialPost) {
   return {
     ...post,
-    category: normalizeCategory(post.category),
-    commentCount: commentsFor(post.id).length,
+    category: normalizePublicCategory(post.category),
+    commentCount: post.commentCount + builtInCount,
+  };
+}
+
+function builtInWithVisibleCommentCount(post: EditorialPost) {
+  return {
+    ...post,
+    category: normalizePublicCategory(post.category),
+    commentCount: builtInComments(post.id).length,
   };
 }
 
 export function toClientPost(post: EditorialPost): Post {
-  const comments = normalizeCommentTimes(post.createdAt, commentsFor(post.id))
+  const comments = normalizeCommentTimes(post.createdAt, builtInComments(post.id))
     .map(({ id, body, displayName, createdAt }) => ({ id, body, displayName, createdAt }));
   return {
     id: post.id,
     title: post.title,
     content: post.content,
-    category: normalizeCategory(post.category),
+    category: normalizePublicCategory(post.category),
     displayName: post.displayName,
     date: new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(post.createdAt)),
     heard: post.heard,
@@ -71,8 +62,7 @@ export function toClientPost(post: EditorialPost): Post {
 }
 
 export const getPublicPosts = cache(async () => {
-  const allEditorialPosts = [...launchEditorialPosts, ...editorialPosts];
-  const byId = new Map(allEditorialPosts.map((post) => [post.id, editorialWithVisibleCommentCount(post)]));
+  const byId = new Map(builtInPosts.map((post) => [post.id, builtInWithVisibleCommentCount(post)]));
   let overrides = await contentOverrides();
   if (databaseEnabled()) {
     try {
@@ -102,7 +92,6 @@ export const getPublicPosts = cache(async () => {
         if (!HIDDEN_DUPLICATE_POST_IDS.has(post.id)) byId.set(post.id, post);
       }
     } catch {
-      // Editorial content keeps public pages readable during a database cold start.
       overrides = new Map();
     }
   }
@@ -112,7 +101,7 @@ export const getPublicPosts = cache(async () => {
       const visible = applyPostOverride(post, overrides);
       return visible ? [{
         ...visible,
-        category: normalizeCategory(visible.category),
+        category: normalizePublicCategory(visible.category),
         commentCount: Math.max(0, visible.commentCount - (hiddenCounts.get(visible.id) || 0)),
       }] : [];
     })
@@ -144,7 +133,7 @@ export const getPublicPost = cache(async (id: string) => {
         const post = applyPostOverride(withVisibleCommentCount(cleanRow(record), Boolean(record.has_auto_comments)), overrides);
         return post ? {
           ...post,
-          category: normalizeCategory(post.category),
+          category: normalizePublicCategory(post.category),
           commentCount: Math.max(0, post.commentCount - hiddenCount),
         } : null;
       }
@@ -154,10 +143,10 @@ export const getPublicPost = cache(async (id: string) => {
   }
   const fallback = builtInPost(id);
   if (!fallback) return null;
-  const post = applyPostOverride(editorialWithVisibleCommentCount(fallback), overrides);
+  const post = applyPostOverride(builtInWithVisibleCommentCount(fallback), overrides);
   return post ? {
     ...post,
-    category: normalizeCategory(post.category),
+    category: normalizePublicCategory(post.category),
     commentCount: Math.max(0, post.commentCount - hiddenCount),
   } : null;
 });
