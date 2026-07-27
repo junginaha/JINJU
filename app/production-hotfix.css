@@ -1,0 +1,77 @@
+/* Production stability overrides: keep this file after globals.css. */
+.intro-bootstrap {
+  pointer-events: none;
+  animation: intro-bootstrap-safety 6s step-end forwards;
+}
+
+.jinju-intro {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.intro-ambient-one,
+.intro-ambient-two {
+  animation-duration: 5s;
+}
+
+.intro-pearl-wrap {
+  animation-duration: .8s;
+  animation-delay: .15s;
+}
+
+.intro-skip-stack {
+  animation-delay: .35s;
+}
+
+.intro-message {
+  min-height: 118px;
+  animation: .62s cubic-bezier(.16,1,.3,1) .7s forwards intro-message-pop;
+}
+
+.intro-wordmark {
+  animation: .72s cubic-bezier(.16,1,.3,1) 2.15s forwards intro-wordmark-in;
+}
+
+.intro-key-truth {
+  animation: .85s cubic-bezier(.16,1,.3,1) 2.65s both intro-key-truth;
+}
+
+.intro-key-truth::after {
+  animation: .85s 2.65s both intro-key-dot;
+}
+
+.intro-key-mouth {
+  animation: .85s cubic-bezier(.16,1,.3,1) 2.95s both intro-key-mouth;
+}
+
+.intro-key-mouth::after {
+  animation: .85s 2.95s both intro-key-dot;
+}
+
+.intro-signature {
+  animation: .55s 3.25s forwards intro-signature-in;
+}
+
+.detail-page,
+.admin-review-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.chat-search input,
+.chat-title,
+.chat-composer textarea,
+.comment-composer textarea,
+.composer-selects select {
+  font-size: 16px;
+}
+
+.chat-composer,
+.comment-composer {
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+}
+
+@keyframes intro-bootstrap-safety {
+  0%, 99% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
