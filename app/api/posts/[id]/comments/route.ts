@@ -16,6 +16,17 @@ function publicComment(comment: PublicComment): PublicComment {
   return { id: String(comment.id), body: String(comment.body), displayName: String(comment.displayName || "익명"), createdAt: String(comment.createdAt) };
 }
 
+function mergeBaseComments(...sources: PublicComment[][]): PublicComment[] {
+  const byBody = new Map<string, PublicComment>();
+  for (const source of sources) {
+    for (const comment of source) {
+      const key = comment.body.trim().replace(/\\s+/g, " ");
+      if (!byBody.has(key)) byBody.set(key, comment);
+    }
+  }
+  return [...byBody.values()];
+}
+
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
@@ -23,23 +34,16 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (!publicPost) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   const builtIn = builtInPost(id);
   const fallback = builtInComments(id);
+  const supplemental = supplementalComments(publicPost);
+  const baseComments = builtIn ? mergeBaseComments(fallback, supplemental) : supplemental;
   const overrides = await contentOverrides();
   if (!databaseEnabled()) return builtIn
-    ? Response.json({ comments: normalizeCommentTimes(publicPost.createdAt, applyCommentOverrides(fallback, overrides)).map(publicComment) }, { headers: { "cache-control": "no-store" } })
+    ? Response.json({ comments: normalizeCommentTimes(publicPost.createdAt, applyCommentOverrides(baseComments, overrides)).map(publicComment) }, { headers: { "cache-control": "no-store" } })
     : Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   await ensureSchema();
   const postRows = await db()`SELECT id, title, content, category, created_at FROM posts WHERE id = ${id} AND status = 'approved' AND visibility = 'public' LIMIT 1`;
   const row = postRows[0] as Record<string, unknown> | undefined;
   if (!row && !builtIn) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
-  const baseComments = builtIn
-    ? fallback
-    : supplementalComments({
-      id: String(row?.id),
-      title: String(row?.title),
-      content: String(row?.content),
-      category: String(row?.category),
-      createdAt: new Date(String(row?.created_at)).toISOString(),
-    });
   const rows = await db()`SELECT id, content, display_name, created_at FROM comments WHERE post_id = ${id} AND status = 'approved' AND created_at <= NOW() ORDER BY created_at ASC LIMIT 200`;
   const stored = rows.map((storedRow: Record<string, unknown>) => ({ id: String(storedRow.id), body: String(storedRow.content), displayName: String(storedRow.display_name || "익명"), createdAt: new Date(String(storedRow.created_at)).toISOString() }));
   const merged = new Map(baseComments.map((comment) => [String(comment.id), comment]));
