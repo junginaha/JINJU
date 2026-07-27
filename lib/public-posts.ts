@@ -24,9 +24,26 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
   };
 }
 
+type VisibleBaseComment = ReturnType<typeof builtInComments>[number];
+
+function mergeBaseComments(...sources: VisibleBaseComment[][]): VisibleBaseComment[] {
+  const byBody = new Map<string, VisibleBaseComment>();
+  for (const source of sources) {
+    for (const comment of source) {
+      const key = comment.body.trim().replace(/\\s+/g, " ");
+      if (!byBody.has(key)) byBody.set(key, comment);
+    }
+  }
+  return [...byBody.values()];
+}
+
+function visibleBuiltInComments(post: EditorialPost): VisibleBaseComment[] {
+  return mergeBaseComments(builtInComments(post.id), supplementalComments(post));
+}
+
 function withVisibleCommentCount(post: EditorialPost, _hasAutoComments = false) {
   const builtInCount = builtInPost(post.id)
-    ? builtInComments(post.id).length
+    ? visibleBuiltInComments(post).length
     : supplementalComments(post).length;
   return {
     ...post,
@@ -39,12 +56,12 @@ function builtInWithVisibleCommentCount(post: EditorialPost) {
   return {
     ...post,
     category: normalizePublicCategory(post.category),
-    commentCount: builtInComments(post.id).length,
+    commentCount: visibleBuiltInComments(post).length,
   };
 }
 
 export function toClientPost(post: EditorialPost): Post {
-  const comments = normalizeCommentTimes(post.createdAt, builtInComments(post.id))
+  const comments = normalizeCommentTimes(post.createdAt, visibleBuiltInComments(post))
     .map(({ id, body, displayName, createdAt }) => ({ id, body, displayName, createdAt }));
   return {
     id: post.id,
