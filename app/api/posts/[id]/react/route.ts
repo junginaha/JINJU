@@ -1,5 +1,5 @@
+import { builtInPost } from "../../../../../lib/built-in-content";
 import { db, databaseEnabled, ensureSchema, hash } from "../../../../../lib/db";
-import { editorialPost } from "../../../../../lib/editorial";
 import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 import { rateLimit } from "../../../../../lib/rate-limit";
 import { parseSemaphoreProof, reactionProofMessage, reactionProofScope } from "../../../../../lib/zk-shared";
@@ -43,9 +43,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const voterHash = await hash(`zk-reaction:${proof.nullifier}`);
   let rows = await db()`SELECT id FROM posts WHERE id = ${id} LIMIT 1`;
   if (!rows[0]) {
-    const fallback = editorialPost(id);
+    const fallback = builtInPost(id);
     if (!fallback) return Response.json({ error: "의견을 찾을 수 없습니다." }, { status: 404 });
-    await db()`INSERT INTO posts (id, title, content, category, mode, visibility, risk_level, status, delete_key_hash, heard, same, support, comment_count, created_at, updated_at) VALUES (${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, '털어놓기', 'public', 'low', 'approved', ${await hash(`editorial:${fallback.id}`)}, ${fallback.heard}, ${fallback.same}, ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.createdAt}) ON CONFLICT (id) DO NOTHING`;
+    await db()`INSERT INTO posts (id, title, content, category, display_name, mode, visibility, risk_level, status, delete_key_hash, heard, same, support, comment_count, created_at, updated_at) VALUES (${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, ${fallback.displayName || "익명"}, ${fallback.mode || "털어놓기"}, 'public', 'low', 'approved', ${await hash(`editorial:${fallback.id}`)}, ${fallback.heard}, ${fallback.same}, ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.createdAt}) ON CONFLICT (id) DO NOTHING`;
   }
   const inserted = await db()`
     WITH consumed AS (
