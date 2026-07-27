@@ -578,7 +578,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
               {feedState === "error" && <section className="feed-state feed-state-error" role="alert"><div><h2>의견을 불러오지 못했어요.</h2><p>잠시 후 다시 시도해주세요.</p></div><button type="button" onClick={() => { setFeedState("loading"); void loadPosts(); }}>다시 불러오기</button></section>}
 
               <form className="chat-search" role="search" onSubmit={(event) => event.preventDefault()}>
-                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="무엇이든 검색해 보세요" aria-label="의견 검색어" />
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="속마음을 검색해 보세요" aria-label="의견 검색어" />
                 <button className="search-send" type="submit" aria-label="검색">↑</button>
               </form>
 
