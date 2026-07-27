@@ -131,6 +131,53 @@ const CURATED_IDS: Record<string, string[]> = {
   "jinju-seed-20260722-human-ai-go-handicap": ["jinju-seed-20260722-human-ai-go-handicap-c01", "jinju-seed-20260722-human-ai-go-handicap-c02"],
 };
 
+const EXCLUDED_ADDITION_IDS = new Set([
+  "jinju-seed-20260718-small-transfer-c04",
+  "jinju-seed-20260718-small-transfer-c05",
+  "jinju-morning-20260717-hormuz-receipt-c04",
+  "jinju-morning-20260717-student-visa-clock-c04",
+  "jinju-user-joint-health-original-20260717-c07",
+  "jinju-seed-20260716-home-alone-routine-c03",
+  "jinju-seed-20260716-plant-name-c03",
+  "jinju-seed-20260716-plant-name-c05",
+  "jinju-seed-20260716-not-okay-today-c06",
+  "jinju-seed-20260716-heavy-rain-work-c07",
+  "jinju-seed-20260716-one-sided-friend-c06",
+  "jinju-morning-20260716-app-fees-c03",
+  "jinju-morning-20260716-app-fees-c04",
+  "jinju-morning-20260716-public-apology-c03",
+  "jinju-seed-20260716-office-why-notice-c05",
+  "jinju-seed-20260716-free-company-dinner-c07",
+  "jinju-seed-20260716-not-rich-no-worry-c04",
+  "jinju-seed-20260716-not-rich-no-worry-c05",
+  "jinju-seed-20260716-junior-better-than-me-playful-01",
+  "jinju-seed-20260716-pay-raise-cost-c05",
+  "jinju-seed-20260716-pay-raise-cost-c06",
+  "jinju-proposal-20260716-daangn-fraud-phone-c03",
+  "jinju-proposal-20260716-daangn-fraud-phone-c04",
+  "jinju-proposal-20260716-daangn-senior-phone-c03",
+  "jinju-proposal-20260716-daangn-senior-phone-playful-01",
+  "jinju-proposal-20260716-daangn-report-number-playful-01",
+  "jinju-proposal-20260716-ars-human-number-c03",
+  "jinju-proposal-20260716-no-more-documents-playful-01",
+  "jinju-proposal-20260716-hospital-48h-question-playful-01",
+  "jinju-seed-20260716-mom-academy-c03",
+  "jinju-seed-20260716-mom-academy-c05",
+  "jinju-seed-20260716-payday-two-days-c05",
+  "jinju-seed-20260716-payday-two-days-c06",
+  "jinju-morning-20260715-hidden-rent-fees-c04",
+  "jinju-morning-20260715-hidden-rent-fees-c03",
+  "jinju-morning-20260715-loan-limit-c03",
+  "jinju-morning-20260715-loan-limit-c05",
+  "jinju-morning-20260715-hormuz-fee-c03",
+  "jinju-today-20260715-juvenile-law-c04",
+  "jinju-today-20260715-juvenile-law-c03",
+  "jinju-today-20260715-investigation-rights-c05",
+  "jinju-hot-seo-hsiyuan-inheritance-c06",
+  "jinju-hot-seo-hsiyuan-inheritance-c09",
+  "jinju-story-five-minutes-c03",
+]);
+
 const NAME_FIRST = [
   "느긋한", "솔직한", "푸른", "조용한", "웃는", "말랑한", "산뜻한", "느린",
   "다정한", "엉뚱한", "맑은", "졸린", "담백한", "따뜻한", "수줍은", "명랑한",
@@ -172,18 +219,27 @@ function naturalScore(body: string) {
 }
 
 export function curateEditorialComments(postId: string, comments: CuratableComment[], limit = 2, nameOffset = 0) {
-  const rewritten = comments.map((comment) => ({
-    ...comment,
-    body: REWRITES[comment.id] || comment.body,
-  }));
+  const rewritten = comments
+    .filter((comment) => !EXCLUDED_ADDITION_IDS.has(comment.id))
+    .map((comment) => ({
+      ...comment,
+      body: REWRITES[comment.id] || comment.body,
+    }));
   const rewrittenIds = comments.filter((comment) => REWRITES[comment.id]).map((comment) => comment.id);
   const forcedIds = CURATED_IDS[postId] || (rewrittenIds.length >= 2 ? rewrittenIds.slice(0, 2) : undefined);
   if (forcedIds) {
     const byId = new Map(rewritten.map((comment) => [comment.id, comment]));
-    return forcedIds.flatMap((id) => {
+    const forced = forcedIds.flatMap((id) => {
       const comment = byId.get(id);
       return comment ? [comment] : [];
-    }).slice(0, limit).map((comment, index) => ({
+    });
+    const forcedSet = new Set(forced.map((comment) => comment.id));
+    const remaining = rewritten
+      .filter((comment) => !forcedSet.has(comment.id))
+      .map((comment, index) => ({ comment, index, score: naturalScore(comment.body) }))
+      .sort((left, right) => right.score - left.score || left.index - right.index)
+      .map(({ comment }) => comment);
+    return [...forced, ...remaining].slice(0, limit).map((comment, index) => ({
       ...comment,
       displayName: curatedDisplayName(nameOffset + index),
     }));
