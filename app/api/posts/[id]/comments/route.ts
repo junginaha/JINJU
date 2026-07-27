@@ -31,13 +31,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const postRows = await db()`SELECT id, title, content, category, created_at FROM posts WHERE id = ${id} AND status = 'approved' AND visibility = 'public' LIMIT 1`;
   const row = postRows[0] as Record<string, unknown> | undefined;
   if (!row && !builtIn) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
-  const autoRows = builtIn ? [] : await db()`
-    SELECT id FROM comments
-    WHERE post_id = ${id} AND id LIKE 'jinju-auto-%'
-    LIMIT 1`;
   const baseComments = builtIn
     ? fallback
-    : autoRows[0] ? [] : supplementalComments({
+    : supplementalComments({
       id: String(row?.id),
       title: String(row?.title),
       content: String(row?.content),
