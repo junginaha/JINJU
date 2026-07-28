@@ -41,12 +41,21 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     ? Response.json({ comments: normalizeCommentTimes(publicPost.createdAt, applyCommentOverrides(baseComments, overrides)).map(publicComment) }, { headers: { "cache-control": "no-store" } })
     : Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   await ensureSchema();
-  const postRows = await db()`SELECT id, title, content, category, created_at FROM posts WHERE id = ${id} AND status = 'approved' AND visibility = 'public' LIMIT 1`;
+  const postRows = await db()`
+    SELECT post.id, post.title, post.content, post.category, post.created_at,
+           EXISTS (
+             SELECT 1 FROM comments AS auto_comment
+             WHERE auto_comment.post_id = post.id AND auto_comment.id LIKE 'jinju-auto-%'
+           ) AS has_auto_comments
+    FROM posts AS post
+    WHERE post.id = ${id} AND post.status = 'approved' AND post.visibility = 'public'
+    LIMIT 1`;
   const row = postRows[0] as Record<string, unknown> | undefined;
   if (!row && !builtIn) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   const rows = await db()`SELECT id, content, display_name, created_at FROM comments WHERE post_id = ${id} AND status = 'approved' AND created_at <= NOW() ORDER BY created_at ASC LIMIT 200`;
   const stored = rows.map((storedRow: Record<string, unknown>) => ({ id: String(storedRow.id), body: String(storedRow.content), displayName: String(storedRow.display_name || "익명"), createdAt: new Date(String(storedRow.created_at)).toISOString() }));
-  const merged = new Map(baseComments.map((comment) => [String(comment.id), comment]));
+  const visibleBaseComments = !builtIn && Boolean(row?.has_auto_comments) ? [] : baseComments;
+  const merged = new Map(visibleBaseComments.map((comment) => [String(comment.id), comment]));
   for (const comment of stored) merged.set(String(comment.id), comment);
   const comments = normalizeCommentTimes(publicPost.createdAt, [...merged.values()]);
   return Response.json({ comments: applyCommentOverrides(comments, overrides).map(publicComment) }, { headers: { "cache-control": "no-store" } });
