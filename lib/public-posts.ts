@@ -41,10 +41,10 @@ function visibleBuiltInComments(post: EditorialPost): VisibleBaseComment[] {
   return mergeBaseComments(builtInComments(post.id), supplementalComments(post));
 }
 
-function withVisibleCommentCount(post: EditorialPost, _hasAutoComments = false) {
+function withVisibleCommentCount(post: EditorialPost, hasAutoComments = false) {
   const builtInCount = builtInPost(post.id)
     ? visibleBuiltInComments(post).length
-    : supplementalComments(post).length;
+    : hasAutoComments ? 0 : supplementalComments(post).length;
   return {
     ...post,
     category: normalizePublicCategory(post.category),
