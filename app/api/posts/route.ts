@@ -1,4 +1,5 @@
 import { generateAutoCommentBodies, storeAutoComments } from "../../../lib/auto-comments";
+import { NEW_POST_COMMUNITY_DEFAULTS } from "../../../lib/community-settings";
 import { reviewSubmission } from "../../../lib/ai-review";
 import { builtInPosts } from "../../../lib/built-in-content";
 import { normalizePublicCategory, PUBLIC_CATEGORIES } from "../../../lib/categories";
@@ -81,10 +82,10 @@ export async function POST(request: Request) {
   const inserted = await db()`
     INSERT INTO posts (
       id, title, content, category, display_name, delete_key_hash, status, risk_level,
-      review_issues, review_explanation, review_source
+      review_issues, review_explanation, review_source, heard
     ) VALUES (
       ${id}, ${title}, ${content}, ${category}, ${displayName}, ${await hash(deleteKey)}, ${status}, ${review.riskLevel},
-      ${review.detectedIssues.join(" · ")}, ${review.explanation}, ${review.source}
+      ${review.detectedIssues.join(" · ")}, ${review.explanation}, ${review.source}, ${NEW_POST_COMMUNITY_DEFAULTS.likes}
     )
     RETURNING created_at`;
   await storeAutoComments({
