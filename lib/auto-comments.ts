@@ -198,11 +198,6 @@ export async function generateAutoCommentBodies(post: AutoCommentPost) {
 
 export async function storeAutoComments(post: AutoCommentPost, bodies: string[]) {
   const sql = db();
-  const existing = await sql`
-    SELECT id FROM comments
-    WHERE post_id = ${post.id} AND id LIKE 'jinju-auto-%'
-    LIMIT 1`;
-  if (existing[0]) return false;
   const schedule = autoCommentSchedule(post.createdAt);
   await Promise.all(bodies.map(async (body, index) => {
     const id = `jinju-auto-${post.id}-${index + 1}`;
