@@ -1,5 +1,5 @@
 import { reviewSubmission } from "../../../lib/ai-review";
-import { generateCoreTitle } from "../../../lib/title";
+import { normalizeGeneratedTitle } from "../../../lib/title";
 import { rateLimit } from "../../../lib/rate-limit";
 import { issueReviewToken } from "../../../lib/review-token";
 
@@ -11,8 +11,8 @@ export async function POST(request: Request) {
   const text = payload.text?.trim() ?? "";
   const category = payload.category?.trim() || "일상";
   if (title.length > 80 || text.length < 8 || text.length > 2000) return Response.json({ error: "본문은 8~2,000자로 작성해주세요." }, { status: 400 });
-  const suggestedTitle = title || generateCoreTitle(text);
-  const review = await reviewSubmission(suggestedTitle, text);
+  const review = await reviewSubmission(title, text);
+  const suggestedTitle = title || normalizeGeneratedTitle(review.suggestedTitle, text);
   const reviewToken = await issueReviewToken({ title: suggestedTitle, content: text, category, review });
   return Response.json({ ...review, suggestedTitle, reviewToken });
 }
