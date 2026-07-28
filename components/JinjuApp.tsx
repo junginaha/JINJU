@@ -6,8 +6,6 @@ import Intro from "./Intro";
 import PostTemperature from "./PostTemperature";
 import FeedbackDialog from "./FeedbackDialog";
 import { formatCommentTime } from "../lib/comment-time";
-import { createAnonymousProof, resetAnonymousMembership } from "../lib/zk-client";
-import { reactionProofMessage, reactionProofScope } from "../lib/zk-shared";
 
 type SpeechRecognitionLike = { lang:string; continuous:boolean; interimResults:boolean; maxAlternatives?:number; start:()=>void; stop:()=>void; abort:()=>void; onresult:((event:{resultIndex:number;results:ArrayLike<{isFinal:boolean;0:{transcript:string}}>})=>void)|null; onend:(()=>void)|null; onerror:((event:{error?:string})=>void)|null };
 type SpeechRecognitionConstructor = new()=>SpeechRecognitionLike;
@@ -448,32 +446,19 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     if(reactedPosts[postId]||reacting)return;
     setReacting({postId,kind});
     try {
-      const sendReaction = async () => {
-        const proof = await createAnonymousProof(
-          reactionProofMessage(postId, kind),
-          reactionProofScope(postId),
-        );
-        const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/react`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ kind, proof }),
-        });
-        const data=await response.json() as {error?:string;code?:string;post?:{heard:number;same:number}};
-        return {response,data};
-      };
-      let result=await sendReaction();
-      if(!result.response.ok&&result.data.code==="anonymous_proof_expired"){
-        await resetAnonymousMembership();
-        result=await sendReaction();
-      }
-      if(!result.response.ok||!result.data.post)throw new Error(result.data.error||"반응을 남기지 못했습니다.");
-      const data=result.data;
+      const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/react`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      const data=await response.json() as {error?:string;post?:{heard:number;same:number}};
+      if(!response.ok||!data.post)throw new Error(data.error||"반응을 남기지 못했습니다.");
       setPosts((current)=>current.map((post)=>post.id===postId?{...post,heard:data.post!.heard,same:data.post!.same}:post));
       const next={...reactedPosts,[postId]:true};
       setReactedPosts(next);
       try{localStorage.setItem(REACTION_KEYS,JSON.stringify(next))}catch{/* Server-side one-time protection remains active. */}
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "익명 이용 증명을 만들지 못했습니다. 잠시 후 다시 시도해주세요.");
+      window.alert(error instanceof Error ? error.message : "반응을 남기지 못했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setReacting(null);
     }
