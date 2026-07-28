@@ -51,6 +51,40 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }
   const identity = anonymousReactionId(request);
   const voterHash = await hash(`reaction:${identity.id}`);
+  const previous = await db()`
+    SELECT kind FROM post_reactions
+    WHERE post_id = ${id} AND voter_hash = ${voterHash}
+    LIMIT 1`;
+  if (previous[0]) {
+    if (String(previous[0].kind) === kind) {
+      rows = await db()`SELECT heard, same FROM posts WHERE id = ${id} LIMIT 1`;
+      return reactionResponse(
+        request,
+        { ok: true, alreadyReacted: true, reaction: kind, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
+        identity,
+      );
+    }
+    rows = await db()`
+      WITH changed AS (
+        UPDATE post_reactions
+        SET kind = ${kind}, created_at = NOW()
+        WHERE post_id = ${id} AND voter_hash = ${voterHash} AND kind <> ${kind}
+        RETURNING kind
+      )
+      UPDATE posts
+      SET heard = GREATEST(0, heard + CASE WHEN ${kind} = 'heard' THEN 1 ELSE -1 END),
+          same = GREATEST(0, same + CASE WHEN ${kind} = 'same' THEN 1 ELSE -1 END),
+          updated_at = NOW()
+      WHERE id = ${id} AND EXISTS (SELECT 1 FROM changed)
+      RETURNING heard, same`;
+    if (rows[0]) {
+      return reactionResponse(
+        request,
+        { ok: true, switched: true, reaction: kind, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
+        identity,
+      );
+    }
+  }
   const inserted = await db()`
     INSERT INTO post_reactions (post_id, voter_hash, kind)
     VALUES (${id}, ${voterHash}, ${kind})
@@ -60,7 +94,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     rows = await db()`SELECT heard, same FROM posts WHERE id = ${id} LIMIT 1`;
     return reactionResponse(
       request,
-      { ok: true, alreadyReacted: true, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
+      { ok: true, alreadyReacted: true, reaction: kind, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
       identity,
     );
   }
@@ -69,7 +103,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     : await db()`UPDATE posts SET same = same + 1, updated_at = NOW() WHERE id = ${id} RETURNING heard, same`;
   return reactionResponse(
     request,
-    { ok: true, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
+    { ok: true, reaction: kind, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
     identity,
   );
 }
