@@ -6,10 +6,6 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   if (!databaseEnabled()) return Response.json({ ok: false }, { status: 503 });
   await ensureSchema();
-  await db()`
-    DELETE FROM posts
-    WHERE id = '5o5c0h680x4n2k543g1d'
-      AND title = '혼자 먹는 점심이 팀을 싫어한다는 뜻은 아니지 않을까요?'`;
   const removedLegacyComments: Array<Record<string, unknown>> = [];
   for (const body of LEGACY_GENERIC_AUTO_COMMENT_BODIES) {
     const rows = await db()`
