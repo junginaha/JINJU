@@ -6,7 +6,7 @@ import { editorialComments, editorialPost, editorialPosts } from "../../../../li
 import { rateLimit } from "../../../../lib/rate-limit";
 import { hasPii } from "../../../../lib/safety";
 import { supplementalComments } from "../../../../lib/supplemental-comments";
-import { ensureAutoComments } from "../../../../lib/auto-comments";
+import { enqueueAutoCommentJob, processAutoCommentJob } from "../../../../lib/auto-comment-jobs";
 import { hasCompleteAutoCommentSet } from "../../../../lib/comment-visibility";
 import { notifySearchIndexes } from "../../../../lib/search-indexing";
 
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
   if (!identity) return Response.json({ error: "운영자 로그인이 필요합니다." }, { status: 401 });
   await ensureSchema();
 
-  const [postRows, commentRows, overrides] = await Promise.all([
+  const [postRows, commentRows, failureRows, overrides] = await Promise.all([
     db()`
       SELECT id, title, content, category, visibility, risk_level, status, heard, same,
              review_issues, review_explanation, review_source, created_at, updated_at, reviewed_at
@@ -72,6 +72,14 @@ export async function GET(request: Request) {
       FROM comments
       ORDER BY created_at ASC
       LIMIT 10000`,
+    db()`
+      SELECT job.post_id, post.title, job.attempt_count, job.max_attempts,
+             job.last_error, job.failed_at
+      FROM auto_comment_jobs AS job
+      LEFT JOIN posts AS post ON post.id = job.post_id
+      WHERE job.status = 'failed'
+      ORDER BY job.failed_at DESC NULLS LAST
+      LIMIT 100`,
     contentOverrides(),
   ]);
 
@@ -160,7 +168,20 @@ export async function GET(request: Request) {
     rejected: content.filter((post) => post?.status === "rejected").length,
     comments: content.reduce((sum, post) => sum + (post?.comments.length || 0), 0),
   };
-  return Response.json({ content, summary, identity }, { headers: { "cache-control": "no-store" } });
+  const autoCommentFailures = failureRows.map((row: Record<string, unknown>) => ({
+    postId: String(row.post_id),
+    postTitle: String(row.title || "삭제된 게시글"),
+    attempts: Number(row.attempt_count),
+    maxAttempts: Number(row.max_attempts),
+    failureCode: String(row.last_error || "automatic_comment_generation_failed"),
+    failedAt: row.failed_at ? iso(row.failed_at) : null,
+  }));
+  return Response.json({
+    content,
+    summary,
+    identity,
+    autoCommentFailures,
+  }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function PATCH(request: Request) {
@@ -234,35 +255,21 @@ export async function PATCH(request: Request) {
 
   if (payload.entity === "post") {
     if (!await storeEditorialPost(id)) return Response.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
-    if (payload.action === "approve" && !editorialPost(id)) {
-      const pending = await db()`
-        SELECT id, title, content, category, created_at
-        FROM posts
-        WHERE id = ${id} AND status = 'pending'
-        LIMIT 1`;
-      if (pending[0]) {
-        try {
-          await ensureAutoComments({
-            id: String(pending[0].id),
-            title: String(pending[0].title),
-            content: String(pending[0].content),
-            category: String(pending[0].category),
-            createdAt: new Date().toISOString(),
-          });
-        } catch {
-          return Response.json(
-            { error: "기본 댓글 준비가 완료되지 않아 승인하지 않았습니다. 잠시 후 다시 시도해주세요." },
-            { status: 503 },
-          );
-        }
-      }
-    }
     const nextStatus = payload.action === "approve" || payload.action === "restore" ? "approved"
       : payload.action === "reject" ? "rejected"
         : payload.action === "hide" ? "hidden" : "deleted";
     await db()`UPDATE posts SET status = ${nextStatus}, reviewed_at = NOW(), updated_at = NOW() WHERE id = ${id}`;
     await db()`DELETE FROM admin_content_overrides WHERE kind = 'post' AND id = ${id}`;
-    after(() => notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]));
+    const shouldGenerateComments = payload.action === "approve" && !editorialPost(id);
+    const queued = shouldGenerateComments
+      ? await enqueueAutoCommentJob(id).then(() => true).catch(() => false)
+      : false;
+    after(async () => {
+      await Promise.allSettled([
+        queued ? processAutoCommentJob(id) : Promise.resolve(),
+        notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]),
+      ]);
+    });
     return Response.json({ ok: true, status: nextStatus }, { headers: { "cache-control": "no-store" } });
   }
 

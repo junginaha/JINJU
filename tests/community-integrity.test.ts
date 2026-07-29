@@ -10,6 +10,10 @@ import { AUTO_COMMENT_TOTAL, newPostCommentSchedule, newPostInitialLikes } from 
 import { july30EditorialComments, july30EditorialPosts } from "../lib/daily-editorial-20260730";
 import { generateJinjuDisplayName } from "../lib/display-name";
 import { activeReactionHistory, recordReaction } from "../lib/reaction-history";
+import {
+  AUTO_COMMENT_MAX_ATTEMPTS,
+  runAutoCommentAttempts,
+} from "../lib/auto-comment-jobs";
 
 test("new posts receive the complete immediate and hourly comment schedule", () => {
   const start = "2026-07-29T00:00:00.000Z";
@@ -28,6 +32,40 @@ test("automatic comments must be a complete unique set", () => {
   assert.equal(validatedAutoCommentBodies(bodies).length, AUTO_COMMENT_TOTAL);
   assert.throws(() => validatedAutoCommentBodies(bodies.slice(1)));
   assert.throws(() => validatedAutoCommentBodies([...bodies.slice(0, -1), bodies[0]]));
+});
+
+test("automatic comment work retries at most three times", async () => {
+  const failures: Array<{ attempt: number; final: boolean }> = [];
+  const result = await runAutoCommentAttempts(
+    async () => {
+      throw new Error("generation failed");
+    },
+    {
+      onFailure: ({ attempt, final }) => {
+        failures.push({ attempt, final });
+      },
+    },
+  );
+  assert.deepEqual(result, {
+    ok: false,
+    attempt: AUTO_COMMENT_MAX_ATTEMPTS,
+    error: result.error,
+  });
+  assert.deepEqual(failures, [
+    { attempt: 1, final: false },
+    { attempt: 2, final: false },
+    { attempt: 3, final: true },
+  ]);
+});
+
+test("automatic comment work stops retrying after success", async () => {
+  let calls = 0;
+  const result = await runAutoCommentAttempts(async () => {
+    calls += 1;
+    if (calls < 2) throw new Error("transient failure");
+  });
+  assert.deepEqual(result, { ok: true, attempt: 2 });
+  assert.equal(calls, 2);
 });
 
 test("new post likes stay between 20 and 33", () => {

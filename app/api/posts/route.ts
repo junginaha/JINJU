@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { ensureAutoComments } from "../../../lib/auto-comments";
+import { enqueueAutoCommentJob, processAutoCommentJob } from "../../../lib/auto-comment-jobs";
 import { newPostInitialLikes } from "../../../lib/community-settings";
 import { reviewSubmission } from "../../../lib/ai-review";
 import { builtInPosts } from "../../../lib/built-in-content";
@@ -73,35 +73,23 @@ export async function POST(request: Request) {
     return Boolean(rows[0]);
   });
   const status = review.decision === "allow" ? "approved" : "pending";
-  const initialStatus = status === "approved" ? "preparing" : status;
   const initialLikes = newPostInitialLikes();
-  const inserted = await db()`
+  await db()`
     INSERT INTO posts (
       id, title, content, category, display_name, status, risk_level,
       review_issues, review_explanation, review_source, heard
     ) VALUES (
-      ${id}, ${title}, ${content}, ${category}, ${displayName}, ${initialStatus}, ${review.riskLevel},
+      ${id}, ${title}, ${content}, ${category}, ${displayName}, ${status}, ${review.riskLevel},
       ${review.detectedIssues.join(" · ")}, ${review.explanation}, ${review.source}, ${initialLikes}
-    )
-    RETURNING created_at`;
+    )`;
   if (status === "approved") {
-    try {
-      await ensureAutoComments({
-        id,
-        title,
-        content,
-        category,
-        createdAt: new Date(String(inserted[0]?.created_at || Date.now())).toISOString(),
-      });
-      await db()`UPDATE posts SET status = 'approved', updated_at = NOW() WHERE id = ${id} AND status = 'preparing'`;
-    } catch {
-      await db()`DELETE FROM posts WHERE id = ${id} AND status = 'preparing'`.catch(() => undefined);
-      return Response.json(
-        { error: "기본 댓글 준비가 완료되지 않아 글을 공개하지 않았습니다. 잠시 후 다시 시도해주세요." },
-        { status: 503, headers: { "cache-control": "no-store" } },
-      );
-    }
-    after(() => notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]));
+    const queued = await enqueueAutoCommentJob(id).then(() => true).catch(() => false);
+    after(async () => {
+      await Promise.allSettled([
+        queued ? processAutoCommentJob(id) : Promise.resolve(),
+        notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]),
+      ]);
+    });
   }
   return Response.json({ id, displayName, status, review }, {
     status: status === "approved" ? 201 : 202,

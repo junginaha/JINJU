@@ -43,6 +43,14 @@ type FeedbackReport = {
   autoBlinded: boolean;
   createdAt: string;
 };
+type AutoCommentFailure = {
+  postId: string;
+  postTitle: string;
+  attempts: number;
+  maxAttempts: number;
+  failureCode: string;
+  failedAt: string | null;
+};
 
 const CATEGORIES = ["일상", "관계", "직장", "돈", "사회", "제안", "질문"];
 const STATUS_LABEL: Record<string, string> = {
@@ -56,6 +64,7 @@ export default function AdminReview() {
   const [summary, setSummary] = useState<Summary>({ total: 0, pending: 0, approved: 0, hidden: 0, rejected: 0, comments: 0 });
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [reports, setReports] = useState<FeedbackReport[]>([]);
+  const [autoCommentFailures, setAutoCommentFailures] = useState<AutoCommentFailure[]>([]);
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState("");
   const [ready, setReady] = useState(false);
@@ -69,7 +78,13 @@ export default function AdminReview() {
       fetch("/api/admin/content", { credentials: "same-origin", cache: "no-store" }),
       fetch("/api/admin/feedback", { credentials: "same-origin", cache: "no-store" }),
     ]);
-    const contentData = await contentResponse.json().catch(() => ({})) as { content?: ManagedPost[]; summary?: Summary; identity?: Identity; error?: string };
+    const contentData = await contentResponse.json().catch(() => ({})) as {
+      content?: ManagedPost[];
+      summary?: Summary;
+      identity?: Identity;
+      autoCommentFailures?: AutoCommentFailure[];
+      error?: string;
+    };
     if (!contentResponse.ok) {
       setMessage(contentData.error || "관리 데이터를 불러오지 못했습니다.");
       if (contentResponse.status === 401) setReady(false);
@@ -78,6 +93,7 @@ export default function AdminReview() {
     setContent(contentData.content || []);
     if (contentData.summary) setSummary(contentData.summary);
     setIdentity(contentData.identity || null);
+    setAutoCommentFailures(contentData.autoCommentFailures || []);
     if (feedbackResponse.ok) {
       const feedbackData = await feedbackResponse.json() as { reports?: FeedbackReport[] };
       setReports(feedbackData.reports || []);
@@ -108,7 +124,7 @@ export default function AdminReview() {
 
   async function logout() {
     await fetch("/api/admin/session", { method: "DELETE", credentials: "same-origin" });
-    setReady(false); setContent([]); setReports([]); setIdentity(null); setMessage("로그아웃했습니다.");
+    setReady(false); setContent([]); setReports([]); setAutoCommentFailures([]); setIdentity(null); setMessage("로그아웃했습니다.");
   }
 
   async function updateManaged(payload: Record<string, unknown>, busyKey: string, successMessage: string) {
@@ -209,6 +225,7 @@ export default function AdminReview() {
           <article><strong>{summary.hidden}</strong><span>숨김·삭제</span></article>
           <article><strong>{summary.comments}</strong><span>전체 댓글</span></article>
           <article><strong>{openReports.length}</strong><span>미처리 신고</span></article>
+          <article><strong>{autoCommentFailures.length}</strong><span>댓글 작업 실패</span></article>
         </section>
         <p className="admin-session-note">{identity?.id} · {identity?.role === "superadmin" ? "주관리자" : "관리자"} · 데이터베이스와 기본 시드 글을 함께 표시합니다.</p>
 
@@ -219,6 +236,20 @@ export default function AdminReview() {
             <div className="admin-post-meta"><span>{report.reason}{report.autoBlinded ? " · 임시 블라인드" : ""}</span><time>{new Date(report.createdAt).toLocaleString("ko-KR")}</time></div>
             <h3>{report.postTitle}</h3><p>{report.detail || "추가 설명 없음"}</p><small>{report.receipt}</small>
             <div className="admin-decision-buttons"><button className="admin-reject" type="button" disabled={busyId === `feedback:${report.receipt}`} onClick={() => decideFeedback(report, "hide")}>블라인드</button><button className="admin-approve" type="button" disabled={busyId === `feedback:${report.receipt}`} onClick={() => decideFeedback(report, "keep")}>유지</button></div>
+          </article>)}
+        </section>
+
+        <section className="admin-feedback-manager">
+          <div><p>자동 댓글 작업</p><h2>최종 실패 {autoCommentFailures.length}</h2></div>
+          {autoCommentFailures.length === 0 && <p className="admin-feedback-empty">최종 실패한 자동 댓글 작업이 없습니다.</p>}
+          {autoCommentFailures.map((failure) => <article key={failure.postId}>
+            <div className="admin-post-meta">
+              <span>{failure.attempts}/{failure.maxAttempts}회 시도</span>
+              {failure.failedAt && <time>{new Date(failure.failedAt).toLocaleString("ko-KR")}</time>}
+            </div>
+            <h3>{failure.postTitle}</h3>
+            <p>게시글은 공개 상태를 유지합니다. 자동 댓글 작업만 최종 실패했습니다.</p>
+            <small>{failure.postId} · {failure.failureCode}</small>
           </article>)}
         </section>
 
