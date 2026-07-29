@@ -557,20 +557,20 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
             <div className="feed-shell">
               <header className="feed-heading">
-                <div><p className="eyebrow">공개 베타 · 개인정보 0%를 지향합니다.</p><h1>새로운 의견</h1></div>
+                <div><p className="eyebrow">공개베타 · 개인정보 0%를 지향합니다.</p><h1>새로운 의견</h1></div>
                 <span>{posts.length}개의 공개 의견</span>
               </header>
 
-              <section className="beta-notice" aria-label="공개 베타 안내">
+              <section className="beta-notice" aria-label="공개베타 안내">
                 <div>
-                  <strong>공개 베타 운영 중</strong>
+                  <strong>공개베타 운영 중</strong>
                   <p className="beta-notice-identity">조개가 아픔을 감내하며 귀한 보석을 만들어내듯, 사용자의 상처받은 경험과 진짜 속마음을 소중하게 품어주는 다정하고 정제된 공간입니다.</p>
-                  <p className="beta-notice-detail">정식 오픈 전 실제 사용 환경을 점검하고 있습니다. 글쓰기·검색·신고·삭제 흐름을 우선 안정화합니다.</p>
+                  <p className="beta-notice-detail">정식 공개 전 실제 사용 환경을 점검하고 있습니다. 글쓰기·검색·신고·삭제 흐름을 우선 안정화하고 있습니다.</p>
                 </div>
-                <nav aria-label="공개 베타 바로가기"><a href="/beta">베타 안내</a><a href="mailto:hello@xn--o55b9n.kr">문제 제보</a><a href="#write">내 글 삭제</a></nav>
+                <nav aria-label="공개베타 바로가기"><a href="/beta">베타안내</a><a href="mailto:hello@xn--o55b9n.kr">문제제보</a><a href="#write">내 글 삭제</a></nav>
               </section>
 
-              {feedState === "error" && <section className="feed-state feed-state-error" role="alert"><div><h2>의견을 불러오지 못했어요.</h2><p>잠시 후 다시 시도해주세요.</p></div><button type="button" onClick={() => { setFeedState("loading"); void loadPosts(); }}>다시 불러오기</button></section>}
+              {feedState === "error" && <section className="feed-state feed-state-error" role="alert"><div><h2>의견을 불러오지 못했어요.</h2><p>잠시 후 다시 시도해 주세요.</p></div><button type="button" onClick={() => { setFeedState("loading"); void loadPosts(); }}>다시 불러오기</button></section>}
 
               <form className="chat-search" role="search" onSubmit={(event) => event.preventDefault()}>
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="속마음을 검색해 보세요" aria-label="의견 검색어" />
@@ -601,7 +601,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                       {reviewFeedback.detectedIssues?.length ? <ul>{reviewFeedback.detectedIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul> : null}
                       <p>{reviewFeedback.explanation}</p>
                       {reviewFeedback.suggestion && <div className="review-suggestion"><strong>이렇게 고쳐보세요</strong><span>{reviewFeedback.suggestion}</span></div>}
-                      {reviewFeedback.containsPii && <p className="review-pii-warning">개인정보는 승인 대기로도 저장하지 않습니다. 해당 정보를 지운 뒤 다시 검수해주세요.</p>}
+                      {reviewFeedback.containsPii && <p className="review-pii-warning">개인정보는 승인 대기로도 저장하지 않습니다. 해당 정보를 지운 뒤 다시 검수해 주세요.</p>}
                       <div className="review-dialog-actions">
                         <button className="review-edit-button" onClick={returnToEdit} type="button">수정하기</button>
                         {!reviewFeedback.containsPii && <button className="review-hold-button" onClick={submitPending} disabled={submitBusy} type="button">{submitBusy ? "보류 접수 중…" : "그대로 제출"}</button>}
@@ -663,7 +663,7 @@ function Sidebar({ topic, sort, onTopic, onSort, mobileOpen }: {
       <nav className="channel-list" aria-label="주제 게시판">{topics.map((item) => <button key={item} className={topic === item ? "active" : ""} onClick={() => onTopic(item)} type="button"><span>{item === "전체" ? "◉" : "#"}</span>{item}</button>)}</nav>
       <p className="sidebar-label">피드</p>
       <nav className="channel-list" aria-label="피드 정렬"><button className={sort === "latest" ? "active" : ""} onClick={() => onSort("latest")} type="button"><span>◷</span>최신 의견</button><button className={sort === "popular" ? "active" : ""} onClick={() => onSort("popular")} type="button"><span>↗</span>인기 의견</button></nav>
-      <div className="sidebar-footer"><a href="/beta">공개 베타</a><a href="/principles">운영원칙</a><a href="/safety">안전 안내</a><a href="/privacy">개인정보</a><a href="mailto:hello@xn--o55b9n.kr">신고</a><p>개인정보 0%를 지향합니다.<br />이름·연락처 등 개인 식별정보를 요구하지 않습니다.</p></div>
+      <div className="sidebar-footer"><a href="/beta">공개베타</a><a href="/principles">운영원칙</a><a href="/safety">안전안내</a><a href="/privacy">개인정보</a><a href="mailto:hello@xn--o55b9n.kr">신고</a><p>개인정보 0%를 지향합니다. 이름·연락처 등 개인 식별정보를 요구하지 않습니다.</p></div>
     </aside>
   );
 }
