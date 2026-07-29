@@ -6,6 +6,13 @@ import Intro from "./Intro";
 import PostTemperature from "./PostTemperature";
 import FeedbackDialog from "./FeedbackDialog";
 import { formatCommentTime } from "../lib/comment-time";
+import {
+  activeReactionHistory,
+  REACTION_HISTORY_KEY,
+  recordReaction,
+  type ReactionHistory,
+  type ReactionKind,
+} from "../lib/reaction-history";
 
 type SpeechRecognitionLike = { lang:string; continuous:boolean; interimResults:boolean; maxAlternatives?:number; start:()=>void; stop:()=>void; abort:()=>void; onresult:((event:{resultIndex:number;results:ArrayLike<{isFinal:boolean;0:{transcript:string}}>})=>void)|null; onend:(()=>void)|null; onerror:((event:{error?:string})=>void)|null };
 type SpeechRecognitionConstructor = new()=>SpeechRecognitionLike;
@@ -13,8 +20,6 @@ type VoiceState="idle"|"listening"|"recording"|"transcribing";
 type VoiceField="title"|"body";
 type VoiceSnapshot={field:VoiceField;title:string;body:string};
 type DeleteKeys=Record<string,string>;
-type ReactionKind="heard"|"same";
-type ReactionHistory=Record<string,ReactionKind>;
 declare global { interface Window { SpeechRecognition?:SpeechRecognitionConstructor; webkitSpeechRecognition?:SpeechRecognitionConstructor } }
 
 export type Comment = {
@@ -48,7 +53,7 @@ export type Post = {
 };
 
 const topics = ["전체", "일상", "관계", "직장", "돈", "사회", "제안", "질문"];
-const POST_DRAFT_KEY="jinju-post-draft-v1",POST_DELETE_KEYS="jinju-owned-posts-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1",REACTION_KEYS="jinju-reacted-posts-v2";
+const POST_DRAFT_KEY="jinju-post-draft-v1",POST_DELETE_KEYS="jinju-owned-posts-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1";
 const MAX_RECORDING_MS=120_000,TRANSCRIPTION_TIMEOUT_MS=25_000;
 
 function readKeys(storageKey:string):DeleteKeys{try{return JSON.parse(localStorage.getItem(storageKey)||"{}") as DeleteKeys}catch{return {}}}
@@ -176,10 +181,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     setPostDeleteKeys(readKeys(POST_DELETE_KEYS));
     setCommentDeleteKeys(readKeys(COMMENT_DELETE_KEYS));
     try {
-      const stored=JSON.parse(localStorage.getItem(REACTION_KEYS)||"{}") as Record<string,unknown>;
-      setReactedPosts(Object.fromEntries(
-        Object.entries(stored).filter((entry):entry is [string,ReactionKind]=>entry[1]==="heard"||entry[1]==="same"),
-      ));
+      const stored=JSON.parse(localStorage.getItem(REACTION_HISTORY_KEY)||"{}") as unknown;
+      setReactedPosts(activeReactionHistory(stored));
     } catch {/* Ignore damaged reaction history. */}
     setDraftReady(true);
   },[]);
@@ -450,7 +453,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   }
 
   async function react(postId: string, kind: "heard" | "same") {
-    if(reactedPosts[postId]===kind||reacting)return;
+    if(reactedPosts[postId]?.kind===kind||reacting)return;
     setReacting({postId,kind});
     try {
       const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/react`, {
@@ -461,9 +464,9 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       const data=await response.json() as {error?:string;post?:{heard:number;same:number}};
       if(!response.ok||!data.post)throw new Error(data.error||"반응을 남기지 못했습니다.");
       setPosts((current)=>current.map((post)=>post.id===postId?{...post,heard:data.post!.heard,same:data.post!.same}:post));
-      const next={...reactedPosts,[postId]:kind};
+      const next=recordReaction(reactedPosts,postId,kind);
       setReactedPosts(next);
-      try{localStorage.setItem(REACTION_KEYS,JSON.stringify(next))}catch{/* Server-side one-time protection remains active. */}
+      try{localStorage.setItem(REACTION_HISTORY_KEY,JSON.stringify(next))}catch{/* Server-side one-time protection remains active. */}
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "반응을 남기지 못했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
@@ -524,7 +527,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           post={selectedPost}
           onBack={closePost}
           onReact={(kind) => react(selectedPost.id, kind)}
-          reactedKind={reactedPosts[selectedPost.id]||null}
+          reactedKind={reactedPosts[selectedPost.id]?.kind||null}
           reactingKind={reacting?.postId===selectedPost.id?reacting.kind:null}
           onShare={() => share(selectedPost)}
           onFeedback={() => setFeedbackPost(selectedPost)}
@@ -580,7 +583,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="post-feed" aria-label="익명 의견 목록">
                 {filteredPosts.slice(0, 3).map((post) => (
-                  <PostCard key={post.id} post={post} reactedKind={reactedPosts[post.id]||null} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
+                  <PostCard key={post.id} post={post} reactedKind={reactedPosts[post.id]?.kind||null} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
                 ))}
               </section>
 
@@ -627,7 +630,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="post-feed continued-feed" aria-label="더 많은 익명 의견">
                 {filteredPosts.slice(3).map((post) => (
-                  <PostCard key={post.id} post={post} reactedKind={reactedPosts[post.id]||null} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
+                  <PostCard key={post.id} post={post} reactedKind={reactedPosts[post.id]?.kind||null} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
                 ))}
               </section>
 

@@ -6,7 +6,11 @@ import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "./cont
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
 import type { EditorialPost } from "./editorial";
 import { supplementalComments } from "./supplemental-comments";
-import { normalizeCommentTimes } from "./comment-time";
+import {
+  hasCompleteAutoCommentSet,
+  mergeBaseCommentsByBody,
+  visibleBaseCommentCount,
+} from "./comment-visibility";
 import type { Post } from "../components/JinjuApp";
 
 function cleanRow(row: Record<string, unknown>): EditorialPost {
@@ -26,25 +30,15 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
 
 type VisibleBaseComment = ReturnType<typeof builtInComments>[number];
 
-function mergeBaseComments(...sources: VisibleBaseComment[][]): VisibleBaseComment[] {
-  const byBody = new Map<string, VisibleBaseComment>();
-  for (const source of sources) {
-    for (const comment of source) {
-      const key = comment.body.trim().replace(/\\s+/g, " ");
-      if (!byBody.has(key)) byBody.set(key, comment);
-    }
-  }
-  return [...byBody.values()];
-}
-
 function visibleBuiltInComments(post: EditorialPost): VisibleBaseComment[] {
-  return mergeBaseComments(builtInComments(post.id), supplementalComments(post));
+  return mergeBaseCommentsByBody(builtInComments(post.id), supplementalComments(post));
 }
 
-function withVisibleCommentCount(post: EditorialPost, hasAutoComments = false) {
-  const builtInCount = builtInPost(post.id)
-    ? visibleBuiltInComments(post).length
-    : hasAutoComments ? 0 : supplementalComments(post).length;
+function withVisibleCommentCount(post: EditorialPost, autoCommentCount = 0, storedBodies: string[] = []) {
+  const baseComments = builtInPost(post.id)
+    ? visibleBuiltInComments(post)
+    : hasCompleteAutoCommentSet(autoCommentCount) ? [] : supplementalComments(post);
+  const builtInCount = visibleBaseCommentCount(baseComments, storedBodies);
   return {
     ...post,
     category: normalizePublicCategory(post.category),
@@ -61,8 +55,6 @@ function builtInWithVisibleCommentCount(post: EditorialPost) {
 }
 
 export function toClientPost(post: EditorialPost): Post {
-  const comments = normalizeCommentTimes(post.createdAt, visibleBuiltInComments(post))
-    .map(({ id, body, displayName, createdAt }) => ({ id, body, displayName, createdAt }));
   return {
     id: post.id,
     title: post.title,
@@ -72,9 +64,10 @@ export function toClientPost(post: EditorialPost): Post {
     date: new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(post.createdAt)),
     heard: post.heard,
     same: post.same,
-    comments: comments.length
-      ? comments
-      : Array.from({ length: post.commentCount }, (_, index) => ({ id: `count-${index}`, body: "", createdAt: "" })),
+    comments: Array.from(
+      { length: post.commentCount },
+      (_, index) => ({ id: `count-${index}`, body: "", createdAt: "" }),
+    ),
   };
 }
 
@@ -89,10 +82,14 @@ export const getPublicPosts = cache(async () => {
                post.status, post.visibility,
                post.heard, post.same, post.support,
                COUNT(comment.id)::INTEGER AS stored_comment_count,
-               EXISTS (
-                 SELECT 1 FROM comments AS auto_comment
-                 WHERE auto_comment.post_id = post.id AND auto_comment.id LIKE 'jinju-auto-%'
-               ) AS has_auto_comments
+               (SELECT COUNT(*)::INTEGER FROM comments AS auto_comment
+                WHERE auto_comment.post_id = post.id
+                  AND auto_comment.id LIKE 'jinju-auto-%'
+                  AND auto_comment.status = 'approved') AS auto_comment_count,
+               COALESCE(
+                 ARRAY_AGG(comment.content) FILTER (WHERE comment.id IS NOT NULL),
+                 ARRAY[]::TEXT[]
+               ) AS stored_comment_bodies
         FROM posts AS post
         LEFT JOIN comments AS comment
           ON comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()
@@ -105,7 +102,10 @@ export const getPublicPosts = cache(async () => {
           byId.delete(String(record.id));
           continue;
         }
-        const post = withVisibleCommentCount(cleanRow(record), Boolean(record.has_auto_comments));
+        const storedBodies = Array.isArray(record.stored_comment_bodies)
+          ? record.stored_comment_bodies.map(String)
+          : [];
+        const post = withVisibleCommentCount(cleanRow(record), Number(record.auto_comment_count || 0), storedBodies);
         if (!HIDDEN_DUPLICATE_POST_IDS.has(post.id)) byId.set(post.id, post);
       }
     } catch {
@@ -137,17 +137,29 @@ export const getPublicPost = cache(async (id: string) => {
                post.status, post.visibility,
                post.heard, post.same, post.support,
                (SELECT COUNT(*)::INTEGER FROM comments AS comment WHERE comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()) AS stored_comment_count,
-               EXISTS (
-                 SELECT 1 FROM comments AS auto_comment
-                 WHERE auto_comment.post_id = post.id AND auto_comment.id LIKE 'jinju-auto-%'
-               ) AS has_auto_comments
+               (SELECT COUNT(*)::INTEGER FROM comments AS auto_comment
+                WHERE auto_comment.post_id = post.id
+                  AND auto_comment.id LIKE 'jinju-auto-%'
+                  AND auto_comment.status = 'approved') AS auto_comment_count,
+               ARRAY(
+                 SELECT comment.content FROM comments AS comment
+                 WHERE comment.post_id = post.id
+                   AND comment.status = 'approved'
+                   AND comment.created_at <= NOW()
+               ) AS stored_comment_bodies
         FROM posts AS post
         WHERE post.id = ${id}
         LIMIT 1`;
       if (rows[0]) {
         const record = rows[0] as Record<string, unknown>;
         if (String(record.status) !== "approved" || String(record.visibility) !== "public") return null;
-        const post = applyPostOverride(withVisibleCommentCount(cleanRow(record), Boolean(record.has_auto_comments)), overrides);
+        const storedBodies = Array.isArray(record.stored_comment_bodies)
+          ? record.stored_comment_bodies.map(String)
+          : [];
+        const post = applyPostOverride(
+          withVisibleCommentCount(cleanRow(record), Number(record.auto_comment_count || 0), storedBodies),
+          overrides,
+        );
         return post ? {
           ...post,
           category: normalizePublicCategory(post.category),

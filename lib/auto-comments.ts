@@ -66,7 +66,26 @@ const CATEGORY_COMMENTS: Record<string, [string, string]> = {
   ],
 };
 
-export const LEGACY_GENERIC_AUTO_COMMENT_BODIES = Object.values(CATEGORY_COMMENTS).flat();
+const LEGACY_TOPIC_AUTO_COMMENT_BODIES = [
+  "답장 미루다 사과문부터 쓰게 되는 거 저만 그런 줄 알았어요 ㅠ",
+  "완벽하게 쓰려다 아예 못 보내는 날이 있죠.",
+  "편해진 건 맞는데 왜 저는 전보다 더 바쁜지 모르겠어요 ㅋㅋ",
+  "결국 어디까지 맡길지는 사람이 정해야 하는 것 같아요.",
+  "자유 참석이라면서 안 가면 이유 묻는 순간 자유는 끝이죠.",
+  "가끔은 재밌는데 매번 좋아해야 하는 분위기가 더 피곤해요.",
+  "돈 들어온 날보다 빠져나가는 날이 더 또렷하더라고요.",
+  "가족 일은 고마움이랑 서운함이 같이 와서 더 어렵더라고요.",
+  "가까운 사이라도 싫다고 한 건 한 번 들어줬으면 좋겠어요.",
+  "아픈데 설명까지 혼자 챙겨야 하면 더 막막하죠.",
+  "저도 병원 다녀오고 집에 오면 질문이 꼭 하나씩 생각납니다.",
+  "안전하게 하라는 말만 있고 쉴 수 있는 조건은 없을 때가 많죠.",
+  "조금 늦어도 괜찮다는 분위기부터 생겼으면 좋겠어요.",
+] as const;
+
+export const LEGACY_GENERIC_AUTO_COMMENT_BODIES = [
+  ...Object.values(CATEGORY_COMMENTS).flat(),
+  ...LEGACY_TOPIC_AUTO_COMMENT_BODIES,
+];
 
 const BEAUTY_CHOICE_COMMENTS = [
   "얼굴이냐 몸매냐 고르라면 질문부터 조금 좁은 것 같아요. 첫눈은 외모가 잡아도 다음 약속은 대화와 태도가 잡더라고요.",
@@ -221,17 +240,61 @@ export async function generateAutoCommentBodies(post: AutoCommentPost) {
   }
 }
 
+export function validatedAutoCommentBodies(bodies: string[]) {
+  const normalizedBodies = bodies
+    .map((body) => body.replace(/\s+/g, " ").trim())
+    .filter((body, index, all) => body && all.indexOf(body) === index);
+  if (normalizedBodies.length !== AUTO_COMMENT_TOTAL) {
+    throw new Error(`Automatic comment set must contain exactly ${AUTO_COMMENT_TOTAL} unique comments.`);
+  }
+  return normalizedBodies;
+}
+
 export async function storeAutoComments(post: AutoCommentPost, bodies: string[]) {
   const sql = db();
   const schedule = autoCommentSchedule(post.createdAt);
-  await Promise.all(bodies.map(async (body, index) => {
+  const normalizedBodies = validatedAutoCommentBodies(bodies);
+  if (schedule.length !== AUTO_COMMENT_TOTAL) {
+    throw new Error(`Automatic comment schedule must contain exactly ${AUTO_COMMENT_TOTAL} entries.`);
+  }
+  const comments = await Promise.all(normalizedBodies.map(async (body, index) => {
     const id = `jinju-auto-${post.id}-${index + 1}`;
-    const createdAt = schedule[index];
-    await sql`
-      INSERT INTO comments (id, post_id, content, display_name, delete_key_hash, status, created_at)
-      VALUES (${id}, ${post.id}, ${body}, ${nickname(post.id, index)}, ${await hash(`auto:${id}`)}, 'approved', ${createdAt})
-      ON CONFLICT (id) DO NOTHING`;
+    return {
+      id,
+      post_id: post.id,
+      content: body,
+      display_name: nickname(post.id, index),
+      delete_key_hash: await hash(`auto:${id}`),
+      created_at: schedule[index],
+    };
   }));
+  await sql`
+    INSERT INTO comments (id, post_id, content, display_name, delete_key_hash, status, created_at)
+    SELECT input.id, input.post_id, input.content, input.display_name,
+           input.delete_key_hash, 'approved', input.created_at::TIMESTAMPTZ
+    FROM jsonb_to_recordset(${JSON.stringify(comments)}::JSONB) AS input(
+      id TEXT,
+      post_id TEXT,
+      content TEXT,
+      display_name TEXT,
+      delete_key_hash TEXT,
+      created_at TEXT
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET content = EXCLUDED.content,
+        display_name = EXCLUDED.display_name,
+        delete_key_hash = EXCLUDED.delete_key_hash,
+        status = 'approved',
+        created_at = EXCLUDED.created_at`;
+  const stored = await sql`
+    SELECT COUNT(*)::INTEGER AS count
+    FROM comments
+    WHERE post_id = ${post.id}
+      AND id LIKE ${`jinju-auto-${post.id}-%`}
+      AND status = 'approved'`;
+  if (Number(stored[0]?.count || 0) < AUTO_COMMENT_TOTAL) {
+    throw new Error("Automatic comment set was not stored completely.");
+  }
   await sql`
     UPDATE posts
     SET comment_count = (
@@ -239,7 +302,7 @@ export async function storeAutoComments(post: AutoCommentPost, bodies: string[])
       WHERE post_id = ${post.id} AND status = 'approved' AND created_at <= NOW()
     ), updated_at = NOW()
     WHERE id = ${post.id}`;
-  return true;
+  return { expected: AUTO_COMMENT_TOTAL, stored: Number(stored[0].count) };
 }
 
 export async function ensureAutoComments(post: AutoCommentPost) {

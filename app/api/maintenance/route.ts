@@ -1,5 +1,6 @@
 import { db, databaseEnabled, ensureSchema } from "../../../lib/db";
 import { LEGACY_GENERIC_AUTO_COMMENT_BODIES } from "../../../lib/auto-comments";
+import { purgeExpiredReactions } from "../../../lib/reactions";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,8 @@ export async function GET() {
     db()`DELETE FROM zk_group_roots WHERE expires_at <= NOW()`,
     db()`DELETE FROM zk_nullifiers WHERE expires_at <= NOW()`,
     db()`DELETE FROM feedback_reports WHERE expires_at <= NOW()`,
-    db()`DELETE FROM post_reactions WHERE created_at <= NOW() - INTERVAL '30 days'`,
+    purgeExpiredReactions(),
+    db()`DELETE FROM posts WHERE status = 'preparing' AND created_at <= NOW() - INTERVAL '15 minutes'`,
   ]);
   return Response.json({ ok: true, removedLegacyComments: removedLegacyComments.length }, { headers: { "cache-control": "no-store" } });
 }

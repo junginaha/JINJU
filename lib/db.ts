@@ -150,12 +150,16 @@ export async function ensureSchema() {
         SET comment_count = (
           SELECT COUNT(*)::INTEGER
           FROM comments AS comment
-          WHERE comment.post_id = post.id AND comment.status = 'approved'
+          WHERE comment.post_id = post.id
+            AND comment.status = 'approved'
+            AND comment.created_at <= NOW()
         )
         WHERE post.comment_count <> (
           SELECT COUNT(*)::INTEGER
           FROM comments AS comment
-          WHERE comment.post_id = post.id AND comment.status = 'approved'
+          WHERE comment.post_id = post.id
+            AND comment.status = 'approved'
+            AND comment.created_at <= NOW()
         )`;
     })().catch((error) => {
       schemaReady = null;

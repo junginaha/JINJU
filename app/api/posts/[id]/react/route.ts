@@ -3,6 +3,7 @@ import { REACTION_SETTINGS } from "../../../../../lib/community-settings";
 import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../../lib/db";
 import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 import { rateLimit } from "../../../../../lib/rate-limit";
+import { purgeExpiredReactions } from "../../../../../lib/reactions";
 
 function anonymousReactionId(request: Request) {
   const cookie = request.headers.get("cookie") || "";
@@ -19,9 +20,10 @@ function reactionResponse(
   request: Request,
   body: Record<string, unknown>,
   identity: { id: string; fresh: boolean },
+  refreshIdentity = false,
 ) {
   const headers = new Headers({ "cache-control": "no-store" });
-  if (identity.fresh) {
+  if (identity.fresh || refreshIdentity) {
     const maxAge = REACTION_SETTINGS.retentionDays * 24 * 60 * 60;
     const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
     headers.append(
@@ -42,7 +44,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const { kind } = payload;
   if (!kind || !["heard", "same"].includes(kind)) return Response.json({ error: "올바른 반응을 선택해주세요." }, { status: 400 });
   await ensureSchema();
-  await db()`DELETE FROM post_reactions WHERE created_at <= NOW() - INTERVAL '30 days'`;
+  await purgeExpiredReactions();
   let rows = await db()`SELECT id FROM posts WHERE id = ${id} LIMIT 1`;
   if (!rows[0]) {
     const fallback = builtInPost(id);
@@ -82,6 +84,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         request,
         { ok: true, switched: true, reaction: kind, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
         identity,
+        true,
       );
     }
   }
@@ -105,5 +108,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     request,
     { ok: true, reaction: kind, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
     identity,
+    true,
   );
 }

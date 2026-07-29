@@ -2,6 +2,7 @@ import { hasValidMutationOrigin, isAdminRequest } from "../../../../lib/admin-au
 import { db, databaseEnabled, ensureSchema, hash } from "../../../../lib/db";
 import { editorialPost, editorialPosts } from "../../../../lib/editorial";
 import { rateLimit } from "../../../../lib/rate-limit";
+import { ensureAutoComments } from "../../../../lib/auto-comments";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,9 @@ export async function PATCH(request: Request) {
       await db()`INSERT INTO posts (id, title, content, category, mode, visibility, risk_level, status, delete_key_hash, heard, same, support, comment_count, created_at, updated_at) VALUES (${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, ${fallback.mode || "털어놓기"}, 'public', 'low', 'approved', ${await hash(`editorial:${fallback.id}`)}, ${fallback.heard}, ${fallback.same}, ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.updatedAt || fallback.createdAt}) ON CONFLICT (id) DO NOTHING`;
     }
     rows = await db()`
+      WITH cleared AS (
+        DELETE FROM post_reactions WHERE post_id = ${payload.id}
+      )
       UPDATE posts
       SET heard = ${heard}, same = ${same}, updated_at = NOW()
       WHERE id = ${payload.id} AND status = 'approved'
@@ -77,6 +81,28 @@ export async function PATCH(request: Request) {
     return Response.json({ id: String(rows[0].id), heard: Number(rows[0].heard), same: Number(rows[0].same) }, { headers: { "cache-control": "no-store" } });
   }
   const nextStatus = payload.action === "approve" ? "approved" : "rejected";
+  if (payload.action === "approve") {
+    const pending = await db()`
+      SELECT id, title, content, category, created_at
+      FROM posts
+      WHERE id = ${payload.id} AND status = 'pending'
+      LIMIT 1`;
+    if (!pending[0]) return Response.json({ error: "이미 처리됐거나 찾을 수 없는 글입니다." }, { status: 404 });
+    try {
+      await ensureAutoComments({
+        id: String(pending[0].id),
+        title: String(pending[0].title),
+        content: String(pending[0].content),
+        category: String(pending[0].category),
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      return Response.json(
+        { error: "기본 댓글 준비가 완료되지 않아 승인하지 않았습니다. 잠시 후 다시 시도해주세요." },
+        { status: 503 },
+      );
+    }
+  }
   const rows = await db()`
     UPDATE posts
     SET status = ${nextStatus}, reviewed_at = NOW(), updated_at = NOW()

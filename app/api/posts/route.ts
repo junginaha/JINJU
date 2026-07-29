@@ -1,4 +1,4 @@
-import { generateAutoCommentBodies, storeAutoComments } from "../../../lib/auto-comments";
+import { ensureAutoComments } from "../../../lib/auto-comments";
 import { NEW_POST_COMMUNITY_DEFAULTS } from "../../../lib/community-settings";
 import { reviewSubmission } from "../../../lib/ai-review";
 import { builtInPosts } from "../../../lib/built-in-content";
@@ -40,13 +40,6 @@ export async function POST(request: Request) {
   if (!PUBLIC_CATEGORIES.includes(category) || title.length < 2 || content.length < 8 || content.length > 2000 || hasPii(`${title} ${content}`)) {
     return Response.json({ error: "개인정보를 제거하고 제목 2~80자, 본문 8~2,000자로 작성해주세요." }, { status: 400 });
   }
-  const autoCommentBodies = generateAutoCommentBodies({
-    id: "pending",
-    title,
-    content,
-    category,
-    createdAt: new Date().toISOString(),
-  });
   const review = await verifyReviewToken(payload.reviewToken || "", title, content, category)
     || await reviewSubmission(title, content);
   if (review.containsPii) {
@@ -60,7 +53,7 @@ export async function POST(request: Request) {
     return Response.json({ status: "revision_required", review }, { status: 422 });
   }
   await ensureSchema();
-  const existingRows = await db()`SELECT title, content FROM posts WHERE status IN ('approved','pending') ORDER BY created_at DESC LIMIT 500`;
+  const existingRows = await db()`SELECT title, content FROM posts WHERE status IN ('approved','pending','preparing') ORDER BY created_at DESC LIMIT 500`;
   const existingPosts = [
     ...builtInPosts,
     ...existingRows.map((row: Record<string, unknown>) => ({ title: String(row.title), content: String(row.content) })),
@@ -79,22 +72,34 @@ export async function POST(request: Request) {
     return Boolean(rows[0]);
   });
   const status = review.decision === "allow" ? "approved" : "pending";
+  const initialStatus = status === "approved" ? "preparing" : status;
   const inserted = await db()`
     INSERT INTO posts (
       id, title, content, category, display_name, delete_key_hash, status, risk_level,
       review_issues, review_explanation, review_source, heard
     ) VALUES (
-      ${id}, ${title}, ${content}, ${category}, ${displayName}, ${await hash(deleteKey)}, ${status}, ${review.riskLevel},
+      ${id}, ${title}, ${content}, ${category}, ${displayName}, ${await hash(deleteKey)}, ${initialStatus}, ${review.riskLevel},
       ${review.detectedIssues.join(" · ")}, ${review.explanation}, ${review.source}, ${NEW_POST_COMMUNITY_DEFAULTS.likes}
     )
     RETURNING created_at`;
-  await storeAutoComments({
-    id,
-    title,
-    content,
-    category,
-    createdAt: new Date(String(inserted[0]?.created_at || Date.now())).toISOString(),
-  }, await autoCommentBodies).catch(() => false);
+  if (status === "approved") {
+    try {
+      await ensureAutoComments({
+        id,
+        title,
+        content,
+        category,
+        createdAt: new Date(String(inserted[0]?.created_at || Date.now())).toISOString(),
+      });
+      await db()`UPDATE posts SET status = 'approved', updated_at = NOW() WHERE id = ${id} AND status = 'preparing'`;
+    } catch {
+      await db()`DELETE FROM posts WHERE id = ${id} AND status = 'preparing'`.catch(() => undefined);
+      return Response.json(
+        { error: "기본 댓글 준비가 완료되지 않아 글을 공개하지 않았습니다. 잠시 후 다시 시도해주세요." },
+        { status: 503, headers: { "cache-control": "no-store" } },
+      );
+    }
+  }
   return Response.json({ id, deleteKey, displayName, status, review }, {
     status: status === "approved" ? 201 : 202,
     headers: { "cache-control": "no-store" },

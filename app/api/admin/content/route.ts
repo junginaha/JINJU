@@ -5,6 +5,8 @@ import { editorialComments, editorialPost, editorialPosts } from "../../../../li
 import { rateLimit } from "../../../../lib/rate-limit";
 import { hasPii } from "../../../../lib/safety";
 import { supplementalComments } from "../../../../lib/supplemental-comments";
+import { ensureAutoComments } from "../../../../lib/auto-comments";
+import { hasCompleteAutoCommentSet } from "../../../../lib/comment-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -94,7 +96,11 @@ export async function GET(request: Request) {
     const createdAt = row ? iso(row.created_at) : fallback!.createdAt;
     const baseComments = fallback
       ? editorialComments(id)
-      : status === "approved" && !(storedComments.get(id) || []).some((comment) => String(comment.id).startsWith("jinju-auto-"))
+      : status === "approved" && !hasCompleteAutoCommentSet(
+        (storedComments.get(id) || []).filter(
+          (comment) => String(comment.id).startsWith("jinju-auto-") && String(comment.status) === "approved",
+        ).length,
+      )
         ? supplementalComments({ id, title, content: body, category, createdAt })
         : [];
     const merged = new Map<string, {
@@ -193,7 +199,11 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "반응 수는 0 이상의 정수로 입력해주세요." }, { status: 400 });
     }
     if (!await storeEditorialPost(id)) return Response.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
-    await db()`UPDATE posts SET heard = ${heard}, same = ${same}, updated_at = NOW() WHERE id = ${id}`;
+    await db()`
+      WITH cleared AS (
+        DELETE FROM post_reactions WHERE post_id = ${id}
+      )
+      UPDATE posts SET heard = ${heard}, same = ${same}, updated_at = NOW() WHERE id = ${id}`;
     return Response.json({ ok: true, heard, same }, { headers: { "cache-control": "no-store" } });
   }
 
@@ -219,6 +229,29 @@ export async function PATCH(request: Request) {
 
   if (payload.entity === "post") {
     if (!await storeEditorialPost(id)) return Response.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
+    if (payload.action === "approve" && !editorialPost(id)) {
+      const pending = await db()`
+        SELECT id, title, content, category, created_at
+        FROM posts
+        WHERE id = ${id} AND status = 'pending'
+        LIMIT 1`;
+      if (pending[0]) {
+        try {
+          await ensureAutoComments({
+            id: String(pending[0].id),
+            title: String(pending[0].title),
+            content: String(pending[0].content),
+            category: String(pending[0].category),
+            createdAt: new Date().toISOString(),
+          });
+        } catch {
+          return Response.json(
+            { error: "기본 댓글 준비가 완료되지 않아 승인하지 않았습니다. 잠시 후 다시 시도해주세요." },
+            { status: 503 },
+          );
+        }
+      }
+    }
     const nextStatus = payload.action === "approve" || payload.action === "restore" ? "approved"
       : payload.action === "reject" ? "rejected"
         : payload.action === "hide" ? "hidden" : "deleted";
