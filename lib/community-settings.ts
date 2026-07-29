@@ -1,5 +1,5 @@
 export const NEW_POST_COMMUNITY_DEFAULTS = {
-  likes: 3,
+  likes: 10,
   immediateComments: 3,
   hourlyComments: 12,
   hourlyIntervalMs: 60 * 60_000,

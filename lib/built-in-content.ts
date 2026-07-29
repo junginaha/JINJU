@@ -1,11 +1,16 @@
 import { normalizePublicCategory } from "./categories";
 import { dailyEditorialComments, dailyEditorialPosts } from "./daily-editorial";
+import { july29EditorialComments, july29EditorialPosts } from "./daily-editorial-20260729";
 import { isDuplicatePost } from "./dedup";
 import { editorialComments, editorialPosts, type EditorialComment, type EditorialPost } from "./editorial";
 import { launchEditorialComments, launchEditorialPosts } from "./launch-editorial";
 
 function normalizePost(post: EditorialPost): EditorialPost {
-  return { ...post, category: normalizePublicCategory(post.category) };
+  return {
+    ...post,
+    category: normalizePublicCategory(post.category),
+    heard: Math.max(10, post.heard),
+  };
 }
 
 function chooseUniquePosts(posts: EditorialPost[]) {
@@ -19,6 +24,7 @@ function chooseUniquePosts(posts: EditorialPost[]) {
 }
 
 export const builtInPosts = chooseUniquePosts([
+  ...july29EditorialPosts,
   ...dailyEditorialPosts,
   ...launchEditorialPosts,
   ...editorialPosts,
@@ -33,6 +39,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...july29EditorialComments(id),
     ...dailyEditorialComments(id),
     ...launchEditorialComments(id),
     ...editorialComments(id),
