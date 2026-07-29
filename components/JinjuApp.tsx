@@ -53,7 +53,7 @@ export type Post = {
 };
 
 const topics = ["전체", "일상", "관계", "직장", "돈", "사회", "제안", "질문"];
-const POST_DRAFT_KEY="jinju-post-draft-v1",POST_DELETE_KEYS="jinju-owned-posts-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1";
+const POST_DRAFT_KEY="jinju-post-draft-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1";
 const MAX_RECORDING_MS=120_000,TRANSCRIPTION_TIMEOUT_MS=25_000;
 
 function readKeys(storageKey:string):DeleteKeys{try{return JSON.parse(localStorage.getItem(storageKey)||"{}") as DeleteKeys}catch{return {}}}
@@ -145,7 +145,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [reviewFeedback,setReviewFeedback]=useState<ReviewFeedback|null>(null);
   const [pendingNotice,setPendingNotice]=useState(false);
   const [draftReady,setDraftReady]=useState(false);
-  const [postDeleteKeys,setPostDeleteKeys]=useState<DeleteKeys>({});
   const [commentDeleteKeys,setCommentDeleteKeys]=useState<DeleteKeys>({});
   const [reactedPosts,setReactedPosts]=useState<ReactionHistory>({});
   const [reacting,setReacting]=useState<{postId:string;kind:"heard"|"same"}|null>(null);
@@ -178,7 +177,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
   useEffect(()=>{
     try{const draft=JSON.parse(sessionStorage.getItem(POST_DRAFT_KEY)||"null") as {title?:string;body?:string;category?:string}|null;if(draft){setTitle(draft.title||"");setBody(draft.body||"");if(draft.category) setCategory(draft.category)}}catch{/* Ignore a damaged local draft. */}
-    setPostDeleteKeys(readKeys(POST_DELETE_KEYS));
+    try{localStorage.removeItem("jinju-owned-posts-v1")}catch{/* Remove legacy post deletion credentials when storage is available. */}
     setCommentDeleteKeys(readKeys(COMMENT_DELETE_KEYS));
     try {
       const stored=JSON.parse(localStorage.getItem(REACTION_HISTORY_KEY)||"{}") as unknown;
@@ -391,14 +390,13 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ title: finalTitle, content: body, category, acceptReviewHold, reviewToken }),
     });
-    const data = await response.json() as { error?:string; id?:string; deleteKey?:string; displayName?:string; status?:"approved"|"pending"|"revision_required"; review?:ReviewFeedback };
+    const data = await response.json() as { error?:string; id?:string; displayName?:string; status?:"approved"|"pending"|"revision_required"; review?:ReviewFeedback };
     if (response.status === 422 && data.review) {
       setReviewFeedback({ ...data.review, suggestedTitle: finalTitle });
       setSubmitStatus(data.error || "조금만 다듬으면 바로 게시할 수 있어요.");
       return false;
     }
     if (!response.ok) { setSubmitStatus(data.error || "지금은 저장할 수 없습니다."); return false; }
-    if(data.id&&data.deleteKey){const next={...postDeleteKeys,[data.id]:data.deleteKey};setPostDeleteKeys(next);saveKeys(POST_DELETE_KEYS,next)}
     clearPublishedDraft();
     setReviewFeedback(null);
     if (data.status === "pending") {
@@ -503,7 +501,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     return created;
   }
 
-  async function deletePost(postId:string){const deleteKey=postDeleteKeys[postId];if(!deleteKey)throw new Error("이 글을 삭제할 권한을 확인할 수 없습니다.");const response=await fetch(`/api/posts/${encodeURIComponent(postId)}`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({deleteKey})});const data=await response.json() as {error?:string};if(!response.ok)throw new Error(data.error||"글을 삭제하지 못했습니다.");const next={...postDeleteKeys};delete next[postId];setPostDeleteKeys(next);saveKeys(POST_DELETE_KEYS,next);setPosts(current=>current.filter(post=>post.id!==postId));closePost()}
   async function deleteComment(postId:string,commentId:string|number){const key=String(commentId),deleteKey=commentDeleteKeys[key];if(!deleteKey)throw new Error("이 댓글을 삭제할 권한을 확인할 수 없습니다.");const response=await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({commentId:key,deleteKey})});const data=await response.json() as {error?:string};if(!response.ok)throw new Error(data.error||"댓글을 삭제하지 못했습니다.");const next={...commentDeleteKeys};delete next[key];setCommentDeleteKeys(next);saveKeys(COMMENT_DELETE_KEYS,next);setPosts(current=>current.map(post=>post.id===postId?{...post,comments:post.comments.filter(item=>String(item.id)!==key)}:post));await loadPosts()}
 
   function openPost(postId: string) {
@@ -532,9 +529,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           onShare={() => share(selectedPost)}
           onFeedback={() => setFeedbackPost(selectedPost)}
           onComment={(comment) => addComment(selectedPost.id, comment)}
-          canDeletePost={Boolean(postDeleteKeys[selectedPost.id])}
           canDeleteComment={(commentId)=>Boolean(commentDeleteKeys[String(commentId)])}
-          onDeletePost={()=>deletePost(selectedPost.id)}
           onDeleteComment={(commentId)=>deleteComment(selectedPost.id,commentId)}
         />
       ) : (
@@ -565,9 +560,9 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                 <div>
                   <strong>공개베타 운영 중</strong>
                   <p className="beta-notice-identity">조개가 아픔을 감내하며 귀한 보석을 만들어내듯, 사용자의 상처받은 경험과 진짜 속마음을 소중하게 품어주는 다정하고 정제된 공간입니다.</p>
-                  <p className="beta-notice-detail">정식 공개 전 실제 사용 환경을 점검하고 있습니다. 글쓰기·검색·신고·삭제 흐름을 우선 안정화하고 있습니다.</p>
+                  <p className="beta-notice-detail">정식 공개 전 실제 사용 환경을 점검하고 있습니다. 글쓰기·검색·신고 흐름을 우선 안정화하고 있습니다.</p>
                 </div>
-                <nav aria-label="공개베타 바로가기"><a href="/beta">베타안내</a><a href="mailto:hello@xn--o55b9n.kr">문제제보</a><a href="#write">내 글 삭제</a></nav>
+                <nav aria-label="공개베타 바로가기"><a href="/beta">베타안내</a><a href="mailto:hello@xn--o55b9n.kr">문제제보</a></nav>
               </section>
 
               {feedState === "error" && <section className="feed-state feed-state-error" role="alert"><div><h2>의견을 불러오지 못했어요.</h2><p>잠시 후 다시 시도해 주세요.</p></div><button type="button" onClick={() => { setFeedState("loading"); void loadPosts(); }}>다시 불러오기</button></section>}
@@ -695,7 +690,7 @@ function PostCard({ post, reactedKind, reactingKind, onOpen, onReact, onShare, o
   );
 }
 
-function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare, onFeedback, onComment, canDeletePost, canDeleteComment, onDeletePost, onDeleteComment }: {
+function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare, onFeedback, onComment, canDeleteComment, onDeleteComment }: {
   post: Post;
   reactedKind: ReactionKind | null;
   reactingKind: "heard" | "same" | null;
@@ -704,9 +699,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
   onShare: () => void;
   onFeedback: () => void;
   onComment: (comment: string) => Promise<Comment>;
-  canDeletePost:boolean;
   canDeleteComment:(commentId:string|number)=>boolean;
-  onDeletePost:()=>Promise<void>;
   onDeleteComment:(commentId:string|number)=>Promise<void>;
 }) {
   const [comment, setComment] = useState("");
@@ -757,7 +750,6 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
     }
   }
 
-  async function removePost(){if(!window.confirm("이 글을 삭제할까요? 삭제한 글은 다시 되돌릴 수 없습니다."))return;setDeleteBusy("post");setCommentError("");try{await onDeletePost()}catch(error){setCommentError(error instanceof Error?error.message:"글을 삭제하지 못했습니다.");setDeleteBusy(null)}}
   async function removeComment(commentId:string|number){if(!window.confirm("이 댓글을 삭제할까요?"))return;const key=String(commentId);setDeleteBusy(key);setCommentError("");try{await onDeleteComment(commentId);setDetailComments(current=>current.filter(item=>String(item.id)!==key))}catch(error){setCommentError(error instanceof Error?error.message:"댓글을 삭제하지 못했습니다.")}finally{setDeleteBusy(null)}}
 
   return (
@@ -768,7 +760,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
           <div className="post-meta"><span>{post.category}{post.displayName ? ` · ${post.displayName}` : ""}</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />
-          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button">공유하기</button><button type="button" onClick={onFeedback}>의견 보내기</button>{canDeletePost&&<button className="own-delete-button" onClick={removePost} disabled={deleteBusy==="post"} type="button">{deleteBusy==="post"?"삭제 중…":"내 글 삭제"}</button>}</div>
+          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button">공유하기</button><button type="button" onClick={onFeedback}>의견 보내기</button></div>
         </article>
         <section className="comment-list" id="comment-list" aria-label="댓글 목록">
           <h2>댓글 {commentsLoading ? "…" : detailComments.length}</h2>

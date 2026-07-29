@@ -335,7 +335,6 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .detail-post h1 { margin: 18px 0 20px; color: #f2f2f2; font-size: clamp(28px,5vw,42px); line-height: 1.3; letter-spacing: -.045em; }
 .detail-post > p { color: #c6c6c6; font-size: 15px; line-height: 1.9; white-space: pre-wrap; }
 .detail-stats { margin-top: 18px; }
-.detail-stats .own-delete-button { grid-column: 1 / -1; }
 .comment-list { padding: 38px 0 18px; border-bottom: 1px solid #292929; }
 .comment-list h2 { margin: 0 0 20px; font-size: 18px; }
 .comment-list article { padding: 18px 0; border-top: 1px solid #292929; }
@@ -343,8 +342,8 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .comment-list article > div > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
 .comment-list article > div > span:last-child { display: inline-flex; align-items: center; gap: 9px; }
 .comment-delete-button { min-height: 32px; padding: 0 7px; color: #999; font-size: 10px; background: transparent; border: 0; border-radius: 7px; cursor: pointer; }
-.comment-delete-button:hover, .own-delete-button:hover { color: #ef9b9b !important; }
-.comment-delete-button:disabled, .own-delete-button:disabled, .comment-composer button:disabled, .submit-review-button:disabled { cursor: wait; opacity: .55; }
+.comment-delete-button:hover { color: #ef9b9b !important; }
+.comment-delete-button:disabled, .comment-composer button:disabled, .submit-review-button:disabled { cursor: wait; opacity: .55; }
 .comment-list article p { color: #c6c6c6; line-height: 1.75; white-space: pre-wrap; }
 .no-comments { color: #888; }
 .comments-loading { color: #aaa; }

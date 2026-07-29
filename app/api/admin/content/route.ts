@@ -32,10 +32,10 @@ async function storeEditorialPost(id: string) {
   await db()`
     INSERT INTO posts (
       id, title, content, category, mode, visibility, risk_level, status,
-      delete_key_hash, heard, same, support, comment_count, created_at, updated_at
+      heard, same, support, comment_count, created_at, updated_at
     ) VALUES (
       ${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, ${fallback.mode || "털어놓기"},
-      'public', 'low', 'approved', ${await hash(`editorial:${fallback.id}`)}, ${fallback.heard}, ${fallback.same},
+      'public', 'low', 'approved', ${fallback.heard}, ${fallback.same},
       ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.updatedAt || fallback.createdAt}
     ) ON CONFLICT (id) DO NOTHING`;
   rows = await db()`SELECT id FROM posts WHERE id = ${id} LIMIT 1`;

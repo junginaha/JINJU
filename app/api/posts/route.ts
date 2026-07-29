@@ -4,7 +4,7 @@ import { NEW_POST_COMMUNITY_DEFAULTS } from "../../../lib/community-settings";
 import { reviewSubmission } from "../../../lib/ai-review";
 import { builtInPosts } from "../../../lib/built-in-content";
 import { normalizePublicCategory, PUBLIC_CATEGORIES } from "../../../lib/categories";
-import { db, databaseEnabled, ensureSchema, hash, token } from "../../../lib/db";
+import { db, databaseEnabled, ensureSchema, token } from "../../../lib/db";
 import { isDuplicatePost } from "../../../lib/dedup";
 import { generateUniqueJinjuDisplayName } from "../../../lib/display-name";
 import { getPublicPosts } from "../../../lib/public-posts";
@@ -64,7 +64,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "이미 같은 제목이 있거나 본문이 90% 이상 비슷한 의견입니다. 기존 글에 댓글로 참여해주세요." }, { status: 409 });
   }
   const id = token(10);
-  const deleteKey = token(16);
   const displayName = await generateUniqueJinjuDisplayName(async (candidate) => {
     const rows = await db()`
       SELECT 1 FROM posts WHERE display_name = ${candidate}
@@ -77,10 +76,10 @@ export async function POST(request: Request) {
   const initialStatus = status === "approved" ? "preparing" : status;
   const inserted = await db()`
     INSERT INTO posts (
-      id, title, content, category, display_name, delete_key_hash, status, risk_level,
+      id, title, content, category, display_name, status, risk_level,
       review_issues, review_explanation, review_source, heard
     ) VALUES (
-      ${id}, ${title}, ${content}, ${category}, ${displayName}, ${await hash(deleteKey)}, ${initialStatus}, ${review.riskLevel},
+      ${id}, ${title}, ${content}, ${category}, ${displayName}, ${initialStatus}, ${review.riskLevel},
       ${review.detectedIssues.join(" · ")}, ${review.explanation}, ${review.source}, ${NEW_POST_COMMUNITY_DEFAULTS.likes}
     )
     RETURNING created_at`;
@@ -103,7 +102,7 @@ export async function POST(request: Request) {
     }
     after(() => notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]));
   }
-  return Response.json({ id, deleteKey, displayName, status, review }, {
+  return Response.json({ id, displayName, status, review }, {
     status: status === "approved" ? 201 : 202,
     headers: { "cache-control": "no-store" },
   });

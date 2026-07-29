@@ -49,7 +49,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!rows[0]) {
     const fallback = builtInPost(id);
     if (!fallback) return Response.json({ error: "의견을 찾을 수 없습니다." }, { status: 404 });
-    await db()`INSERT INTO posts (id, title, content, category, display_name, mode, visibility, risk_level, status, delete_key_hash, heard, same, support, comment_count, created_at, updated_at) VALUES (${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, ${fallback.displayName || "익명"}, ${fallback.mode || "털어놓기"}, 'public', 'low', 'approved', ${await hash(`editorial:${fallback.id}`)}, ${fallback.heard}, ${fallback.same}, ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.createdAt}) ON CONFLICT (id) DO NOTHING`;
+    await db()`INSERT INTO posts (id, title, content, category, display_name, mode, visibility, risk_level, status, heard, same, support, comment_count, created_at, updated_at) VALUES (${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, ${fallback.displayName || "익명"}, ${fallback.mode || "털어놓기"}, 'public', 'low', 'approved', ${fallback.heard}, ${fallback.same}, ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.createdAt}) ON CONFLICT (id) DO NOTHING`;
   }
   const identity = anonymousReactionId(request);
   const voterHash = await hash(`reaction:${identity.id}`);

@@ -27,7 +27,6 @@ export async function ensureSchema() {
           risk_level TEXT NOT NULL DEFAULT 'low',
           status TEXT NOT NULL DEFAULT 'approved',
           display_name TEXT NOT NULL DEFAULT '익명',
-          delete_key_hash TEXT NOT NULL,
           heard INTEGER NOT NULL DEFAULT 0,
           same INTEGER NOT NULL DEFAULT 0,
           support INTEGER NOT NULL DEFAULT 0,
@@ -134,6 +133,7 @@ export async function ensureSchema() {
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_explanation TEXT NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_source TEXT NOT NULL DEFAULT 'rules'`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`;
+      await sql`ALTER TABLE posts DROP COLUMN IF EXISTS delete_key_hash`;
       await sql`CREATE INDEX IF NOT EXISTS posts_status_created_idx ON posts(status, created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS comments_post_created_idx ON comments(post_id, created_at ASC)`;
       await sql`CREATE INDEX IF NOT EXISTS post_reactions_created_idx ON post_reactions(created_at DESC)`;

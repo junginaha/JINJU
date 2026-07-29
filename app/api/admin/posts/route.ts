@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { hasValidMutationOrigin, isAdminRequest } from "../../../../lib/admin-auth";
-import { db, databaseEnabled, ensureSchema, hash } from "../../../../lib/db";
+import { db, databaseEnabled, ensureSchema } from "../../../../lib/db";
 import { editorialPost, editorialPosts } from "../../../../lib/editorial";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { ensureAutoComments } from "../../../../lib/auto-comments";
@@ -69,7 +69,7 @@ export async function PATCH(request: Request) {
     if (!rows[0]) {
       const fallback = editorialPost(payload.id);
       if (!fallback) return Response.json({ error: "공개된 글을 찾을 수 없습니다." }, { status: 404 });
-      await db()`INSERT INTO posts (id, title, content, category, mode, visibility, risk_level, status, delete_key_hash, heard, same, support, comment_count, created_at, updated_at) VALUES (${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, ${fallback.mode || "털어놓기"}, 'public', 'low', 'approved', ${await hash(`editorial:${fallback.id}`)}, ${fallback.heard}, ${fallback.same}, ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.updatedAt || fallback.createdAt}) ON CONFLICT (id) DO NOTHING`;
+      await db()`INSERT INTO posts (id, title, content, category, mode, visibility, risk_level, status, heard, same, support, comment_count, created_at, updated_at) VALUES (${fallback.id}, ${fallback.title}, ${fallback.content}, ${fallback.category}, ${fallback.mode || "털어놓기"}, 'public', 'low', 'approved', ${fallback.heard}, ${fallback.same}, ${fallback.support}, 0, ${fallback.createdAt}, ${fallback.updatedAt || fallback.createdAt}) ON CONFLICT (id) DO NOTHING`;
     }
     rows = await db()`
       WITH cleared AS (
