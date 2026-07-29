@@ -1,9 +1,13 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/search-indexing";
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/admin"] },
-    sitemap: "https://xn--o55b9n.kr/sitemap.xml",
-    host: "https://xn--o55b9n.kr",
+    rules: [
+      { userAgent: "*", allow: "/", disallow: ["/api/", "/admin"] },
+      { userAgent: "Yeti", allow: "/", disallow: ["/api/", "/admin"] },
+    ],
+    sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   };
 }

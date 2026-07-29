@@ -1,6 +1,8 @@
+import { after } from "next/server";
 import { db, databaseEnabled, ensureSchema, hash } from "../../../../lib/db";
 import { getPublicPost } from "../../../../lib/public-posts";
 import { rateLimit } from "../../../../lib/rate-limit";
+import { notifySearchIndexes } from "../../../../lib/search-indexing";
 
 export const dynamic = "force-dynamic";
 
@@ -24,5 +26,6 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   }
   await db()`UPDATE posts SET status = 'deleted', updated_at = NOW() WHERE id = ${id}`;
   await db()`UPDATE comments SET status = 'hidden' WHERE post_id = ${id}`;
+  after(() => notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]));
   return Response.json({ deleted: true }, { headers: { "cache-control": "no-store" } });
 }

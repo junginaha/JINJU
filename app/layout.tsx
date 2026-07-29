@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./production-hotfix.css";
+import { SITE_URL } from "@/lib/search-indexing";
 
-const baseUrl = "https://xn--o55b9n.kr";
+const baseUrl = SITE_URL;
 const siteName = "진주.kr";
-const siteTitle = "진주.kr | 인간적으로, 할 말은 하세요";
+const siteTitle = "진주.kr | 익명 의견 커뮤니티";
 const siteDescription =
-  "개인정보 0%를 지향하며 속마음을 안전하고 개운하게 나누는 익명 의견 커뮤니티 진주입니다.";
+  "개인정보를 요구하지 않고 속마음과 의견을 나누는 익명 커뮤니티입니다.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -23,6 +24,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
     languages: { "ko-KR": "/" },
+    types: {
+      "application/rss+xml": "/rss.xml",
+    },
   },
   keywords: [
     "진주.kr",

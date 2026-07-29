@@ -1,8 +1,10 @@
+import { after } from "next/server";
 import { hasValidMutationOrigin, isAdminRequest } from "../../../../lib/admin-auth";
 import { db, databaseEnabled, ensureSchema, hash } from "../../../../lib/db";
 import { editorialPost, editorialPosts } from "../../../../lib/editorial";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { ensureAutoComments } from "../../../../lib/auto-comments";
+import { notifySearchIndexes } from "../../../../lib/search-indexing";
 
 export const dynamic = "force-dynamic";
 
@@ -109,5 +111,8 @@ export async function PATCH(request: Request) {
     WHERE id = ${payload.id} AND status = 'pending'
     RETURNING id`;
   if (!rows[0]) return Response.json({ error: "이미 처리됐거나 찾을 수 없는 글입니다." }, { status: 404 });
+  if (nextStatus === "approved") {
+    after(() => notifySearchIndexes(["/", `/post/${encodeURIComponent(String(rows[0].id))}`]));
+  }
   return Response.json({ id: String(rows[0].id), status: nextStatus }, { headers: { "cache-control": "no-store" } });
 }

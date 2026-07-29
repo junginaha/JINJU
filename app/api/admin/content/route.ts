@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { getAdminIdentity, hasValidMutationOrigin } from "../../../../lib/admin-auth";
 import { contentOverrides } from "../../../../lib/content-overrides";
 import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../lib/db";
@@ -7,6 +8,7 @@ import { hasPii } from "../../../../lib/safety";
 import { supplementalComments } from "../../../../lib/supplemental-comments";
 import { ensureAutoComments } from "../../../../lib/auto-comments";
 import { hasCompleteAutoCommentSet } from "../../../../lib/comment-visibility";
+import { notifySearchIndexes } from "../../../../lib/search-indexing";
 
 export const dynamic = "force-dynamic";
 
@@ -224,6 +226,9 @@ export async function PATCH(request: Request) {
       await db()`UPDATE posts SET title = ${title}, content = ${body}, category = ${category}, visibility = ${visibility}, updated_at = NOW() WHERE id = ${id}`;
       await db()`DELETE FROM admin_content_overrides WHERE kind = 'post' AND id = ${id}`;
     } else return Response.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
+    if (visibility === "public") {
+      after(() => notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]));
+    }
     return Response.json({ ok: true }, { headers: { "cache-control": "no-store" } });
   }
 
@@ -257,6 +262,7 @@ export async function PATCH(request: Request) {
         : payload.action === "hide" ? "hidden" : "deleted";
     await db()`UPDATE posts SET status = ${nextStatus}, reviewed_at = NOW(), updated_at = NOW() WHERE id = ${id}`;
     await db()`DELETE FROM admin_content_overrides WHERE kind = 'post' AND id = ${id}`;
+    after(() => notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]));
     return Response.json({ ok: true, status: nextStatus }, { headers: { "cache-control": "no-store" } });
   }
 

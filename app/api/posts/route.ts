@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { ensureAutoComments } from "../../../lib/auto-comments";
 import { NEW_POST_COMMUNITY_DEFAULTS } from "../../../lib/community-settings";
 import { reviewSubmission } from "../../../lib/ai-review";
@@ -8,6 +9,7 @@ import { isDuplicatePost } from "../../../lib/dedup";
 import { generateUniqueJinjuDisplayName } from "../../../lib/display-name";
 import { getPublicPosts } from "../../../lib/public-posts";
 import { rateLimit } from "../../../lib/rate-limit";
+import { notifySearchIndexes } from "../../../lib/search-indexing";
 import { verifyReviewToken } from "../../../lib/review-token";
 import { hasPii } from "../../../lib/safety";
 import { generateCoreTitle } from "../../../lib/title";
@@ -99,6 +101,7 @@ export async function POST(request: Request) {
         { status: 503, headers: { "cache-control": "no-store" } },
       );
     }
+    after(() => notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]));
   }
   return Response.json({ id, deleteKey, displayName, status, review }, {
     status: status === "approved" ? 201 : 202,
