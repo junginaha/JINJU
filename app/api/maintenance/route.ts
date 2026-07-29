@@ -24,11 +24,6 @@ export async function GET() {
       ), updated_at = NOW()
       WHERE id = ${postId}`;
   }
-  const backfilledLikes = await db()`
-    UPDATE posts
-    SET heard = 10, updated_at = NOW()
-    WHERE status = 'approved' AND visibility = 'public' AND heard < 10
-    RETURNING id`;
   await Promise.all([
     db()`DELETE FROM admin_sessions WHERE expires_at <= NOW()`,
     db()`DELETE FROM rate_limits WHERE expires_at <= NOW()`,
@@ -38,9 +33,5 @@ export async function GET() {
     db()`DELETE FROM feedback_reports WHERE expires_at <= NOW()`,
     db()`DELETE FROM post_reactions WHERE created_at <= NOW() - INTERVAL '30 days'`,
   ]);
-  return Response.json({
-    ok: true,
-    removedLegacyComments: removedLegacyComments.length,
-    backfilledLikes: backfilledLikes.length,
-  }, { headers: { "cache-control": "no-store" } });
+  return Response.json({ ok: true, removedLegacyComments: removedLegacyComments.length }, { headers: { "cache-control": "no-store" } });
 }
