@@ -5,8 +5,10 @@ import {
   hasCompleteAutoCommentSet,
   mergeBaseCommentsByBody,
 } from "../lib/comment-visibility";
-import { validatedAutoCommentBodies } from "../lib/auto-comments";
-import { AUTO_COMMENT_TOTAL, newPostCommentSchedule } from "../lib/community-settings";
+import { autoCommentDisplayName, validatedAutoCommentBodies } from "../lib/auto-comments";
+import { AUTO_COMMENT_TOTAL, newPostCommentSchedule, newPostInitialLikes } from "../lib/community-settings";
+import { july30EditorialComments, july30EditorialPosts } from "../lib/daily-editorial-20260730";
+import { generateJinjuDisplayName } from "../lib/display-name";
 import { activeReactionHistory, recordReaction } from "../lib/reaction-history";
 
 test("new posts receive the complete immediate and hourly comment schedule", () => {
@@ -26,6 +28,32 @@ test("automatic comments must be a complete unique set", () => {
   assert.equal(validatedAutoCommentBodies(bodies).length, AUTO_COMMENT_TOTAL);
   assert.throws(() => validatedAutoCommentBodies(bodies.slice(1)));
   assert.throws(() => validatedAutoCommentBodies([...bodies.slice(0, -1), bodies[0]]));
+});
+
+test("new post likes stay between 20 and 33", () => {
+  assert.equal(newPostInitialLikes(0), 20);
+  assert.equal(newPostInitialLikes(0.5), 27);
+  assert.equal(newPostInitialLikes(0.999999), 33);
+});
+
+test("future post and automatic comment names use exactly two words", () => {
+  for (let index = 0; index < 128; index += 1) {
+    assert.equal(generateJinjuDisplayName().trim().split(/\s+/).length, 2);
+    assert.equal(autoCommentDisplayName(`post-${index}`, index).trim().split(/\s+/).length, 2);
+  }
+});
+
+test("July 30 posts use two-word names and 20-33 likes", () => {
+  assert.equal(july30EditorialPosts.length, 10);
+  for (const post of july30EditorialPosts) {
+    assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
+    assert.ok(post.heard >= 20 && post.heard <= 33);
+    const comments = july30EditorialComments(post.id);
+    assert.equal(comments.length, post.commentCount);
+    for (const comment of comments) {
+      assert.equal(comment.displayName.trim().split(/\s+/).length, 2);
+    }
+  }
 });
 
 test("a partial automatic set never hides supplemental comments", () => {

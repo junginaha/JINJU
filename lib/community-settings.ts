@@ -1,9 +1,21 @@
 export const NEW_POST_COMMUNITY_DEFAULTS = {
-  likes: 10,
+  likesMin: 20,
+  likesMax: 33,
   immediateComments: 3,
   hourlyComments: 12,
   hourlyIntervalMs: 60 * 60_000,
 } as const;
+
+export function newPostInitialLikes(randomValue = Math.random()) {
+  const normalized = Number.isFinite(randomValue)
+    ? Math.min(Math.max(randomValue, 0), 0.9999999999999999)
+    : 0;
+  const range =
+    NEW_POST_COMMUNITY_DEFAULTS.likesMax
+    - NEW_POST_COMMUNITY_DEFAULTS.likesMin
+    + 1;
+  return NEW_POST_COMMUNITY_DEFAULTS.likesMin + Math.floor(normalized * range);
+}
 
 export const AUTO_COMMENT_TOTAL =
   NEW_POST_COMMUNITY_DEFAULTS.immediateComments

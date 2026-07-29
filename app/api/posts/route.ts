@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { ensureAutoComments } from "../../../lib/auto-comments";
-import { NEW_POST_COMMUNITY_DEFAULTS } from "../../../lib/community-settings";
+import { newPostInitialLikes } from "../../../lib/community-settings";
 import { reviewSubmission } from "../../../lib/ai-review";
 import { builtInPosts } from "../../../lib/built-in-content";
 import { normalizePublicCategory, PUBLIC_CATEGORIES } from "../../../lib/categories";
@@ -74,13 +74,14 @@ export async function POST(request: Request) {
   });
   const status = review.decision === "allow" ? "approved" : "pending";
   const initialStatus = status === "approved" ? "preparing" : status;
+  const initialLikes = newPostInitialLikes();
   const inserted = await db()`
     INSERT INTO posts (
       id, title, content, category, display_name, status, risk_level,
       review_issues, review_explanation, review_source, heard
     ) VALUES (
       ${id}, ${title}, ${content}, ${category}, ${displayName}, ${initialStatus}, ${review.riskLevel},
-      ${review.detectedIssues.join(" · ")}, ${review.explanation}, ${review.source}, ${NEW_POST_COMMUNITY_DEFAULTS.likes}
+      ${review.detectedIssues.join(" · ")}, ${review.explanation}, ${review.source}, ${initialLikes}
     )
     RETURNING created_at`;
   if (status === "approved") {

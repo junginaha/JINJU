@@ -12,8 +12,8 @@ export type AutoCommentPost = {
 export const autoCommentSchedule = newPostCommentSchedule;
 
 const ADJECTIVES = [
-  "열린", "비스듬한", "잠깐 웃는", "오래 듣는", "햇빛 든", "생각 깊은", "다정한", "또렷한",
-  "조용히 고개 든", "한숨 돌린", "느긋한", "마음 놓인", "새벽을 건넌", "말을 아낀", "살짝 웃는", "천천히 읽는",
+  "열린", "비스듬한", "명랑한", "귀기울인", "햇빛난", "사려깊은", "다정한", "또렷한",
+  "차분한", "여유로운", "느긋한", "편안한", "새벽의", "담백한", "웃음난", "꼼꼼한",
 ];
 
 const NOUNS = [
@@ -30,7 +30,7 @@ function hashNumber(value: string) {
   return result >>> 0;
 }
 
-function nickname(postId: string, index: number) {
+export function autoCommentDisplayName(postId: string, index: number) {
   const seed = hashNumber(`${postId}:${index}:comment-name`);
   return `${ADJECTIVES[seed % ADJECTIVES.length]} ${NOUNS[Math.floor(seed / ADJECTIVES.length) % NOUNS.length]}`;
 }
@@ -263,7 +263,7 @@ export async function storeAutoComments(post: AutoCommentPost, bodies: string[])
       id,
       post_id: post.id,
       content: body,
-      display_name: nickname(post.id, index),
+      display_name: autoCommentDisplayName(post.id, index),
       delete_key_hash: await hash(`auto:${id}`),
       created_at: schedule[index],
     };
