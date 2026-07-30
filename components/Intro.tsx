@@ -4,8 +4,8 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const INTRO_STORAGE_KEY = "jinju-intro-seen-v1";
-const INTRO_DURATION = 5000;
-const INTRO_FADE_DURATION = 560;
+const INTRO_DURATION = 2800;
+const INTRO_FADE_DURATION = 320;
 
 export default function Intro({ onComplete }: { onComplete: () => void }) {
   const [closing, setClosing] = useState(false);
@@ -41,7 +41,7 @@ export default function Intro({ onComplete }: { onComplete: () => void }) {
     document.body.style.overflow = "hidden";
     closeTimerRef.current = setTimeout(() => {
       if (!closingRef.current) setClosing(true);
-    }, INTRO_DURATION - 600);
+    }, INTRO_DURATION - INTRO_FADE_DURATION);
     autoTimerRef.current = setTimeout(() => {
       if (closingRef.current) return;
       closingRef.current = true;
