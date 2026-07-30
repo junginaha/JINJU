@@ -657,7 +657,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
               </section>
 
               {filteredPosts.length > 3 && <section className="mid-feed-write-cta" aria-label="의견 쓰기 안내">
-                <div><Pearl size={38} /><span><strong>읽다 보니 할 말이 생기셨나요?</strong><small>읽던 위치는 그대로 남겨둘게요.</small></span></div>
+                <div><Pearl size={38} /><span><strong>읽다 보니 할 말이 생기셨나요?</strong></span></div>
                 <button type="button" onClick={openComposer}>의견 쓰기</button>
               </section>}
 
