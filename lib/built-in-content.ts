@@ -1,3 +1,4 @@
+import { bookclubEditorialComments, bookclubEditorialPosts } from "./bookclub-editorial-20260730";
 import { normalizePublicCategory } from "./categories";
 import { dailyEditorialComments, dailyEditorialPosts } from "./daily-editorial";
 import { july29EditorialComments, july29EditorialPosts } from "./daily-editorial-20260729";
@@ -25,6 +26,7 @@ function chooseUniquePosts(posts: EditorialPost[]) {
 }
 
 export const builtInPosts = chooseUniquePosts([
+  ...bookclubEditorialPosts,
   ...july30EditorialPosts,
   ...july29EditorialPosts,
   ...dailyEditorialPosts,
@@ -41,6 +43,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...bookclubEditorialComments(id),
     ...july30EditorialComments(id),
     ...july29EditorialComments(id),
     ...dailyEditorialComments(id),
