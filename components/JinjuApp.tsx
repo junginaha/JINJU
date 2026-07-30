@@ -137,6 +137,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [query, setQuery] = useState("");
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [publishedPostId, setPublishedPostId] = useState<string | null>(null);
   const [category, setCategory] = useState("일상");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -187,6 +189,14 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   },[]);
 
   useEffect(()=>{if(!draftReady)return;try{if(title||body)sessionStorage.setItem(POST_DRAFT_KEY,JSON.stringify({title,body,category}));else sessionStorage.removeItem(POST_DRAFT_KEY)}catch{/* Draft storage is best effort. */}},[body,category,draftReady,title]);
+
+  useEffect(()=>{
+    if(!composerOpen)return;
+    const previousOverflow=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    const frame=requestAnimationFrame(()=>bodyInputRef.current?.focus());
+    return()=>{cancelAnimationFrame(frame);document.body.style.overflow=previousOverflow};
+  },[composerOpen]);
 
   useEffect(()=>()=>{voiceSessionRef.current+=1;transcriptionAbortRef.current?.abort();if(voiceAutoStopRef.current)clearTimeout(voiceAutoStopRef.current);if(speechRestartRef.current)clearTimeout(speechRestartRef.current);try{recognitionRef.current?.abort()}catch{/* already stopped */}if(recorderRef.current){recorderRef.current.onstop=null;if(recorderRef.current.state!=="inactive")recorderRef.current.stop()}streamRef.current?.getTracks().forEach(track=>track.stop())},[]);
 
@@ -404,9 +414,10 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       setPendingNotice(true);
       return true;
     }
-    setSubmitStatus("검수를 통과해 바로 게시되었습니다.");
     await loadPosts();
-    document.getElementById("feed")?.scrollIntoView({ behavior: "smooth" });
+    setPublishedPostId(data.id || null);
+    setSubmitStatus("");
+    setComposerOpen(false);
     return true;
   }
 
@@ -514,10 +525,72 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     setSelectedPostId(null);
   }
 
+  function openComposer() {
+    setMobileMenuOpen(false);
+    setPublishedPostId(null);
+    setSubmitStatus("");
+    setComposerOpen(true);
+  }
+
+  function closeComposer() {
+    if(submitBusy)return;
+    stopVoice(true);
+    setReviewFeedback(null);
+    setPendingNotice(false);
+    setComposerOpen(false);
+  }
+
   return (
     <>
       {!introReady ? <div className="intro-bootstrap" aria-hidden="true" /> : showIntro && <Intro onComplete={completeIntro} />}
       {feedbackPost && <FeedbackDialog postId={feedbackPost.id} postTitle={feedbackPost.title} onClose={() => setFeedbackPost(null)} />}
+      {composerOpen && <section className="composer-screen" role="dialog" aria-modal="true" aria-labelledby="write-title">
+        <header className="composer-screen-header">
+          <button type="button" onClick={closeComposer} aria-label="글쓰기 닫기">닫기</button>
+          <div><strong>새 의견 쓰기</strong><span>초안 자동 저장</span></div>
+          <span aria-hidden="true" />
+        </header>
+        <div className="composer-screen-shell">
+          <div className="composer-intro">
+            <Pearl size={58} />
+            <div><p className="eyebrow">하세요!</p><h2 id="write-title">의견 남기기</h2><p>책임의 무게도 함께 들어주세요.</p></div>
+          </div>
+          <form className="chat-composer" onSubmit={publish}>
+            {reviewFeedback && <div className="review-overlay" role="dialog" aria-modal="true" aria-labelledby="review-dialog-title">
+              <div className="review-dialog">
+                <span className="review-symbol" aria-hidden="true">♨</span>
+                <p className="review-eyebrow">AI 검수 결과</p>
+                <h3 id="review-dialog-title">조금만 다듬어 주세요</h3>
+                {reviewFeedback.detectedIssues?.length ? <ul>{reviewFeedback.detectedIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul> : null}
+                <p>{reviewFeedback.explanation}</p>
+                {reviewFeedback.suggestion && <div className="review-suggestion"><strong>이렇게 고쳐보세요</strong><span>{reviewFeedback.suggestion}</span></div>}
+                {reviewFeedback.containsPii && <p className="review-pii-warning">개인정보는 승인 대기로도 저장하지 않습니다. 해당 정보를 지운 뒤 다시 검수해 주세요.</p>}
+                <div className="review-dialog-actions">
+                  <button className="review-edit-button" onClick={returnToEdit} type="button">수정하기</button>
+                  {!reviewFeedback.containsPii && <button className="review-hold-button" onClick={submitPending} disabled={submitBusy} type="button">{submitBusy ? "보류 접수 중…" : "그대로 제출"}</button>}
+                </div>
+                {!reviewFeedback.containsPii && <small>그대로 제출하면 공개되지 않고 운영자 승인 대기로 이동합니다.</small>}
+              </div>
+            </div>}
+            {pendingNotice && <div className="review-overlay" role="dialog" aria-modal="true" aria-labelledby="pending-dialog-title">
+              <div className="pending-dialog">
+                <span className="pending-symbol" aria-hidden="true">●</span>
+                <h3 id="pending-dialog-title">앗, 너무 뜨거워요</h3>
+                <p>잠시 식힐게요.<br />운영자 승인이 필요합니다.</p>
+                <span>글은 공개되지 않고 승인 대기 상태로 안전하게 보관되었습니다.</span>
+                <button type="button" onClick={() => {setPendingNotice(false);setComposerOpen(false)}}>확인</button>
+              </div>
+            </div>}
+            <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1).map((item) => <option key={item}>{item}</option>)}</select></div>
+            <input ref={titleInputRef} className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
+            <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={10} />
+            <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
+            {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
+            {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
+            <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${voiceState === "idle" ? "" : " listening"}`} onClick={toggleVoice} type="button" aria-pressed={voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력${voiceState==="transcribing"?" 다시 시작":""}`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy}><span>{submitBusy?"검수 중…":"AI 검수"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
+          </form>
+        </div>
+      </section>}
       {selectedPost ? (
         <PostDetail
           key={selectedPost.id}
@@ -539,6 +612,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
             sort={sort}
             onTopic={(value) => { setTopic(value); setMobileMenuOpen(false); }}
             onSort={setSort}
+            onWrite={openComposer}
             mobileOpen={mobileMenuOpen}
           />
           {mobileMenuOpen && <button className="mobile-menu-scrim" onClick={() => setMobileMenuOpen(false)} aria-label="메뉴 닫기" />}
@@ -547,7 +621,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
             <header className="mobile-chat-header">
               <button className="mobile-menu-button" onClick={() => setMobileMenuOpen(true)} aria-label="게시판 메뉴 열기">☰</button>
               <a href="#feed" aria-label="진주 홈"><Pearl size={36} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>
-              <a href="#write">나의 의견</a>
+              <button className="mobile-write-link" type="button" onClick={openComposer}>나의 의견</button>
             </header>
 
             <div className="feed-shell">
@@ -582,46 +656,10 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                 ))}
               </section>
 
-              <section className="chat-composer-section" id="write" aria-labelledby="write-title">
-                <div className="composer-intro">
-                  <Pearl size={58} />
-                  <div><p className="eyebrow">하세요!</p><h2 id="write-title">의견 남기기</h2><p>책임의 무게도 함께 들어주세요.</p></div>
-                </div>
-                <form className="chat-composer" onSubmit={publish}>
-                  {reviewFeedback && <div className="review-overlay" role="dialog" aria-modal="true" aria-labelledby="review-dialog-title">
-                    <div className="review-dialog">
-                      <span className="review-symbol" aria-hidden="true">♨</span>
-                      <p className="review-eyebrow">AI 검수 결과</p>
-                      <h3 id="review-dialog-title">조금만 다듬어 주세요</h3>
-                      {reviewFeedback.detectedIssues?.length ? <ul>{reviewFeedback.detectedIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul> : null}
-                      <p>{reviewFeedback.explanation}</p>
-                      {reviewFeedback.suggestion && <div className="review-suggestion"><strong>이렇게 고쳐보세요</strong><span>{reviewFeedback.suggestion}</span></div>}
-                      {reviewFeedback.containsPii && <p className="review-pii-warning">개인정보는 승인 대기로도 저장하지 않습니다. 해당 정보를 지운 뒤 다시 검수해 주세요.</p>}
-                      <div className="review-dialog-actions">
-                        <button className="review-edit-button" onClick={returnToEdit} type="button">수정하기</button>
-                        {!reviewFeedback.containsPii && <button className="review-hold-button" onClick={submitPending} disabled={submitBusy} type="button">{submitBusy ? "보류 접수 중…" : "그대로 제출"}</button>}
-                      </div>
-                      {!reviewFeedback.containsPii && <small>그대로 제출하면 공개되지 않고 운영자 승인 대기로 이동합니다.</small>}
-                    </div>
-                  </div>}
-                  {pendingNotice && <div className="review-overlay" role="dialog" aria-modal="true" aria-labelledby="pending-dialog-title">
-                    <div className="pending-dialog">
-                      <span className="pending-symbol" aria-hidden="true">●</span>
-                      <h3 id="pending-dialog-title">앗, 너무 뜨거워요</h3>
-                      <p>잠시 식힐게요.<br />운영자 승인이 필요합니다.</p>
-                      <span>글은 공개되지 않고 승인 대기 상태로 안전하게 보관되었습니다.</span>
-                      <button type="button" onClick={() => setPendingNotice(false)}>확인</button>
-                    </div>
-                  </div>}
-                  <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1).map((item) => <option key={item}>{item}</option>)}</select></div>
-                  <input ref={titleInputRef} className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
-                  <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={7} />
-                  <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
-                  {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
-                  {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
-                  <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${voiceState === "idle" ? "" : " listening"}`} onClick={toggleVoice} type="button" aria-pressed={voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력${voiceState==="transcribing"?" 다시 시작":""}`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy}><span>{submitBusy?"검수 중…":"AI 검수"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
-                </form>
-              </section>
+              {filteredPosts.length > 3 && <section className="mid-feed-write-cta" aria-label="의견 쓰기 안내">
+                <div><Pearl size={38} /><span><strong>읽다 보니 할 말이 생기셨나요?</strong><small>읽던 위치는 그대로 남겨둘게요.</small></span></div>
+                <button type="button" onClick={openComposer}>의견 쓰기</button>
+              </section>}
 
               <section className="post-feed continued-feed" aria-label="더 많은 익명 의견">
                 {filteredPosts.slice(3).map((post) => (
@@ -629,31 +667,34 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                 ))}
               </section>
 
-              {feedState === "ready" && posts.length === 0 && <section className="feed-empty"><h2>아직 공개된 의견이 없어요.</h2><p>첫 의견을 남겨주세요.</p><a href="#write">의견 남기기</a></section>}
+              {feedState === "ready" && posts.length === 0 && <section className="feed-empty"><h2>아직 공개된 의견이 없어요.</h2><p>첫 의견을 남겨주세요.</p><button type="button" onClick={openComposer}>의견 남기기</button></section>}
               {posts.length > 0 && !filteredPosts.length && <section className="feed-empty"><h2>찾는 의견이 없습니다</h2><p>다른 검색어나 게시판을 선택해 보세요.</p></section>}
-
-              <section className="bottom-write-cta" aria-label="하단 의견 남기기">
-                <Pearl size={42} /><div><strong>할 말은 하세요!</strong><span className="cta-relief">개운하게~</span></div><a href="#write">의견 남기기</a>
-              </section>
             </div>
           </main>
+          <button className="floating-write-button" type="button" onClick={openComposer}><span aria-hidden="true">＋</span> 의견 쓰기</button>
+          {publishedPostId && <div className="published-toast" role="status">
+            <span>의견이 게시되었습니다.</span>
+            <button type="button" onClick={() => openPost(publishedPostId)}>내 글 보기</button>
+            <button type="button" onClick={() => setPublishedPostId(null)} aria-label="게시 완료 안내 닫기">×</button>
+          </div>}
         </div>
       )}
     </>
   );
 }
 
-function Sidebar({ topic, sort, onTopic, onSort, mobileOpen }: {
+function Sidebar({ topic, sort, onTopic, onSort, onWrite, mobileOpen }: {
   topic: string;
   sort: "latest" | "popular";
   onTopic: (topic: string) => void;
   onSort: (sort: "latest" | "popular") => void;
+  onWrite: () => void;
   mobileOpen: boolean;
 }) {
   return (
     <aside className={`chat-sidebar${mobileOpen ? " mobile-open" : ""}`}>
       <a href="#feed" className="sidebar-brand" aria-label="진주 홈"><Pearl size={44} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>
-      <a className="new-post-button" href="#write"><span>＋</span> 새 의견 쓰기</a>
+      <button className="new-post-button" type="button" onClick={onWrite}><span>＋</span> 새 의견 쓰기</button>
       <p className="sidebar-label">게시판</p>
       <nav className="channel-list" aria-label="주제 게시판">{topics.map((item) => <button key={item} className={topic === item ? "active" : ""} onClick={() => onTopic(item)} type="button"><span>{item === "전체" ? "◉" : "#"}</span>{item}</button>)}</nav>
       <p className="sidebar-label">피드</p>
