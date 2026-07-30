@@ -634,7 +634,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                 <div>
                   <strong>공개베타 운영 중</strong>
                   <p className="beta-notice-identity">조개가 아픔을 감내하며 귀한 보석을 만들어내듯, 사용자의 상처받은 경험과 진짜 속마음을 소중하게 품어주는 다정하고 정제된 공간입니다.</p>
-                  <p className="beta-notice-detail">정식 공개 전 실제 사용 환경을 점검하고 있습니다. 글쓰기·검색·신고 흐름을 우선 안정화하고 있습니다.</p>
+                  <p className="beta-notice-detail">정식 공개 전 실제 사용 환경을 점검하고 있습니다. 글쓰기·검색·문제제보 흐름을 우선 안정화하고 있습니다.</p>
                 </div>
                 <nav aria-label="공개베타 바로가기"><a href="/beta">베타안내</a><a href="mailto:hello@xn--o55b9n.kr">문제제보</a></nav>
               </section>
@@ -699,7 +699,7 @@ function Sidebar({ topic, sort, onTopic, onSort, onWrite, mobileOpen }: {
       <nav className="channel-list" aria-label="주제 게시판">{topics.map((item) => <button key={item} className={topic === item ? "active" : ""} onClick={() => onTopic(item)} type="button"><span>{item === "전체" ? "◉" : "#"}</span>{item}</button>)}</nav>
       <p className="sidebar-label">피드</p>
       <nav className="channel-list" aria-label="피드 정렬"><button className={sort === "latest" ? "active" : ""} onClick={() => onSort("latest")} type="button"><span>◷</span>최신 의견</button><button className={sort === "popular" ? "active" : ""} onClick={() => onSort("popular")} type="button"><span>↗</span>인기 의견</button></nav>
-      <div className="sidebar-footer"><a href="/beta">공개베타</a><a href="/principles">운영원칙</a><a href="/safety">안전안내</a><a href="/privacy">개인정보</a><a href="mailto:hello@xn--o55b9n.kr">신고</a><p>개인정보 0%를 지향합니다. 이름·연락처 등 개인 식별정보를 요구하지 않습니다.</p></div>
+      <div className="sidebar-footer"><a href="/beta">공개베타</a><a href="/principles">운영원칙</a><a href="/safety">안전안내</a><a href="/privacy">개인정보</a><a href="mailto:hello@xn--o55b9n.kr">문제제보</a><p>개인정보 0%를 지향합니다. 이름·연락처 등 개인 식별정보를 요구하지 않습니다.</p></div>
     </aside>
   );
 }

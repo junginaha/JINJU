@@ -224,13 +224,13 @@ export default function AdminReview() {
           <article><strong>{summary.rejected}</strong><span>반려 글</span></article>
           <article><strong>{summary.hidden}</strong><span>숨김·삭제</span></article>
           <article><strong>{summary.comments}</strong><span>전체 댓글</span></article>
-          <article><strong>{openReports.length}</strong><span>미처리 신고</span></article>
+          <article><strong>{openReports.length}</strong><span>미처리 문제제보</span></article>
           <article><strong>{autoCommentFailures.length}</strong><span>댓글 작업 실패</span></article>
         </section>
         <p className="admin-session-note">{identity?.id} · {identity?.role === "superadmin" ? "주관리자" : "관리자"} · 데이터베이스와 기본 시드 글을 함께 표시합니다.</p>
 
         <section className="admin-feedback-manager">
-          <div><p>신고·의견</p><h2>미처리 접수 {openReports.length}</h2></div>
+          <div><p>문제제보·의견</p><h2>미처리 접수 {openReports.length}</h2></div>
           {openReports.length === 0 && <p className="admin-feedback-empty">확인할 접수 건이 없습니다.</p>}
           {openReports.map((report) => <article key={report.receipt}>
             <div className="admin-post-meta"><span>{report.reason}{report.autoBlinded ? " · 임시 블라인드" : ""}</span><time>{new Date(report.createdAt).toLocaleString("ko-KR")}</time></div>
