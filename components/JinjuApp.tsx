@@ -129,7 +129,7 @@ function Pearl({ size = 44, className = "" }: { size?: number; className?: strin
 export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null }: { initialPosts?: Post[]; initialPostId?: string | null }) {
   const [showIntro, setShowIntro] = useState(true);
   const [introReady, setIntroReady] = useState(false);
-  const [posts, setPosts] = useState(initialPosts.length ? initialPosts : seedPosts);
+  const [posts, setPosts] = useState(initialPosts);
   const [feedState, setFeedState] = useState<"loading" | "ready" | "error">("loading");
   const [feedbackPost, setFeedbackPost] = useState<Post | null>(null);
   const [topic, setTopic] = useState("전체");
