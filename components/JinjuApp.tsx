@@ -223,6 +223,173 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     return () => window.removeEventListener("popstate", syncPostFromUrl);
   }, []);
 
+  useEffect(() => {
+    if (!introReady || showIntro || window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) return;
+
+    type MotionPhase = "idle" | "waiting-initial" | "queued-initial" | "active-initial" | "waiting-followup" | "queued-followup" | "active-followup" | "done";
+    type MotionCampaign = { phase: MotionPhase; generation: number; timer?: number };
+    type MotionJob = { node: HTMLElement; generation: number; followup: boolean };
+
+    const pairClass = "is-share-motion-pair";
+    const singleClass = "is-share-motion-single";
+    const observedNodes = new Set<HTMLElement>();
+    const visibleNodes = new WeakSet<HTMLElement>();
+    const campaigns = new Map<HTMLElement, MotionCampaign>();
+    const timers = new Set<number>();
+    const queue: MotionJob[] = [];
+    let cancelled = false;
+    let cancelActive: (() => void) | null = null;
+
+    const schedule = (callback: () => void, delay: number) => {
+      const timer = window.setTimeout(() => {
+        timers.delete(timer);
+        if (!cancelled) callback();
+      }, delay);
+      timers.add(timer);
+      return timer;
+    };
+    const clearScheduled = (timer?: number) => {
+      if (timer === undefined) return;
+      window.clearTimeout(timer);
+      timers.delete(timer);
+    };
+
+    const runNext = () => {
+      if (cancelled || cancelActive) return;
+      while (queue.length) {
+        const job = queue.shift()!;
+        const campaign = campaigns.get(job.node);
+        const queuedPhase = job.followup ? "queued-followup" : "queued-initial";
+        if (!campaign || campaign.generation !== job.generation || campaign.phase !== queuedPhase) continue;
+        if (!job.node.isConnected || !visibleNodes.has(job.node)) {
+          campaign.phase = job.followup ? "done" : "idle";
+          continue;
+        }
+
+        const className = job.followup ? singleClass : pairClass;
+        campaign.phase = job.followup ? "active-followup" : "active-initial";
+        let finished = false;
+        let fallbackTimer: number | undefined;
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          job.node.removeEventListener("animationend", onAnimationEnd);
+          clearScheduled(fallbackTimer);
+          job.node.classList.remove(className);
+          cancelActive = null;
+          if (!cancelled && campaign.generation === job.generation) {
+            if (job.followup) {
+              campaign.phase = "done";
+            } else if (job.node.isConnected) {
+              campaign.phase = "waiting-followup";
+              campaign.timer = schedule(() => {
+                campaign.timer = undefined;
+                if (campaign.phase !== "waiting-followup" || campaign.generation !== job.generation) return;
+                if (!job.node.isConnected || !visibleNodes.has(job.node)) {
+                  campaign.phase = "done";
+                  return;
+                }
+                campaign.phase = "queued-followup";
+                queue.push({ node: job.node, generation: job.generation, followup: true });
+                runNext();
+              }, 6000);
+            } else {
+              campaign.phase = "done";
+            }
+          }
+          runNext();
+        };
+        const onAnimationEnd = (event: AnimationEvent) => {
+          if (event.target === job.node && event.animationName === "share-label-pop-wiggle") finish();
+        };
+        cancelActive = () => {
+          finished = true;
+          job.node.removeEventListener("animationend", onAnimationEnd);
+          clearScheduled(fallbackTimer);
+          job.node.classList.remove(className);
+        };
+        job.node.addEventListener("animationend", onAnimationEnd);
+        job.node.classList.add(className);
+        fallbackTimer = schedule(finish, job.followup ? 1400 : 2700);
+        return;
+      }
+    };
+
+    const scheduleInitial = (node: HTMLElement) => {
+      const campaign = campaigns.get(node);
+      if (!campaign || campaign.phase !== "idle") return;
+      campaign.generation += 1;
+      const generation = campaign.generation;
+      campaign.phase = "waiting-initial";
+      campaign.timer = schedule(() => {
+        campaign.timer = undefined;
+        if (campaign.phase !== "waiting-initial" || campaign.generation !== generation) return;
+        if (!node.isConnected || !visibleNodes.has(node)) {
+          campaign.phase = "idle";
+          return;
+        }
+        campaign.phase = "queued-initial";
+        queue.push({ node, generation, followup: false });
+        runNext();
+      }, 500);
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      entries.forEach((entry) => {
+        const node = entry.target as HTMLElement;
+        const campaign = campaigns.get(node);
+        if (!campaign) return;
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+          visibleNodes.add(node);
+          scheduleInitial(node);
+        } else {
+          visibleNodes.delete(node);
+          if (campaign.phase === "waiting-initial") {
+            clearScheduled(campaign.timer);
+            campaign.timer = undefined;
+            campaign.generation += 1;
+            campaign.phase = "idle";
+          } else if (campaign.phase === "queued-initial") {
+            campaign.generation += 1;
+            campaign.phase = "idle";
+          }
+        }
+      });
+      runNext();
+    }, { threshold: [0, 0.6] });
+
+    const observeShareLabels = () => {
+      observedNodes.forEach((node) => {
+        if (node.isConnected) return;
+        observer.unobserve(node);
+        clearScheduled(campaigns.get(node)?.timer);
+        node.classList.remove(pairClass, singleClass);
+        visibleNodes.delete(node);
+        campaigns.delete(node);
+        observedNodes.delete(node);
+      });
+      document.querySelectorAll<HTMLElement>(".share-label-motion").forEach((node) => {
+        if (observedNodes.has(node)) return;
+        observedNodes.add(node);
+        campaigns.set(node, { phase: "idle", generation: 0 });
+        observer.observe(node);
+      });
+    };
+    const mutationObserver = new MutationObserver(observeShareLabels);
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+    observeShareLabels();
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      mutationObserver.disconnect();
+      cancelActive?.();
+      timers.forEach((timer) => window.clearTimeout(timer));
+      observedNodes.forEach((node) => node.classList.remove(pairClass, singleClass));
+    };
+  }, [introReady, showIntro]);
+
   const completeIntro = useCallback(() => {
     setShowIntro(false);
     window.scrollTo({ top: 0 });
