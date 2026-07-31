@@ -8,25 +8,6 @@ const siteName = "진주.kr";
 const siteTitle = "진주.kr | 익명 의견 커뮤니티";
 const siteDescription =
   "개인정보를 요구하지 않고 속마음과 의견을 나누는 익명 커뮤니티입니다.";
-const shareMotionStyles = `
-.share-post-button,
-.detail-stats > button:nth-child(4) {
-  animation: jinju-share-breathe 2.2s ease-in-out 1.1s 2;
-  transform-origin: center;
-}
-
-@keyframes jinju-share-breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.018); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .share-post-button,
-  .detail-stats > button:nth-child(4) {
-    animation: none;
-  }
-}
-`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -129,7 +110,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="ko-KR">
       <body>
-        <style>{shareMotionStyles}</style>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(website).replace(/</g, "\\u003c") }} />
         {children}
       </body>
