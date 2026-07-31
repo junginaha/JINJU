@@ -724,7 +724,7 @@ function PostCard({ post, reactedKind, reactingKind, onOpen, onReact, onShare, o
         <button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button>
         <button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button>
         <button onClick={onOpen} type="button">댓글 <span>{post.comments.length}</span></button>
-        <button className="share-post-button" onClick={onShare} type="button">공유하기</button>
+        <button className="share-post-button" onClick={onShare} type="button"><span className="share-label-motion">공유하기</span></button>
         <button className="post-report" type="button" onClick={onFeedback}>의견 보내기</button>
       </div>
     </article>
@@ -801,7 +801,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
           <div className="post-meta"><span>{post.category}{post.displayName ? ` · ${post.displayName}` : ""}</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />
-          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button">공유하기</button><button type="button" onClick={onFeedback}>의견 보내기</button></div>
+          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button"><span className="share-label-motion">공유하기</span></button><button type="button" onClick={onFeedback}>의견 보내기</button></div>
         </article>
         <section className="comment-list" id="comment-list" aria-label="댓글 목록">
           <h2>댓글 {commentsLoading ? "…" : detailComments.length}</h2>
