@@ -4,6 +4,7 @@ import { dailyEditorialComments, dailyEditorialPosts } from "./daily-editorial";
 import { july29EditorialComments, july29EditorialPosts } from "./daily-editorial-20260729";
 import { july30EditorialComments, july30EditorialPosts } from "./daily-editorial-20260730";
 import { july31EditorialComments, july31EditorialPosts } from "./daily-editorial-20260731";
+import { august1EditorialComments, august1EditorialPosts } from "./daily-editorial-20260801";
 import { isDuplicatePost } from "./dedup";
 import { editorialComments, editorialPosts, type EditorialComment, type EditorialPost } from "./editorial";
 import { launchEditorialComments, launchEditorialPosts } from "./launch-editorial";
@@ -27,6 +28,7 @@ function chooseUniquePosts(posts: EditorialPost[]) {
 }
 
 export const builtInPosts = chooseUniquePosts([
+  ...august1EditorialPosts,
   ...july31EditorialPosts,
   ...bookclubEditorialPosts,
   ...july30EditorialPosts,
@@ -45,6 +47,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...august1EditorialComments(id),
     ...july31EditorialComments(id),
     ...bookclubEditorialComments(id),
     ...july30EditorialComments(id),
