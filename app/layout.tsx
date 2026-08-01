@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./production-hotfix.css";
 import { SITE_URL } from "@/lib/search-indexing";
+import ShareBridge from "@/components/ShareBridge";
 
 const baseUrl = SITE_URL;
 const siteName = "진주.kr";
@@ -111,6 +112,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="ko-KR">
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(website).replace(/</g, "\\u003c") }} />
+        <ShareBridge />
         {children}
       </body>
     </html>
