@@ -18,8 +18,9 @@ type SpeechRecognitionLike = { lang:string; continuous:boolean; interimResults:b
 type SpeechRecognitionConstructor = new()=>SpeechRecognitionLike;
 type VoiceState="idle"|"listening"|"recording"|"transcribing";
 type ComposerVoiceField="title"|"body";
-type VoiceField=ComposerVoiceField|"query";
+type VoiceField=ComposerVoiceField|"query"|"comment";
 type VoiceSnapshot={field:ComposerVoiceField;title:string;body:string};
+type CommentVoiceTarget={postId:string;category:string;base:string;apply:(value:string)=>void};
 type DeleteKeys=Record<string,string>;
 declare global { interface Window { SpeechRecognition?:SpeechRecognitionConstructor; webkitSpeechRecognition?:SpeechRecognitionConstructor } }
 
@@ -156,7 +157,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [voiceMessage,setVoiceMessage]=useState("");
   const [voiceUndo,setVoiceUndo]=useState<VoiceSnapshot|null>(null);
   const recognitionRef=useRef<SpeechRecognitionLike|null>(null),recorderRef=useRef<MediaRecorder|null>(null),streamRef=useRef<MediaStream|null>(null),chunksRef=useRef<Blob[]>([]),voiceFieldRef=useRef<VoiceField>("body"),voiceBaseRef=useRef(""),browserTranscriptRef=useRef("");
-  const speechSegmentsRef=useRef<Map<number,string>>(new Map()),speechPrefixRef=useRef(""),voiceSessionRef=useRef(0),voiceStartPendingRef=useRef(false),voiceAutoStopRef=useRef<ReturnType<typeof setTimeout>|null>(null),speechRestartRef=useRef<ReturnType<typeof setTimeout>|null>(null),transcriptionAbortRef=useRef<AbortController|null>(null),fieldRevisionRef=useRef({title:0,body:0,query:0});
+  const speechSegmentsRef=useRef<Map<number,string>>(new Map()),speechPrefixRef=useRef(""),voiceSessionRef=useRef(0),voiceStartPendingRef=useRef(false),voiceAutoStopRef=useRef<ReturnType<typeof setTimeout>|null>(null),speechRestartRef=useRef<ReturnType<typeof setTimeout>|null>(null),transcriptionAbortRef=useRef<AbortController|null>(null),fieldRevisionRef=useRef({title:0,body:0,query:0,comment:0});
+  const commentVoiceTargetRef=useRef<CommentVoiceTarget|null>(null),voiceCommentPostIdRef=useRef<string|null>(null);
   const titleInputRef=useRef<HTMLInputElement|null>(null);
   const bodyInputRef=useRef<HTMLTextAreaElement|null>(null);
 
@@ -411,7 +413,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
   function selectVoiceField(field:VoiceField){voiceFieldRef.current=field;setActiveVoiceField(field)}
   function joinVoice(base:string,addition:string,field:VoiceField){if(field==="title")return [base.trim(),addition.trim()].filter(Boolean).join(" ").replace(/\s+/g," ").slice(0,80);if(field==="query")return [base.trim(),addition.trim()].filter(Boolean).join(" ").replace(/\s+/g," ").slice(0,200);return [base.trimEnd(),addition.trim()].filter(Boolean).join(base.trim()?"\n":"").slice(0,2000)}
-  function showLiveTranscript(target:VoiceField,text:string){const value=joinVoice(voiceBaseRef.current,text,target);if(target==="query"){setQuery(value);return}const input=target==="title"?titleInputRef.current:bodyInputRef.current;if(input)input.value=value}
+  function showLiveTranscript(target:VoiceField,text:string){const value=joinVoice(voiceBaseRef.current,text,target);if(target==="query"){setQuery(value);return}if(target==="comment"){const commentTarget=commentVoiceTargetRef.current;if(commentTarget&&commentTarget.postId===voiceCommentPostIdRef.current)commentTarget.apply(value);return}const input=target==="title"?titleInputRef.current:bodyInputRef.current;if(input)input.value=value}
   function clearVoiceTimers(){if(voiceAutoStopRef.current){clearTimeout(voiceAutoStopRef.current);voiceAutoStopRef.current=null}if(speechRestartRef.current){clearTimeout(speechRestartRef.current);speechRestartRef.current=null}}
   function stopVoice(discard=false){
     clearVoiceTimers();
@@ -420,14 +422,17 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     if(recognition){recognition.onend=null;recognition.onresult=null;recognition.onerror=null;try{discard?recognition.abort():recognition.stop()}catch{/* already stopped */}recognitionRef.current=null}
     const recorder=recorderRef.current;
     if(recorder&&recorder.state!=="inactive"){if(discard)recorder.onstop=null;recorder.stop()}
-    if(discard){streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;recorderRef.current=null;chunksRef.current=[];browserTranscriptRef.current="";speechSegmentsRef.current.clear();speechPrefixRef.current="";setVoiceState("idle")}
+    if(discard){streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;recorderRef.current=null;chunksRef.current=[];browserTranscriptRef.current="";speechSegmentsRef.current.clear();speechPrefixRef.current="";voiceCommentPostIdRef.current=null;setVoiceState("idle")}
   }
   function updateQuery(value:string){if(voiceFieldRef.current==="query"&&(voiceStartPendingRef.current||voiceState==="listening"||voiceState==="recording"))stopVoice(true);if(voiceFieldRef.current==="query")setVoiceMessage("");fieldRevisionRef.current.query+=1;setQuery(value)}
   function updateTitle(value:string){if(voiceState==="listening"||voiceState==="recording")stopVoice(true);fieldRevisionRef.current.title+=1;setVoiceUndo(null);setTitle(value.slice(0,80))}
   function updateBody(value:string){if(voiceState==="listening"||voiceState==="recording")stopVoice(true);fieldRevisionRef.current.body+=1;setVoiceUndo(null);setBody(value.slice(0,2000))}
+  function updateCommentVoice(){if(voiceFieldRef.current==="comment"&&(voiceStartPendingRef.current||voiceState!=="idle"))stopVoice(true);if(voiceFieldRef.current==="comment")setVoiceMessage("");fieldRevisionRef.current.comment+=1}
+  async function toggleCommentVoice(target:CommentVoiceTarget){commentVoiceTargetRef.current=target;await toggleVoice("comment")}
+  function completeCommentVoice(){if(voiceFieldRef.current==="comment")stopVoice(true);commentVoiceTargetRef.current=null;voiceCommentPostIdRef.current=null;fieldRevisionRef.current.comment+=1;if(voiceFieldRef.current==="comment"){selectVoiceField("body");setVoiceMessage("")}}
   function undoVoice(){if(!voiceUndo)return;stopVoice(true);setTitle(voiceUndo.title);setBody(voiceUndo.body);selectVoiceField(voiceUndo.field);setVoiceUndo(null);setVoiceMessage("직전 음성 입력을 되돌렸습니다.")}
-  function clearVoiceField(){stopVoice(true);activeVoiceField==="title"?setTitle(""):setBody("");setVoiceUndo(null)}
-  async function transcribe(blob: Blob, target: VoiceField, browserText: string, base: string, sessionId:number, revision:number) {
+  function clearVoiceField(){if(activeVoiceField!=="title"&&activeVoiceField!=="body")return;stopVoice(true);activeVoiceField==="title"?setTitle(""):setBody("");setVoiceUndo(null)}
+  async function transcribe(blob: Blob, target: VoiceField, browserText: string, base: string, sessionId:number, revision:number, targetCategory:string) {
     setVoiceState("transcribing");
     setVoiceMessage("내용은 입력됐습니다. 정확한 한국어로 한 번 더 확인 중…");
     const controller=new AbortController();
@@ -440,7 +445,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       form.append("audio", blob, filename);
       form.append("field",target);
       form.append("context",base.slice(-800));
-      form.append("category",target==="query"?"":category);
+      form.append("category",target==="query"?"":targetCategory);
       const response = await fetch("/api/transcribe", { method: "POST", body: form, signal:controller.signal });
       const data = await response.json() as { text?: string; error?: string };
       const transcript = response.ok && data.text ? data.text.trim() : browserText.trim();
@@ -449,6 +454,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       if(fieldRevisionRef.current[target]===revision){
         if (target === "title") setTitle(joinVoice(base, transcript, target));
         else if (target === "query") setQuery(joinVoice(base, transcript, target));
+        else if (target === "comment") {const commentTarget=commentVoiceTargetRef.current;if(commentTarget&&commentTarget.postId===voiceCommentPostIdRef.current)commentTarget.apply(joinVoice(base,transcript,target));}
         else setBody(joinVoice(base, transcript, target));
         setVoiceMessage(response.ok ? "음성 입력을 정확하게 다듬었습니다." : "기기에서 인식한 문장을 입력했습니다.");
       }else setVoiceMessage("수정하신 내용을 그대로 유지했습니다.");
@@ -457,12 +463,13 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     } finally {
       clearTimeout(timeout);
       if(transcriptionAbortRef.current===controller)transcriptionAbortRef.current=null;
-      if(sessionId===voiceSessionRef.current){chunksRef.current=[];browserTranscriptRef.current="";speechSegmentsRef.current.clear();speechPrefixRef.current="";setVoiceState("idle")}
+      if(sessionId===voiceSessionRef.current){chunksRef.current=[];browserTranscriptRef.current="";speechSegmentsRef.current.clear();speechPrefixRef.current="";voiceCommentPostIdRef.current=null;setVoiceState("idle")}
     }
   }
 
   async function startRecording(authorizedStream?:MediaStream) {
     if(voiceStartPendingRef.current)return;
+    if(voiceFieldRef.current==="comment"&&!commentVoiceTargetRef.current){setVoiceMessage("댓글 입력칸을 확인한 뒤 다시 눌러주세요.");return}
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       authorizedStream?.getTracks().forEach(track=>track.stop());
       setVoiceMessage("이 브라우저에서는 녹음을 지원하지 않습니다. 최신 Chrome 또는 Safari를 사용해주세요.");
@@ -477,7 +484,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       transcriptionAbortRef.current?.abort();
       clearVoiceTimers();
       const target = voiceFieldRef.current;
-      if(target!=="query")setVoiceUndo({ field: target, title, body });
+      if(target==="title"||target==="body")setVoiceUndo({ field: target, title, body });
       setVoiceMessage("마이크 연결 중…");
       const stream = authorizedStream||await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       openedStream=stream;
@@ -490,7 +497,10 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       browserTranscriptRef.current = "";
       speechSegmentsRef.current.clear();
       speechPrefixRef.current="";
-      const base=target==="title"?title:target==="query"?query:body;
+      const commentTarget=target==="comment"?commentVoiceTargetRef.current:null;
+      const base=target==="title"?title:target==="query"?query:target==="comment"?commentTarget?.base||"":body;
+      const targetCategory=target==="comment"?commentTarget?.category||"":category;
+      voiceCommentPostIdRef.current=target==="comment"?commentTarget?.postId||null:null;
       const revision=fieldRevisionRef.current[target];
       voiceBaseRef.current=base;
 
@@ -541,14 +551,14 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           return;
         }
         const quickText=browserTranscriptRef.current.trim();
-        if(quickText){if(target==="title")setTitle(joinVoice(base,quickText,target));else if(target==="query")setQuery(joinVoice(base,quickText,target));else setBody(joinVoice(base,quickText,target))}
-        void transcribe(blob, target, quickText, base, sessionId, revision);
+        if(quickText){if(target==="title")setTitle(joinVoice(base,quickText,target));else if(target==="query")setQuery(joinVoice(base,quickText,target));else if(target==="comment"){const liveTarget=commentVoiceTargetRef.current;if(liveTarget&&liveTarget.postId===voiceCommentPostIdRef.current)liveTarget.apply(joinVoice(base,quickText,target))}else setBody(joinVoice(base,quickText,target))}
+        void transcribe(blob, target, quickText, base, sessionId, revision, targetCategory);
       };
       recorder.start(1000);
       voiceStartPendingRef.current=false;
       voiceAutoStopRef.current=setTimeout(()=>{if(sessionId===voiceSessionRef.current&&recorder.state==="recording"){setVoiceMessage("2분 녹음을 마쳐 정확한 문장으로 바꾸고 있습니다…");recorder.stop()}},MAX_RECORDING_MS);
       setVoiceState("recording");
-      setVoiceMessage(`${target === "title" ? "제목" : target === "query" ? "검색어" : "본문"} 녹음 중 · 한 번 더 누르면 완료됩니다.`);
+      setVoiceMessage(`${target === "title" ? "제목" : target === "query" ? "검색어" : target === "comment" ? "댓글" : "본문"} 녹음 중 · 한 번 더 누르면 완료됩니다.`);
     } catch (error) {
       voiceStartPendingRef.current=false;
       openedStream?.getTracks().forEach(track=>track.stop());
@@ -570,7 +580,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     await startRecording();
   }
 
-  useEffect(()=>{if(selectedPostId&&voiceFieldRef.current==="query"&&(voiceStartPendingRef.current||voiceState!=="idle"))stopVoice(true)},[selectedPostId,voiceState]);
+  useEffect(()=>{const voiceActive=voiceStartPendingRef.current||voiceState!=="idle";if(voiceFieldRef.current==="comment"&&commentVoiceTargetRef.current?.postId!==selectedPostId){if(voiceActive)stopVoice(true);commentVoiceTargetRef.current=null;voiceCommentPostIdRef.current=null;selectVoiceField("body");setVoiceMessage("");return}if(voiceActive&&selectedPostId&&voiceFieldRef.current==="query")stopVoice(true)},[selectedPostId,voiceState]);
 
   function searchVoicePlaceholder(){if(activeVoiceField!=="query")return "속마음을 검색해 보세요";if(voiceStartPendingRef.current)return "마이크 연결 중…";if(voiceState==="recording")return "듣고 있어요…";if(voiceState==="transcribing")return "검색어를 확인하고 있어요…";return !query&&voiceMessage?voiceMessage:"속마음을 검색해 보세요"}
 
@@ -709,12 +719,16 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   }
 
   function closePost() {
+    completeCommentVoice();
     window.history.pushState({}, "", "/");
     setSelectedPostId(null);
   }
 
+  function openFeedback(post:Post){if(voiceFieldRef.current==="comment")completeCommentVoice();setFeedbackPost(post)}
+
   function openComposer() {
     if(voiceFieldRef.current==="query"&&(voiceStartPendingRef.current||voiceState!=="idle"))stopVoice(true);
+    if(voiceFieldRef.current==="comment")completeCommentVoice();
     selectVoiceField("body");
     setVoiceMessage("");
     setMobileMenuOpen(false);
@@ -778,7 +792,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
             <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
             {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
             {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
-            <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${activeVoiceField!=="query"&&voiceState!=="idle"?" listening":""}`} onClick={()=>void toggleVoice()} type="button" aria-pressed={activeVoiceField!=="query"&&voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력${voiceState==="transcribing"?" 다시 시작":""}`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy}><span>{submitBusy?"검수 중…":"AI 검수"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
+            <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState!=="idle"?" listening":""}`} onClick={()=>void toggleVoice()} type="button" aria-pressed={(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력${voiceState==="transcribing"?" 다시 시작":""}`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy}><span>{submitBusy?"검수 중…":"AI 검수"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
           </form>
         </div>
       </section>}
@@ -791,8 +805,15 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           reactedKind={reactedPosts[selectedPost.id]?.kind||null}
           reactingKind={reacting?.postId===selectedPost.id?reacting.kind:null}
           onShare={() => share(selectedPost)}
-          onFeedback={() => setFeedbackPost(selectedPost)}
+          onFeedback={() => openFeedback(selectedPost)}
           onComment={(comment) => addComment(selectedPost.id, comment)}
+          commentVoiceActive={activeVoiceField==="comment"}
+          commentVoicePending={voiceStartPendingRef.current}
+          commentVoiceState={voiceState}
+          commentVoiceMessage={activeVoiceField==="comment"?voiceMessage:""}
+          onToggleCommentVoice={(base,apply)=>toggleCommentVoice({postId:selectedPost.id,category:selectedPost.category,base,apply})}
+          onCommentVoiceEdit={updateCommentVoice}
+          onCommentVoiceSubmitted={completeCommentVoice}
           canDeleteComment={(commentId)=>Boolean(commentDeleteKeys[String(commentId)])}
           onDeleteComment={(commentId)=>deleteComment(selectedPost.id,commentId)}
         />
@@ -845,7 +866,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="post-feed" aria-label="익명 의견 목록">
                 {filteredPosts.slice(0, 3).map((post) => (
-                  <PostCard key={post.id} post={post} reactedKind={reactedPosts[post.id]?.kind||null} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
+                  <PostCard key={post.id} post={post} reactedKind={reactedPosts[post.id]?.kind||null} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => openFeedback(post)} />
                 ))}
               </section>
 
@@ -856,7 +877,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="post-feed continued-feed" aria-label="더 많은 익명 의견">
                 {filteredPosts.slice(3).map((post) => (
-                  <PostCard key={post.id} post={post} reactedKind={reactedPosts[post.id]?.kind||null} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => setFeedbackPost(post)} />
+                  <PostCard key={post.id} post={post} reactedKind={reactedPosts[post.id]?.kind||null} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => openFeedback(post)} />
                 ))}
               </section>
 
@@ -924,7 +945,7 @@ function PostCard({ post, reactedKind, reactingKind, onOpen, onReact, onShare, o
   );
 }
 
-function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare, onFeedback, onComment, canDeleteComment, onDeleteComment }: {
+function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare, onFeedback, onComment, commentVoiceActive, commentVoicePending, commentVoiceState, commentVoiceMessage, onToggleCommentVoice, onCommentVoiceEdit, onCommentVoiceSubmitted, canDeleteComment, onDeleteComment }: {
   post: Post;
   reactedKind: ReactionKind | null;
   reactingKind: "heard" | "same" | null;
@@ -933,6 +954,13 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
   onShare: () => void;
   onFeedback: () => void;
   onComment: (comment: string) => Promise<Comment>;
+  commentVoiceActive:boolean;
+  commentVoicePending:boolean;
+  commentVoiceState:VoiceState;
+  commentVoiceMessage:string;
+  onToggleCommentVoice:(base:string,apply:(value:string)=>void)=>Promise<void>|void;
+  onCommentVoiceEdit:()=>void;
+  onCommentVoiceSubmitted:()=>void;
   canDeleteComment:(commentId:string|number)=>boolean;
   onDeleteComment:(commentId:string|number)=>Promise<void>;
 }) {
@@ -944,6 +972,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
   const [detailComments, setDetailComments] = useState<Comment[]>(post.comments.filter((item) => item.body));
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [commentsLoadError, setCommentsLoadError] = useState("");
+  const commentVoiceBusy=commentVoiceActive&&(commentVoicePending||commentVoiceState!=="idle");
 
   const loadComments = useCallback(async () => {
     setCommentsLoading(true);
@@ -970,12 +999,13 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
 
   async function submitComment(event: FormEvent) {
     event.preventDefault();
-    if (!comment.trim()||commentBusy) return;
+    if (!comment.trim()||commentBusy||commentVoiceBusy) return;
     setCommentError("");
     setCommentBusy(true);
     try {
       const created=await onComment(comment);
       setDetailComments((current) => [...current, created]);
+      onCommentVoiceSubmitted();
       setComment("");
     } catch (error) {
       setCommentError(error instanceof Error ? error.message : "댓글을 등록할 수 없습니다.");
@@ -1007,9 +1037,11 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
                 : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>
-          <textarea value={comment} onChange={(event) => setComment(event.target.value.slice(0, 2000))} maxLength={2000} rows={5} placeholder="댓글을 남겨주세요" aria-label="댓글 내용" />
+          <textarea value={comment} onChange={(event) => {onCommentVoiceEdit();setComment(event.target.value.slice(0, 2000))}} maxLength={2000} rows={5} placeholder="댓글을 남겨주세요" aria-label="댓글 내용" aria-describedby="comment-voice-status" />
+          <span className="search-voice-status" id="comment-voice-status" role="status" aria-live="polite">{commentVoiceMessage}</span>
+          {commentVoiceActive&&commentVoiceMessage&&<p className="voice-message">{commentVoiceMessage}</p>}
           {commentError && <p className="comment-error" role="alert">{commentError}</p>}
-          <div><span>{comment.length}/2,000 · 입력 내용은 등록 전까지 이 기기에 보관됩니다</span><button type="submit" disabled={commentBusy}>{commentBusy?"등록 중…":"댓글 남기기"}</button></div>
+          <div><span>{comment.length}/2,000 · 입력 내용은 등록 전까지 이 기기에 보관됩니다</span><div className="comment-actions"><button className={`comment-voice-button${commentVoiceBusy?" listening":""}`} onClick={()=>void onToggleCommentVoice(comment,(value)=>setComment(value.slice(0,2000)))} type="button" disabled={commentBusy||commentVoicePending} aria-pressed={commentVoiceActive&&commentVoiceState==="recording"} aria-label={commentVoicePending?"댓글 음성 연결 중":commentVoiceActive&&commentVoiceState==="recording"?"댓글 음성 입력 중지":commentVoiceActive&&commentVoiceState==="transcribing"?"댓글 음성 입력 다시 시작":"댓글 음성 입력"}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button type="submit" disabled={commentBusy||commentVoiceBusy}>{commentBusy?"등록 중…":"댓글 남기기"}</button></div></div>
         </form>
       </div>
     </main>

@@ -375,6 +375,12 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .comment-composer > div { display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid #363636; }
 .comment-composer span { color: #aaa; font-size: 10px; }
 .comment-composer button { min-height: 40px; padding: 0 15px; color: #111; font-size: 11px; font-weight: 700; background: #f4f4f4; border: 0; border-radius: 10px; cursor: pointer; }
+.comment-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
+.comment-composer .comment-voice-button { display: grid; width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0; place-items: center; color: #c8c8c8; background: #2d2d2d; border: 1px solid #3a3a3a; border-radius: 999px; }
+.comment-composer .comment-voice-button .mic-icon { color: inherit; }
+.comment-composer .comment-voice-button:hover { color: #fff; background: #353535; }
+.comment-composer .comment-voice-button:focus-visible { outline: 2px solid #d8d8d8; outline-offset: 2px; }
+.comment-composer .comment-voice-button.listening { color: #dfeaff; background: #1b2a45; border-color: #78a8ff; box-shadow: 0 0 0 4px #78a8ff29; }
 .admin-review-page { width: min(100% - 32px,860px); min-height: 100dvh; margin: 0 auto; padding: 48px 0 100px; color: #f2f2f2; }
 .admin-review-page header { position: relative; padding-bottom: 24px; border-bottom: 1px solid #303030; }
 .admin-review-page header p { margin: 0 0 7px; color: #7fd4dc; font-size: 10px; font-weight: 750; letter-spacing: .13em; }
@@ -568,6 +574,7 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
   .post-actions, .detail-stats { gap: 1px; }
   .post-actions button, .post-actions a, .detail-stats button, .detail-stats a { min-height: 44px; padding: 7px 2px; font-size: 9.5px; }
   .comment-composer button { min-height: 44px; }
+  .comment-composer .comment-voice-button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
   .composer-intro { align-items: flex-start; }
   .composer-intro h2 { font-size: 21px; }
   .composer-intro p:last-child { line-height: 1.55; }

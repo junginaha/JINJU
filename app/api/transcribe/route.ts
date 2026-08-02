@@ -10,8 +10,8 @@ export async function POST(request:Request){
     if(audio.size>25*1024*1024)return Response.json({error:"녹음은 25MB 이하만 변환할 수 있습니다."},{status:413});
     const key=process.env.OPENAI_API_KEY||process.env.AI_API_KEY;
     if(!key)return Response.json({error:"음성 변환 설정이 필요합니다."},{status:503});
-    const fieldValue=String(form.get("field")||"body"),field=fieldValue==="title"?"제목":fieldValue==="query"?"검색어":"본문",context=String(form.get("context")||"").replace(/[\u0000-\u001f]/g," ").slice(-800),category=String(form.get("category")||"").replace(/[^가-힣a-zA-Z0-9 ]/g,"").slice(0,20);
-    const prompt=[fieldValue==="query"?"익명 커뮤니티 진주의 검색어를 한국어로 받아씁니다.":`익명 커뮤니티 진주의 ${category||"일반"} 게시판 ${field}을 한국어로 받아씁니다.`,`말한 내용을 요약하거나 새 내용을 보태지 말고, 들린 표현을 그대로 정확히 적습니다. 자연스러운 한국어 띄어쓰기와 문장부호를 사용합니다.`,context?`앞서 작성한 문맥: ${context}`:""] .filter(Boolean).join("\n");
+    const fieldValue=String(form.get("field")||"body"),field=fieldValue==="title"?"제목":fieldValue==="query"?"검색어":fieldValue==="comment"?"댓글":"본문",context=String(form.get("context")||"").replace(/[\u0000-\u001f]/g," ").slice(-800),category=String(form.get("category")||"").replace(/[^가-힣a-zA-Z0-9 ]/g,"").slice(0,20);
+    const prompt=[fieldValue==="query"?"익명 커뮤니티 진주의 검색어를 한국어로 받아씁니다.":fieldValue==="comment"?`익명 커뮤니티 진주의 ${category||"일반"} 게시글 댓글을 한국어로 받아씁니다.`:`익명 커뮤니티 진주의 ${category||"일반"} 게시판 ${field}을 한국어로 받아씁니다.`,`말한 내용을 요약하거나 새 내용을 보태지 말고, 들린 표현을 그대로 정확히 적습니다. 자연스러운 한국어 띄어쓰기와 문장부호를 사용합니다.`,context?`앞서 작성한 문맥: ${context}`:""] .filter(Boolean).join("\n");
     const body=new FormData();
     body.append("file",audio,audio.name||"jinju-voice.webm");
     body.append("model",process.env.AI_TRANSCRIBE_MODEL||"gpt-4o-transcribe");
