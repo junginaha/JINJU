@@ -9,6 +9,7 @@ import { autoCommentDisplayName, validatedAutoCommentBodies } from "../lib/auto-
 import { AUTO_COMMENT_TOTAL, newPostCommentSchedule, newPostInitialLikes } from "../lib/community-settings";
 import { july30EditorialComments, july30EditorialPosts } from "../lib/daily-editorial-20260730";
 import { august1EditorialComments, august1EditorialPosts } from "../lib/daily-editorial-20260801";
+import { august2EditorialComments, august2EditorialPosts } from "../lib/daily-editorial-20260802";
 import { generateJinjuDisplayName } from "../lib/display-name";
 import { activeReactionHistory, recordReaction } from "../lib/reaction-history";
 import {
@@ -109,6 +110,26 @@ test("August 1 posts use two-word names, 20-33 likes, and complete comments", ()
     assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
     assert.ok(post.heard >= 20 && post.heard <= 33);
     const comments = august1EditorialComments(post.id);
+    assert.equal(comments.length, post.commentCount);
+    for (const comment of comments) {
+      assert.equal(comment.displayName.trim().split(/\s+/).length, 2);
+      assert.ok(Date.parse(comment.createdAt) > Date.parse(post.createdAt));
+    }
+  }
+});
+
+test("selected August 2 posts use two-word names, 20-33 likes, and complete comments", () => {
+  const requestedIds = new Set([
+    "jinju-seed-20260802-housing-gap",
+    "jinju-seed-20260802-heat-delivery",
+  ]);
+  const requestedPosts = august2EditorialPosts.filter((post) => requestedIds.has(post.id));
+  assert.equal(requestedPosts.length, requestedIds.size);
+  assert.equal(august2EditorialPosts.length, requestedIds.size);
+  for (const post of requestedPosts) {
+    assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
+    assert.ok(post.heard >= 20 && post.heard <= 33);
+    const comments = august2EditorialComments(post.id);
     assert.equal(comments.length, post.commentCount);
     for (const comment of comments) {
       assert.equal(comment.displayName.trim().split(/\s+/).length, 2);
