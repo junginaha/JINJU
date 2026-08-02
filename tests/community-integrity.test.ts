@@ -122,6 +122,8 @@ test("selected August 2 posts use two-word names, 20-33 likes, and complete comm
   const requestedIds = new Set([
     "jinju-seed-20260802-housing-gap",
     "jinju-seed-20260802-heat-delivery",
+    "jinju-seed-20260802-couple-thirty-days",
+    "jinju-seed-20260802-couple-job-loss",
   ]);
   const requestedPosts = august2EditorialPosts.filter((post) => requestedIds.has(post.id));
   assert.equal(requestedPosts.length, requestedIds.size);
