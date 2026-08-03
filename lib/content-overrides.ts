@@ -11,6 +11,28 @@ export type ContentOverride = {
   hidden: boolean;
 };
 
+const PUBLIC_COMMENT_REWRITES = new Map([
+  [
+    "jinju-auto-0451693t131i5b2j2s0j-14",
+    {
+      from: "“아내가 또 가출 했어요”라니, 제목 한 줄이 이미 작은 토론회네요. 입장료는 없지만 각자 가져온 사정은 꽤 묵직합니다.",
+      to: "제목 한 줄만으로 작은 토론회가 열렸네요. 입장료는 없지만 각자 가져온 사정은 꽤 묵직합니다.",
+    },
+  ],
+  [
+    "jinju-auto-0451693t131i5b2j2s0j-15",
+    {
+      from: "결국 “아내가 또 가출 했어요”를 어떤 기준으로 바라보느냐가 답을 바꿀 것 같아요. 다른 결론이 나오더라도 서로를 함부로 단정하지 않는 대화였으면 합니다.",
+      to: "결국 같은 갈등을 두 사람이 어떤 기준으로 바라보느냐에 따라 답이 달라질 것 같아요. 결론이 다르더라도 서로를 함부로 단정하지 않는 대화였으면 합니다.",
+    },
+  ],
+]);
+
+function publicCommentBody(id: string, body: string) {
+  const rewrite = PUBLIC_COMMENT_REWRITES.get(id);
+  return rewrite?.from === body ? rewrite.to : body;
+}
+
 export async function contentOverrides() {
   const overrides = new Map<string, ContentOverride>();
   if (!databaseEnabled()) return overrides;
@@ -51,7 +73,7 @@ export function applyCommentOverrides<T extends { id: string | number; body: str
     if (override?.hidden) return [];
     return [{
       ...comment,
-      body: override?.content ?? comment.body,
+      body: override?.content ?? publicCommentBody(String(comment.id), comment.body),
       displayName: override?.displayName ?? comment.displayName,
     }];
   });
