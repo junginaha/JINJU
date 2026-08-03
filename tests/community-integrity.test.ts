@@ -7,6 +7,7 @@ import {
 } from "../lib/comment-visibility";
 import { autoCommentDisplayName, validatedAutoCommentBodies } from "../lib/auto-comments";
 import { AUTO_COMMENT_TOTAL, newPostCommentSchedule, newPostInitialLikes } from "../lib/community-settings";
+import { applyCommentOverrides } from "../lib/content-overrides";
 import { july30EditorialComments, july30EditorialPosts } from "../lib/daily-editorial-20260730";
 import { august1EditorialComments, august1EditorialPosts } from "../lib/daily-editorial-20260801";
 import { august2EditorialComments, august2EditorialPosts } from "../lib/daily-editorial-20260802";
@@ -180,6 +181,32 @@ test("base comments are deduplicated against stored copies without dropping stor
     "stored-1",
     "stored-2",
   ]);
+});
+
+test("repetitive bottom comments are rewritten without changing other comment content", () => {
+  const comments = [
+    {
+      id: "jinju-auto-0451693t131i5b2j2s0j-14",
+      body: "“아내가 또 가출 했어요”라니, 제목 한 줄이 이미 작은 토론회네요. 입장료는 없지만 각자 가져온 사정은 꽤 묵직합니다.",
+    },
+    {
+      id: "jinju-auto-0451693t131i5b2j2s0j-15",
+      body: "결국 “아내가 또 가출 했어요”를 어떤 기준으로 바라보느냐가 답을 바꿀 것 같아요. 다른 결론이 나오더라도 서로를 함부로 단정하지 않는 대화였으면 합니다.",
+    },
+    { id: "unrelated-comment", body: "다른 댓글은 그대로 둡니다." },
+  ];
+  const rewritten = applyCommentOverrides(comments, new Map());
+  assert.deepEqual(rewritten.map((comment) => comment.body), [
+    "제목 한 줄만으로 작은 토론회가 열렸네요. 입장료는 없지만 각자 가져온 사정은 꽤 묵직합니다.",
+    "결국 같은 갈등을 두 사람이 어떤 기준으로 바라보느냐에 따라 답이 달라질 것 같아요. 결론이 다르더라도 서로를 함부로 단정하지 않는 대화였으면 합니다.",
+    "다른 댓글은 그대로 둡니다.",
+  ]);
+  assert.equal(
+    applyCommentOverrides([
+      { id: "jinju-auto-0451693t131i5b2j2s0j-14", body: "나중에 직접 수정한 댓글" },
+    ], new Map())[0].body,
+    "나중에 직접 수정한 댓글",
+  );
 });
 
 test("browser reaction history expires on the same retention boundary as the server", () => {
