@@ -10,6 +10,7 @@ import { AUTO_COMMENT_TOTAL, newPostCommentSchedule, newPostInitialLikes } from 
 import { july30EditorialComments, july30EditorialPosts } from "../lib/daily-editorial-20260730";
 import { august1EditorialComments, august1EditorialPosts } from "../lib/daily-editorial-20260801";
 import { august2EditorialComments, august2EditorialPosts } from "../lib/daily-editorial-20260802";
+import { august3EditorialComments, august3EditorialPosts } from "../lib/daily-editorial-20260803";
 import { generateJinjuDisplayName } from "../lib/display-name";
 import { activeReactionHistory, recordReaction } from "../lib/reaction-history";
 import {
@@ -132,6 +133,26 @@ test("selected August 2 posts use two-word names, 20-33 likes, and complete comm
     assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
     assert.ok(post.heard >= 20 && post.heard <= 33);
     const comments = august2EditorialComments(post.id);
+    assert.equal(comments.length, post.commentCount);
+    for (const comment of comments) {
+      assert.equal(comment.displayName.trim().split(/\s+/).length, 2);
+      assert.ok(Date.parse(comment.createdAt) > Date.parse(post.createdAt));
+    }
+  }
+});
+
+test("selected August 3 posts use two-word names, 20-33 likes, and complete comments", () => {
+  const requestedIds = new Set([
+    "jinju-seed-20260803-convenience-store-heat-shelter",
+    "jinju-seed-20260803-haircut-mistake",
+  ]);
+  const requestedPosts = august3EditorialPosts.filter((post) => requestedIds.has(post.id));
+  assert.equal(requestedPosts.length, requestedIds.size);
+  assert.equal(august3EditorialPosts.length, requestedIds.size);
+  for (const post of requestedPosts) {
+    assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
+    assert.ok(post.heard >= 20 && post.heard <= 33);
+    const comments = august3EditorialComments(post.id);
     assert.equal(comments.length, post.commentCount);
     for (const comment of comments) {
       assert.equal(comment.displayName.trim().split(/\s+/).length, 2);
