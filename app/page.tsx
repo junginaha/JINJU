@@ -1,7 +1,8 @@
 import JinjuApp from "@/components/JinjuApp";
 import JinjuRuntimePatch from "@/components/JinjuRuntimePatch";
+import { getPublicPosts, toClientPost } from "@/lib/public-posts";
 
-export const dynamic = "force-static";
+export const revalidate = 30;
 
 const fastEntryCss = `
 .intro-bootstrap::before {
@@ -50,12 +51,14 @@ const fastEntryCss = `
 }
 `;
 
-export default function Home() {
+export default async function Home() {
+  const initialPosts = (await getPublicPosts()).slice(0, 100).map(toClientPost);
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: fastEntryCss }} />
       <JinjuRuntimePatch />
-      <JinjuApp initialPosts={[]} />
+      <JinjuApp initialPosts={initialPosts} />
     </>
   );
 }
