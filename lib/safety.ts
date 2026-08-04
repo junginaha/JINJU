@@ -1,9 +1,9 @@
 export type RiskLevel = "low" | "medium" | "high" | "urgent";
 
-const pii = /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b\d{6}[-\s]?\d{7}\b|https?:\/\/\S+/i;
+const pii = /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}|(?:^|[^\d])0(?:[\s().-]*\d){8,11}(?!\d)|(?:^|[^\d])(?:\d[\s.-]?){9,16}(?!\d)|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|@[A-Z0-9._]{2,}|\b\d{6}[-\s]?\d{7}\b|https?:\/\/\S+/i;
 const urgent = ["죽고 싶", "자살", "목숨을 끊", "죽여버", "칼로", "불 질러"];
 const high = ["사기꾼", "성범죄자", "살인자", "횡령", "협박", "스토킹", "불법촬영", "신상 털"];
-const medium = ["씨발", "시발", "병신", "쓰레기", "무조건", "확실하다"];
+const medium = ["씨발", "시발", "병신", "쓰레기", "바보", "멍청이", "미친놈", "미친년", "개새끼", "무조건", "확실하다"];
 
 export function reviewText(value: string) {
   const normalized = value.normalize("NFKC");

@@ -85,9 +85,9 @@ test("the shared writing review protects both ordinary comments and risky commen
   delete process.env.OPENAI_API_KEY;
   delete process.env.AI_API_KEY;
   try {
-    assert.equal((await reviewSubmission("", "저는 조금 다르게 생각해요.")).decision, "allow");
-    assert.equal((await reviewSubmission("", "연락은 010-1234-5678로 주세요.")).decision, "revise");
-    assert.equal((await reviewSubmission("", "저 사람은 쓰레기고 무조건 사기꾼입니다.")).decision, "revise");
+    assert.equal((await reviewSubmission("", "저는 조금 다르게 생각해요.", "comment")).decision, "allow");
+    assert.equal((await reviewSubmission("", "연락은 010-1234-5678로 주세요.", "comment")).decision, "revise");
+    assert.equal((await reviewSubmission("", "저 사람은 쓰레기고 무조건 사기꾼입니다.", "comment")).decision, "revise");
   } finally {
     if (openAiKey === undefined) delete process.env.OPENAI_API_KEY;
     else process.env.OPENAI_API_KEY = openAiKey;

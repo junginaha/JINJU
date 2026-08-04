@@ -1,7 +1,9 @@
 import { hasPii, reviewText, type RiskLevel } from "./safety";
+import { assessPostQuality } from "./post-quality";
 import { generateCoreTitle, normalizeGeneratedTitle } from "./title";
 
 export type ReviewDecision = "allow" | "revise";
+export type SubmissionKind = "post" | "comment";
 
 export type SubmissionReview = {
   decision: ReviewDecision;
@@ -29,6 +31,7 @@ const REVIEW_SYSTEM_PROMPT = `당신은 한국어 익명 의견 커뮤니티 '�
 - 자신의 경험, 감정, 의견, 질문을 중심으로 쓴 글
 - 특정인을 알아볼 수 없고 사실 확인이 어려운 내용을 단정하지 않은 글
 - 비판적이더라도 집단이나 개인을 모욕·위협하지 않는 글
+- 게시글은 다른 사람이 상황과 생각을 이해하고 의견을 나눌 만큼 구체적인 글
 
 수정 권고 기준:
 - 실명, 연락처, 주소, 계정, 구체적 직장·학교 등 식별 정보
@@ -36,6 +39,10 @@ const REVIEW_SYSTEM_PROMPT = `당신은 한국어 익명 의견 커뮤니티 '�
 - 욕설, 혐오, 성적 모욕, 괴롭힘, 위협, 자해·타해 표현
 - 불법행위 조장, 신상 공개, 사적 복수, 반복 홍보·도배
 - 사실이라도 타인의 명예와 사생활을 침해할 수 있는 내용
+- 숫자·기호·무작위 문자열이 대부분이거나 시험용으로 보이는 내용
+- 제목과 본문이 같거나 같은 말만 반복해 상황과 생각을 알 수 없는 게시글
+
+댓글은 짧아도 게시글에 연결된 생각이 분명하면 허용한다. 게시글은 무슨 일이 있었는지와 느낀 점·의견·질문 중 하나를 다른 사람이 이해할 수 있어야 한다.
 
 정치·사회적 견해, 불편한 의견, 반대 의견이라는 이유만으로 막지 마라.
 고칠 부분이 있으면 원문의 주장과 말투를 바꾸지 말고 식별 정보·단정·모욕만 줄이는 방법을 짧게 제안하라.
@@ -51,18 +58,22 @@ const REVIEW_SYSTEM_PROMPT = `당신은 한국어 익명 의견 커뮤니티 '�
 반드시 JSON 하나만 반환한다:
 {"decision":"allow 또는 revise","riskLevel":"low, medium, high, urgent 중 하나","detectedIssues":["짧은 문제명"],"explanation":"사용자가 이해하기 쉬운 한두 문장","suggestion":"구체적인 수정 방법 한두 문장","suggestedTitle":"본문의 핵심을 담은 완성형 제목 한 문장"}`;
 
-function fallbackReview(title: string, content: string): SubmissionReview {
+function fallbackReview(title: string, content: string, kind: SubmissionKind): SubmissionReview {
   const text = `${title}\n${content}`;
   const review = reviewText(text);
+  const quality = kind === "post" ? assessPostQuality(title, content) : null;
   const containsPii = hasPii(text);
-  const revise = review.riskLevel !== "low" || containsPii;
+  const revise = review.riskLevel !== "low" || containsPii || quality?.passed === false;
+  const detectedIssues = [...new Set([...review.detectedIssues, ...(quality?.detectedIssues || [])])];
   return {
     decision: revise ? "revise" : "allow",
-    riskLevel: review.riskLevel,
-    detectedIssues: review.detectedIssues,
-    explanation: review.explanation,
+    riskLevel: quality?.passed === false && review.riskLevel === "low" ? "medium" : review.riskLevel,
+    detectedIssues,
+    explanation: quality?.passed === false ? quality.explanation : review.explanation,
     suggestion: revise
-      ? "특정인을 알아볼 수 있는 정보와 강한 단정·욕설을 지우고, 내가 겪은 상황과 느낀 점을 중심으로 바꿔주세요."
+      ? quality?.passed === false
+        ? quality.suggestion
+        : "특정인을 알아볼 수 있는 정보와 강한 단정·욕설을 지우고, 내가 겪은 상황과 느낀 점을 중심으로 바꿔주세요."
       : "바로 게시할 수 있습니다.",
     containsPii,
     source: "rules",
@@ -76,9 +87,9 @@ function safeRiskLevel(value: unknown): RiskLevel {
     : "medium";
 }
 
-function parseAiReview(content: string, title: string, body: string, moderation?: ModerationResult): SubmissionReview {
+function parseAiReview(content: string, title: string, body: string, kind: SubmissionKind, moderation?: ModerationResult): SubmissionReview {
   const parsed = JSON.parse(content) as Partial<SubmissionReview>;
-  const local = fallbackReview(title, body);
+  const local = fallbackReview(title, body, kind);
   const moderationFlagged = Boolean(moderation?.results?.[0]?.flagged);
   const categoryNames = Object.entries(moderation?.results?.[0]?.categories ?? {})
     .filter(([, flagged]) => flagged)
@@ -89,7 +100,7 @@ function parseAiReview(content: string, title: string, body: string, moderation?
     ...local.detectedIssues,
     ...categoryNames,
   ])].slice(0, 6);
-  const decision: ReviewDecision = parsed.decision === "allow" && !moderationFlagged && !containsPii && local.riskLevel === "low"
+  const decision: ReviewDecision = parsed.decision === "allow" && !moderationFlagged && !containsPii && local.decision === "allow"
     ? "allow"
     : "revise";
   const riskLevel = moderationFlagged && safeRiskLevel(parsed.riskLevel) === "low"
@@ -107,8 +118,8 @@ function parseAiReview(content: string, title: string, body: string, moderation?
   };
 }
 
-export async function reviewSubmission(title: string, content: string): Promise<SubmissionReview> {
-  const fallback = fallbackReview(title, content);
+export async function reviewSubmission(title: string, content: string, kind: SubmissionKind): Promise<SubmissionReview> {
+  const fallback = fallbackReview(title, content, kind);
   const key = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
   if (!key) return fallback;
 
@@ -131,7 +142,7 @@ export async function reviewSubmission(title: string, content: string): Promise<
           model: process.env.OPENAI_REVIEW_MODEL || "gpt-5-mini",
           messages: [
             { role: "system", content: REVIEW_SYSTEM_PROMPT },
-            { role: "user", content: JSON.stringify({ title, content, titleRequired: !title.trim() }) },
+            { role: "user", content: JSON.stringify({ kind, title, content, titleRequired: kind === "post" && !title.trim() }) },
           ],
           response_format: { type: "json_object" },
           max_completion_tokens: 700,
@@ -143,7 +154,7 @@ export async function reviewSubmission(title: string, content: string): Promise<
     const moderation = moderationResponse.ok ? await moderationResponse.json() as ModerationResult : undefined;
     const result = await reviewResponse.json() as ChatResult;
     const output = result.choices?.[0]?.message?.content;
-    return output ? parseAiReview(output, title, content, moderation) : fallback;
+    return output ? parseAiReview(output, title, content, kind, moderation) : fallback;
   } catch {
     return fallback;
   } finally {

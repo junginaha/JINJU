@@ -601,11 +601,11 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     setTopic("전체");
   }
 
-  async function submitReviewedPost(finalTitle: string, acceptReviewHold: boolean, reviewToken = reviewFeedback?.reviewToken || "") {
+  async function submitReviewedPost(finalTitle: string, titleGenerated: boolean, reviewToken = reviewFeedback?.reviewToken || "") {
     const response = await fetch("/api/posts", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: finalTitle, content: body, category, acceptReviewHold, reviewToken }),
+      body: JSON.stringify({ title: finalTitle, titleGenerated, content: body, category, reviewToken }),
     });
     const data = await response.json() as { error?:string; id?:string; displayName?:string; status?:"approved"|"pending"|"revision_required"; review?:ReviewFeedback };
     if (response.status === 422 && data.review) {
@@ -630,7 +630,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
   async function publish(event: FormEvent) {
     event.preventDefault();
-    if (body.trim().length < 8) { setSubmitStatus("본문을 8자 이상 적어주세요."); return; }
+    if (body.trim().length < 30) { setSubmitStatus("상황과 느낀 점을 30자 이상 적어주세요."); return; }
     if(submitBusy)return;
     setSubmitBusy(true);
     setReviewFeedback(null);
@@ -645,7 +645,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
         setSubmitStatus("이 문장만 조금 바꾸면 올릴 수 있어요.");
         return;
       }
-      await submitReviewedPost(finalTitle, false, review.reviewToken);
+      await submitReviewedPost(finalTitle, !title.trim(), review.reviewToken);
     } catch {
       setSubmitStatus("연결을 확인한 뒤 다시 시도해주세요. 초안은 그대로 보관되어 있습니다.");
     } finally {

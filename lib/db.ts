@@ -160,6 +160,9 @@ export async function ensureSchema() {
       await sql`CREATE INDEX IF NOT EXISTS zk_nullifiers_expiry_idx ON zk_nullifiers(expires_at)`;
       await sql`CREATE INDEX IF NOT EXISTS feedback_reports_post_created_idx ON feedback_reports(post_id, created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS feedback_reports_expiry_idx ON feedback_reports(expires_at)`;
+      await sql`DELETE FROM admin_content_overrides WHERE id = '444t023q0c0u3c1k6n6h' OR post_id = '444t023q0c0u3c1k6n6h'`;
+      await sql`DELETE FROM feedback_reports WHERE post_id = '444t023q0c0u3c1k6n6h'`;
+      await sql`DELETE FROM posts WHERE id = '444t023q0c0u3c1k6n6h'`;
       await sql`
         UPDATE posts AS post
         SET comment_count = (
