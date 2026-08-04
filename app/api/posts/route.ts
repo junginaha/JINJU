@@ -13,6 +13,7 @@ import { notifySearchIndexes } from "../../../lib/search-indexing";
 import { verifyReviewToken } from "../../../lib/review-token";
 import { hasPii } from "../../../lib/safety";
 import { generateCoreTitle } from "../../../lib/title";
+import { assessPostQuality, POST_MIN_CONTENT_LENGTH } from "../../../lib/post-quality";
 
 export const dynamic = "force-dynamic";
 
@@ -35,24 +36,29 @@ export async function POST(request: Request) {
   const limit = await rateLimit(request, "post", 6, 10 * 60_000);
   if (!limit.allowed) return Response.json({ error: "짧은 시간에 등록 요청이 많았습니다. 잠시 후 다시 시도해주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
-  const payload = await request.json() as { title?: string; content?: string; category?: string; acceptReviewHold?: boolean; reviewToken?: string };
+  const payload = await request.json() as { title?: string; titleGenerated?: boolean; content?: string; category?: string; reviewToken?: string };
   const content = payload.content?.trim() ?? "";
-  const title = (payload.title?.trim() || generateCoreTitle(content)).slice(0, 80);
+  const submittedTitle = payload.title?.trim() ?? "";
+  const qualityTitle = payload.titleGenerated ? "" : submittedTitle;
+  const title = (submittedTitle || generateCoreTitle(content)).slice(0, 80);
   const category = normalizePublicCategory(payload.category?.trim() || "일상");
-  if (!PUBLIC_CATEGORIES.includes(category) || title.length < 2 || content.length < 8 || content.length > 2000 || hasPii(`${title} ${content}`)) {
-    return Response.json({ error: "개인정보를 제거하고 제목 2~80자, 본문 8~2,000자로 작성해주세요." }, { status: 400 });
+  if (!PUBLIC_CATEGORIES.includes(category) || title.length < 2 || content.length < POST_MIN_CONTENT_LENGTH || content.length > 2000) {
+    return Response.json({ error: `제목을 확인하고 상황과 느낀 점을 ${POST_MIN_CONTENT_LENGTH}자 이상 적어주세요.` }, { status: 400 });
   }
-  const review = await verifyReviewToken(payload.reviewToken || "", title, content, category)
-    || await reviewSubmission(title, content);
-  if (review.containsPii) {
+  const quality = assessPostQuality(qualityTitle, content);
+  const verifiedReview = await verifyReviewToken(payload.reviewToken || "", title, content, category);
+  const review = !quality.passed || hasPii(`${title} ${content}`)
+    ? await reviewSubmission(qualityTitle, content, "post")
+    : verifiedReview || await reviewSubmission(qualityTitle, content, "post");
+  if (review.containsPii || hasPii(`${title} ${content}`)) {
     return Response.json({
       error: "개인정보는 보류 상태로도 저장할 수 없습니다. 이름·연락처·주소·계정 정보를 지워주세요.",
       status: "revision_required",
       review,
     }, { status: 422 });
   }
-  if (review.decision === "revise" && !payload.acceptReviewHold) {
-    return Response.json({ status: "revision_required", review }, { status: 422 });
+  if (review.decision === "revise" || !quality.passed) {
+    return Response.json({ error: "이 문장만 조금 바꾸면 올릴 수 있어요.", status: "revision_required", review }, { status: 422 });
   }
   await ensureSchema();
   const existingRows = await db()`SELECT title, content FROM posts WHERE status IN ('approved','pending','preparing') ORDER BY created_at DESC LIMIT 500`;
@@ -72,7 +78,7 @@ export async function POST(request: Request) {
       LIMIT 1`;
     return Boolean(rows[0]);
   });
-  const status = review.decision === "allow" ? "approved" : "pending";
+  const status = review.source === "ai" ? "approved" : "pending";
   const initialLikes = newPostInitialLikes();
   await db()`
     INSERT INTO posts (

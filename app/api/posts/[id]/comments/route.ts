@@ -69,7 +69,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const payload = await request.json() as { content?: string };
   const content = payload.content?.trim() ?? "";
   if (content.length < 2 || content.length > 2000) return Response.json({ error: "댓글은 2~2,000자로 작성해주세요." }, { status: 400 });
-  const review = await reviewSubmission("", content);
+  const review = await reviewSubmission("", content, "comment");
   if (review.decision === "revise") return Response.json({ error: "이 문장만 조금 바꾸면 올릴 수 있어요.", review }, { status: 422 });
   await ensureSchema();
   const displayName = await generateUniqueJinjuDisplayName(async (candidate) => {
