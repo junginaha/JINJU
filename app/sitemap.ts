@@ -4,6 +4,14 @@ import { canonicalUrl } from "@/lib/search-indexing";
 
 export const dynamic = "force-dynamic";
 
+const officialPages = [
+  { path: "/about", priority: 0.8 },
+  { path: "/principles", priority: 0.7 },
+  { path: "/safety", priority: 0.7 },
+  { path: "/privacy", priority: 0.7 },
+  { path: "/beta", priority: 0.5 },
+];
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await getPublicPosts();
   const newestPostTime = posts.reduce((latest, post) => {
@@ -17,6 +25,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 1,
     },
+    ...officialPages.map(({ path, priority }) => ({
+      url: canonicalUrl(path),
+      changeFrequency: "monthly" as const,
+      priority,
+    })),
     ...posts.map((post) => ({
       url: canonicalUrl(`/post/${encodeURIComponent(post.id)}`),
       lastModified: new Date(post.updatedAt || post.createdAt),

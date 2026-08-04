@@ -1,14 +1,23 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./production-hotfix.css";
-import { SITE_URL } from "@/lib/search-indexing";
+import {
+  SITE_DESCRIPTION,
+  SITE_HOST,
+  SITE_IDENTITY_DESCRIPTION,
+  SITE_NAME,
+  SITE_ORGANIZATION_ID,
+  SITE_TAGLINE,
+  SITE_TITLE,
+  SITE_URL,
+  SITE_WEBSITE_ID,
+} from "@/lib/search-indexing";
 import ShareBridge from "@/components/ShareBridge";
 
 const baseUrl = SITE_URL;
-const siteName = "진주.kr";
-const siteTitle = "진주.kr | 익명 의견 커뮤니티";
-const siteDescription =
-  "개인정보를 요구하지 않고 속마음과 의견을 나누는 익명 커뮤니티입니다.";
+const siteName = SITE_NAME;
+const siteTitle = SITE_TITLE;
+const siteDescription = SITE_DESCRIPTION;
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -89,29 +98,37 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const website = {
+  const identityGraph = {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    "@id": `${baseUrl}/#website`,
-    name: siteName,
-    alternateName: ["진주 익명 커뮤니티", "진실의 주둥이", "xn--o55b9n.kr"],
-    url: `${baseUrl}/`,
-    description: siteDescription,
-    inLanguage: "ko-KR",
-    publisher: {
-      "@type": "Organization",
-      name: siteName,
-      url: `${baseUrl}/`,
-      logo: {
-        "@type": "ImageObject",
-        url: `${baseUrl}/jinju-pearl-cutout.png`,
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": SITE_ORGANIZATION_ID,
+        name: siteName,
+        alternateName: SITE_TAGLINE,
+        url: `${baseUrl}/`,
+        description: SITE_IDENTITY_DESCRIPTION,
+        logo: {
+          "@type": "ImageObject",
+          url: `${baseUrl}/jinju-pearl-cutout.png`,
+        },
       },
-    },
+      {
+        "@type": "WebSite",
+        "@id": SITE_WEBSITE_ID,
+        name: siteName,
+        alternateName: ["진주 익명 커뮤니티", SITE_TAGLINE, SITE_HOST],
+        url: `${baseUrl}/`,
+        description: siteDescription,
+        inLanguage: "ko-KR",
+        publisher: { "@id": SITE_ORGANIZATION_ID },
+      },
+    ],
   };
   return (
     <html lang="ko-KR">
       <body>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(website).replace(/</g, "\\u003c") }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(identityGraph).replace(/</g, "\\u003c") }} />
         <ShareBridge />
         {children}
       </body>
