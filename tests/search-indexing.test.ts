@@ -4,13 +4,47 @@ import test from "node:test";
 import {
   canonicalUrl,
   INDEXNOW_KEY,
+  SITE_IDENTITY_DESCRIPTION,
   notifySearchIndexes,
   SITE_HOST,
+  SITE_NAME,
+  SITE_TITLE,
 } from "../lib/search-indexing";
+import robotsRoute from "../app/robots";
 
 test("canonical search URLs always use the single production host", () => {
   assert.equal(canonicalUrl(), `https://${SITE_HOST}/`);
   assert.equal(canonicalUrl("post/example"), `https://${SITE_HOST}/post/example`);
+});
+
+test("the shared identity names the domain and distinguishes the independent service", () => {
+  assert.match(SITE_TITLE, new RegExp(SITE_NAME.replace(".", "\\.")));
+  assert.match(SITE_TITLE, /진실의 주둥이/);
+  assert.match(SITE_IDENTITY_DESCRIPTION, /경상남도 진주시/);
+  assert.match(SITE_IDENTITY_DESCRIPTION, /관련 없는 독립 서비스/);
+});
+
+test("search and AI answer crawlers can index public pages but not private routes", () => {
+  const config = robotsRoute();
+  const rules = Array.isArray(config.rules) ? config.rules : [config.rules];
+  const expectedCrawlers = [
+    "Yeti",
+    "Googlebot",
+    "Bingbot",
+    "OAI-SearchBot",
+    "ChatGPT-User",
+    "Claude-SearchBot",
+    "Claude-User",
+    "PerplexityBot",
+    "Perplexity-User",
+  ];
+
+  for (const crawler of expectedCrawlers) {
+    const rule = rules.find((candidate) => candidate.userAgent === crawler);
+    assert.ok(rule, `${crawler} should have an explicit rule`);
+    assert.equal(rule.allow, "/");
+    assert.deepEqual(rule.disallow, ["/api/", "/admin"]);
+  }
 });
 
 test("the public IndexNow ownership file matches the submitted key", async () => {

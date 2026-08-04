@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import JinjuApp from "@/components/JinjuApp";
 import { getPublicPost, getPublicPosts, toClientPost } from "@/lib/public-posts";
+import {
+  canonicalUrl,
+  SITE_NAME,
+  SITE_ORGANIZATION_ID,
+  SITE_WEBSITE_ID,
+} from "@/lib/search-indexing";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -32,7 +38,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       type: "article",
       url: path,
-      siteName: "진주.kr",
+      siteName: SITE_NAME,
       locale: "ko_KR",
       images: [image],
     },
@@ -52,5 +58,35 @@ export default async function PostPage({ params }: PageProps) {
   const byId = new Map((await getPublicPosts()).map((post) => [post.id, post]));
   byId.set(selected.id, selected);
   const initialPosts = [...byId.values()].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).map(toClientPost);
-  return <JinjuApp initialPosts={initialPosts} initialPostId={selected.id} />;
+  const postUrl = canonicalUrl(`/post/${encodeURIComponent(selected.id)}`);
+  const discussionPost = {
+    "@context": "https://schema.org",
+    "@type": "DiscussionForumPosting",
+    "@id": `${postUrl}#posting`,
+    url: postUrl,
+    headline: selected.title,
+    text: selected.content,
+    articleBody: selected.content,
+    articleSection: selected.category,
+    datePublished: selected.createdAt,
+    dateModified: selected.updatedAt || selected.createdAt,
+    inLanguage: "ko-KR",
+    author: {
+      "@type": "Person",
+      name: selected.displayName?.trim() || "익명",
+    },
+    publisher: { "@id": SITE_ORGANIZATION_ID },
+    isPartOf: { "@id": SITE_WEBSITE_ID },
+    mainEntityOfPage: postUrl,
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(discussionPost).replace(/</g, "\\u003c") }}
+      />
+      <JinjuApp initialPosts={initialPosts} initialPostId={selected.id} />
+    </>
+  );
 }
