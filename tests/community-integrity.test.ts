@@ -14,6 +14,7 @@ import { august2EditorialComments, august2EditorialPosts } from "../lib/daily-ed
 import { august3EditorialComments, august3EditorialPosts } from "../lib/daily-editorial-20260803";
 import { generateJinjuDisplayName } from "../lib/display-name";
 import { activeReactionHistory, recordReaction } from "../lib/reaction-history";
+import { reviewSubmission } from "../lib/ai-review";
 import {
   AUTO_COMMENT_MAX_ATTEMPTS,
   runAutoCommentAttempts,
@@ -76,6 +77,23 @@ test("new post likes stay between 20 and 33", () => {
   assert.equal(newPostInitialLikes(0), 20);
   assert.equal(newPostInitialLikes(0.5), 27);
   assert.equal(newPostInitialLikes(0.999999), 33);
+});
+
+test("the shared writing review protects both ordinary comments and risky comments", async () => {
+  const openAiKey = process.env.OPENAI_API_KEY;
+  const aiKey = process.env.AI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  delete process.env.AI_API_KEY;
+  try {
+    assert.equal((await reviewSubmission("", "저는 조금 다르게 생각해요.")).decision, "allow");
+    assert.equal((await reviewSubmission("", "연락은 010-1234-5678로 주세요.")).decision, "revise");
+    assert.equal((await reviewSubmission("", "저 사람은 쓰레기고 무조건 사기꾼입니다.")).decision, "revise");
+  } finally {
+    if (openAiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = openAiKey;
+    if (aiKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = aiKey;
+  }
 });
 
 test("future post and automatic comment names use exactly two words", () => {

@@ -282,7 +282,7 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .chat-title { width: 100%; min-height: 50px; padding: 6px 5px 12px; color: #f3f3f3; font-size: 18px; font-weight: 720; background: transparent; border: 0; border-bottom: 1px solid #363636; outline: 0; }
 .chat-composer textarea, .comment-composer textarea { width: 100%; min-height: 150px; padding: 15px 5px; color: #f3f3f3; font-size: 14px; line-height: 1.75; resize: vertical; background: transparent; border: 0; outline: 0; }
 .composer-guide { margin: -3px 5px 12px; color: #aaa; font-size: 10px; line-height: 1.55; }
-.composer-status, .comment-error { margin: 0 5px 12px; color: #d9c8a8; font-size: 11px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
+.composer-status, .comment-status, .comment-error { margin: 0 5px 12px; color: #d9c8a8; font-size: 11px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
 .comment-error { color: #ef9b9b; }
 .composer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-top: 8px; border-top: 1px solid #363636; }
 .composer-bottom > span { color: #aaa; font-size: 10px; }
@@ -320,7 +320,7 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .review-suggestion strong { color: #7fd4dc; font-size: 11px; }
 .review-suggestion span { color: #d4d4d4; font-size: 12px; line-height: 1.65; }
 .review-pii-warning { color: #ef9b9b !important; }
-.review-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 20px; }
+.review-dialog-actions { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 20px; }
 .review-dialog-actions button, .pending-dialog button { min-height: 46px; padding: 0 14px; font-size: 12px; font-weight: 760; border-radius: 12px; cursor: pointer; }
 .review-edit-button { color: #f0f0f0; background: #292929; border: 1px solid #454545; }
 .review-hold-button, .pending-dialog button { color: #111; background: #f4f4f4; border: 1px solid #f4f4f4; }
@@ -372,8 +372,11 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .comments-load-error p { margin: 0; }
 .comments-load-error button { min-width: 88px; min-height: 44px; padding: 0 14px; color: #111; font-weight: 700; background: #f4f4f4; border: 0; border-radius: 10px; cursor: pointer; }
 .comment-composer { margin-top: 28px; }
-.comment-composer > div { display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid #363636; }
+.comment-composer > .comment-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid #363636; }
 .comment-composer span { color: #aaa; font-size: 10px; }
+.comment-review { display: grid; gap: 5px; margin: 0 5px 14px; padding: 12px 13px; color: #d4d4d4; font-size: 11px; line-height: 1.55; background: #ffffff08; border: 1px solid #3a3a3a; border-radius: 12px; }
+.comment-review strong { color: #f0d5ce; font-size: 12px; }
+.comment-review span { color: #aaa; line-height: 1.6; }
 .comment-composer button { min-height: 40px; padding: 0 15px; color: #111; font-size: 11px; font-weight: 700; background: #f4f4f4; border: 0; border-radius: 10px; cursor: pointer; }
 .comment-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
 .comment-composer .comment-voice-button { display: grid; width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0; place-items: center; color: #c8c8c8; background: #2d2d2d; border: 1px solid #3a3a3a; border-radius: 999px; }
