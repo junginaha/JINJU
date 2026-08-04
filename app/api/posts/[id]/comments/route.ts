@@ -4,9 +4,9 @@ import { normalizeCommentTimes } from "../../../../../lib/comment-time";
 import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../../lib/db";
 import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 import { generateUniqueJinjuDisplayName } from "../../../../../lib/display-name";
+import { reviewSubmission } from "../../../../../lib/ai-review";
 import { getPublicPost } from "../../../../../lib/public-posts";
 import { rateLimit } from "../../../../../lib/rate-limit";
-import { hasPii, reviewText } from "../../../../../lib/safety";
 import { supplementalComments } from "../../../../../lib/supplemental-comments";
 import {
   combineBaseAndStoredComments,
@@ -68,8 +68,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!publicPost) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
   const payload = await request.json() as { content?: string };
   const content = payload.content?.trim() ?? "";
-  const review = reviewText(content);
-  if (content.length < 2 || content.length > 2000 || hasPii(content) || ["high", "urgent"].includes(review.riskLevel)) return Response.json({ error: "개인정보와 위험 표현을 제거하고 2~2,000자로 작성해주세요." }, { status: 400 });
+  if (content.length < 2 || content.length > 2000) return Response.json({ error: "댓글은 2~2,000자로 작성해주세요." }, { status: 400 });
+  const review = await reviewSubmission("", content);
+  if (review.decision === "revise") return Response.json({ error: "이 문장만 조금 바꾸면 올릴 수 있어요.", review }, { status: 422 });
   await ensureSchema();
   const displayName = await generateUniqueJinjuDisplayName(async (candidate) => {
     const rows = await db()`

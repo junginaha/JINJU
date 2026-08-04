@@ -42,6 +42,16 @@ type ReviewFeedback = {
   reviewToken?: string;
 };
 
+class CommentReviewError extends Error {
+  review: ReviewFeedback;
+
+  constructor(review: ReviewFeedback) {
+    super("이 문장만 조금 바꾸면 올릴 수 있어요.");
+    this.name = "CommentReviewError";
+    this.review = review;
+  }
+}
+
 export type Post = {
   id: string;
   category: string;
@@ -600,7 +610,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     const data = await response.json() as { error?:string; id?:string; displayName?:string; status?:"approved"|"pending"|"revision_required"; review?:ReviewFeedback };
     if (response.status === 422 && data.review) {
       setReviewFeedback({ ...data.review, suggestedTitle: finalTitle });
-      setSubmitStatus(data.error || "조금만 다듬으면 바로 게시할 수 있어요.");
+      setSubmitStatus(data.error || "이 문장만 조금 바꾸면 올릴 수 있어요.");
       return false;
     }
     if (!response.ok) { setSubmitStatus(data.error || "지금은 저장할 수 없습니다."); return false; }
@@ -624,7 +634,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     if(submitBusy)return;
     setSubmitBusy(true);
     setReviewFeedback(null);
-    setSubmitStatus("AI가 개인정보와 위험 표현을 확인하고 있어요…");
+    setSubmitStatus("게시 전 우리를 지키는 표현을 확인하고 있어요.");
     try {
       const reviewResponse = await fetch("/api/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, text: body, category }) });
       const review = await reviewResponse.json() as ReviewFeedback & { error?: string };
@@ -632,7 +642,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       const finalTitle = title.trim() || review.suggestedTitle || "익명의 의견";
       if (review.decision === "revise") {
         setReviewFeedback({ ...review, suggestedTitle: finalTitle });
-        setSubmitStatus("고칠 부분을 확인해주세요. 수정하면 다시 검수합니다.");
+        setSubmitStatus("이 문장만 조금 바꾸면 올릴 수 있어요.");
         return;
       }
       await submitReviewedPost(finalTitle, false, review.reviewToken);
@@ -645,17 +655,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
   function returnToEdit() {
     setReviewFeedback(null);
-    setSubmitStatus("수정한 뒤 AI 검수를 다시 눌러주세요.");
+    setSubmitStatus("수정한 뒤 다시 확인해주세요.");
     requestAnimationFrame(() => bodyInputRef.current?.focus());
-  }
-
-  async function submitPending() {
-    if(submitBusy || !reviewFeedback || reviewFeedback.containsPii)return;
-    setSubmitBusy(true);
-    setSubmitStatus("운영자 승인 대기로 안전하게 옮기고 있어요…");
-    try { await submitReviewedPost(title.trim() || reviewFeedback.suggestedTitle || "익명의 의견", true); }
-    catch { setSubmitStatus("연결을 확인한 뒤 다시 시도해주세요. 초안은 그대로 보관되어 있습니다."); }
-    finally { setSubmitBusy(false); }
   }
 
   async function react(postId: string, kind: "heard" | "same") {
@@ -701,7 +702,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     const trimmed = comment.trim().slice(0, 2000);
     if (!trimmed) throw new Error("댓글을 두 글자 이상 적어주세요.");
     const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: trimmed }) });
-    const data = await response.json() as { error?: string; id?: string;deleteKey?:string; body?: string; createdAt?: string; displayName?: string };
+    const data = await response.json() as { error?: string; id?: string;deleteKey?:string; body?: string; createdAt?: string; displayName?: string; review?: ReviewFeedback };
+    if (response.status === 422 && data.review) throw new CommentReviewError(data.review);
     if (!response.ok) throw new Error(data.error || "댓글을 등록할 수 없습니다.");
     const created={id:data.id||Date.now(),body:data.body||trimmed,displayName:data.displayName,createdAt:data.createdAt||new Date().toISOString()};
     if(data.id&&data.deleteKey){const next={...commentDeleteKeys,[data.id]:data.deleteKey};setCommentDeleteKeys(next);saveKeys(COMMENT_DELETE_KEYS,next)}
@@ -758,23 +760,19 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
         <div className="composer-screen-shell">
           <div className="composer-intro">
             <Pearl size={58} />
-            <div><p className="eyebrow">하세요!</p><h2 id="write-title">의견 남기기</h2><p>책임의 무게도 함께 들어주세요.</p></div>
+            <div><p className="eyebrow">하세요!</p><h2 id="write-title">의견 남기기</h2><p>내가 겪은 상황과 느낀 점을 적어주세요.</p></div>
           </div>
           <form className="chat-composer" onSubmit={publish}>
             {reviewFeedback && <div className="review-overlay" role="dialog" aria-modal="true" aria-labelledby="review-dialog-title">
               <div className="review-dialog">
-                <span className="review-symbol" aria-hidden="true">♨</span>
-                <p className="review-eyebrow">AI 검수 결과</p>
-                <h3 id="review-dialog-title">조금만 다듬어 주세요</h3>
-                {reviewFeedback.detectedIssues?.length ? <ul>{reviewFeedback.detectedIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul> : null}
+                <p className="review-eyebrow">게시 전 확인</p>
+                <h3 id="review-dialog-title">이 문장만 조금 바꾸면 올릴 수 있어요.</h3>
                 <p>{reviewFeedback.explanation}</p>
-                {reviewFeedback.suggestion && <div className="review-suggestion"><strong>이렇게 고쳐보세요</strong><span>{reviewFeedback.suggestion}</span></div>}
-                {reviewFeedback.containsPii && <p className="review-pii-warning">개인정보는 승인 대기로도 저장하지 않습니다. 해당 정보를 지운 뒤 다시 검수해 주세요.</p>}
+                {reviewFeedback.suggestion && <div className="review-suggestion"><strong>이렇게 바꿔보세요</strong><span>{reviewFeedback.suggestion}</span></div>}
+                {reviewFeedback.containsPii && <p className="review-pii-warning">개인정보를 지운 뒤 다시 확인해주세요.</p>}
                 <div className="review-dialog-actions">
                   <button className="review-edit-button" onClick={returnToEdit} type="button">수정하기</button>
-                  {!reviewFeedback.containsPii && <button className="review-hold-button" onClick={submitPending} disabled={submitBusy} type="button">{submitBusy ? "보류 접수 중…" : "그대로 제출"}</button>}
                 </div>
-                {!reviewFeedback.containsPii && <small>그대로 제출하면 공개되지 않고 운영자 승인 대기로 이동합니다.</small>}
               </div>
             </div>}
             {pendingNotice && <div className="review-overlay" role="dialog" aria-modal="true" aria-labelledby="pending-dialog-title">
@@ -788,11 +786,10 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
             </div>}
             <div className="composer-selects"><select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="게시판 선택">{topics.slice(1).map((item) => <option key={item}>{item}</option>)}</select></div>
             <input ref={titleInputRef} className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
-            <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder={"책임의 무게도 함께 들어주세요.\n개운하게~"} aria-label="의견 본문" rows={10} />
-            <p className="composer-guide">내가 겪은 일 · 내가 느낀 마음 · 무엇이 문제였는지 · 개운하게...</p>
+            <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder="편하게 적어주세요." aria-label="의견 본문" rows={10} />
             {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
             {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
-            <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState!=="idle"?" listening":""}`} onClick={()=>void toggleVoice()} type="button" aria-pressed={(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력${voiceState==="transcribing"?" 다시 시작":""}`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy}><span>{submitBusy?"검수 중…":"AI 검수"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
+            <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState!=="idle"?" listening":""}`} onClick={()=>void toggleVoice()} type="button" aria-pressed={(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력${voiceState==="transcribing"?" 다시 시작":""}`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy}><span>{submitBusy?"확인 중…":"게시 전 확인"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
           </form>
         </div>
       </section>}
@@ -966,6 +963,8 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
 }) {
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
+  const [commentStatus, setCommentStatus] = useState("");
+  const [commentReview, setCommentReview] = useState<ReviewFeedback|null>(null);
   const [commentBusy,setCommentBusy]=useState(false);
   const [commentDraftReady,setCommentDraftReady]=useState(false);
   const [deleteBusy,setDeleteBusy]=useState<string|null>(null);
@@ -1001,6 +1000,8 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
     event.preventDefault();
     if (!comment.trim()||commentBusy||commentVoiceBusy) return;
     setCommentError("");
+    setCommentReview(null);
+    setCommentStatus("게시 전 우리를 지키는 표현을 확인하고 있어요.");
     setCommentBusy(true);
     try {
       const created=await onComment(comment);
@@ -1008,8 +1009,10 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
       onCommentVoiceSubmitted();
       setComment("");
     } catch (error) {
-      setCommentError(error instanceof Error ? error.message : "댓글을 등록할 수 없습니다.");
+      if (error instanceof CommentReviewError) setCommentReview(error.review);
+      else setCommentError(error instanceof Error ? error.message : "댓글을 등록할 수 없습니다.");
     } finally {
+      setCommentStatus("");
       setCommentBusy(false);
     }
   }
@@ -1037,11 +1040,13 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
                 : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>
-          <textarea value={comment} onChange={(event) => {onCommentVoiceEdit();setComment(event.target.value.slice(0, 2000))}} maxLength={2000} rows={5} placeholder="댓글을 남겨주세요" aria-label="댓글 내용" aria-describedby="comment-voice-status" />
+          <textarea value={comment} onChange={(event) => {onCommentVoiceEdit();setCommentReview(null);setCommentStatus("");setComment(event.target.value.slice(0, 2000))}} maxLength={2000} rows={5} placeholder="내가 겪은 상황과 느낀 점을 적어주세요." aria-label="댓글 내용" aria-describedby="comment-voice-status comment-safety-status" />
           <span className="search-voice-status" id="comment-voice-status" role="status" aria-live="polite">{commentVoiceMessage}</span>
           {commentVoiceActive&&commentVoiceMessage&&<p className="voice-message">{commentVoiceMessage}</p>}
+          {commentStatus && <p className="comment-status" id="comment-safety-status" role="status">{commentStatus}</p>}
+          {commentReview && <p className="comment-review" id="comment-safety-status" role="alert"><strong>이 문장만 조금 바꾸면 올릴 수 있어요.</strong>{(commentReview.suggestion||commentReview.explanation)&&<span>{commentReview.suggestion||commentReview.explanation}</span>}</p>}
           {commentError && <p className="comment-error" role="alert">{commentError}</p>}
-          <div><span>{comment.length}/2,000 · 입력 내용은 등록 전까지 이 기기에 보관됩니다</span><div className="comment-actions"><button className={`comment-voice-button${commentVoiceBusy?" listening":""}`} onClick={()=>void onToggleCommentVoice(comment,(value)=>setComment(value.slice(0,2000)))} type="button" disabled={commentBusy||commentVoicePending} aria-pressed={commentVoiceActive&&commentVoiceState==="recording"} aria-label={commentVoicePending?"댓글 음성 연결 중":commentVoiceActive&&commentVoiceState==="recording"?"댓글 음성 입력 중지":commentVoiceActive&&commentVoiceState==="transcribing"?"댓글 음성 입력 다시 시작":"댓글 음성 입력"}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button type="submit" disabled={commentBusy||commentVoiceBusy}>{commentBusy?"등록 중…":"댓글 남기기"}</button></div></div>
+          <div className="comment-footer"><span>{comment.length}/2,000 · 입력 내용은 등록 전까지 이 기기에 보관됩니다</span><div className="comment-actions"><button className={`comment-voice-button${commentVoiceBusy?" listening":""}`} onClick={()=>void onToggleCommentVoice(comment,(value)=>{setCommentReview(null);setCommentStatus("");setComment(value.slice(0,2000))})} type="button" disabled={commentBusy||commentVoicePending} aria-pressed={commentVoiceActive&&commentVoiceState==="recording"} aria-label={commentVoicePending?"댓글 음성 연결 중":commentVoiceActive&&commentVoiceState==="recording"?"댓글 음성 입력 중지":commentVoiceActive&&commentVoiceState==="transcribing"?"댓글 음성 입력 다시 시작":"댓글 음성 입력"}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button type="submit" disabled={commentBusy||commentVoiceBusy}>{commentBusy?"확인 중…":"댓글 남기기"}</button></div></div>
         </form>
       </div>
     </main>
