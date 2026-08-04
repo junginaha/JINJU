@@ -28,6 +28,11 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
   };
 }
 
+function isPublished(post: Pick<EditorialPost, "createdAt">, now = Date.now()) {
+  const publishedAt = Date.parse(post.createdAt);
+  return !Number.isFinite(publishedAt) || publishedAt <= now;
+}
+
 type VisibleBaseComment = ReturnType<typeof builtInComments>[number];
 
 function visibleBuiltInComments(post: EditorialPost): VisibleBaseComment[] {
@@ -72,7 +77,12 @@ export function toClientPost(post: EditorialPost): Post {
 }
 
 export const getPublicPosts = cache(async () => {
-  const byId = new Map(builtInPosts.map((post) => [post.id, builtInWithVisibleCommentCount(post)]));
+  const now = Date.now();
+  const byId = new Map(
+    builtInPosts
+      .filter((post) => isPublished(post, now))
+      .map((post) => [post.id, builtInWithVisibleCommentCount(post)]),
+  );
   let overrides = await contentOverrides();
   if (databaseEnabled()) {
     try {
@@ -93,6 +103,7 @@ export const getPublicPosts = cache(async () => {
         FROM posts AS post
         LEFT JOIN comments AS comment
           ON comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()
+        WHERE post.created_at <= NOW()
         GROUP BY post.id
         ORDER BY post.created_at DESC
         LIMIT 500`;
@@ -106,7 +117,7 @@ export const getPublicPosts = cache(async () => {
           ? record.stored_comment_bodies.map(String)
           : [];
         const post = withVisibleCommentCount(cleanRow(record), Number(record.auto_comment_count || 0), storedBodies);
-        if (!HIDDEN_DUPLICATE_POST_IDS.has(post.id)) byId.set(post.id, post);
+        if (!HIDDEN_DUPLICATE_POST_IDS.has(post.id) && isPublished(post, now)) byId.set(post.id, post);
       }
     } catch {
       overrides = new Map();
@@ -115,6 +126,7 @@ export const getPublicPosts = cache(async () => {
   const hiddenCounts = hiddenCommentCounts(overrides);
   return dedupePosts([...byId.values()])
     .flatMap((post) => {
+      if (!isPublished(post, now)) return [];
       const visible = applyPostOverride(post, overrides);
       return visible ? [{
         ...visible,
@@ -127,6 +139,7 @@ export const getPublicPosts = cache(async () => {
 
 export const getPublicPost = cache(async (id: string) => {
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return null;
+  const now = Date.now();
   const overrides = await contentOverrides();
   const hiddenCount = hiddenCommentCounts(overrides).get(id) || 0;
   if (databaseEnabled()) {
@@ -148,7 +161,7 @@ export const getPublicPost = cache(async (id: string) => {
                    AND comment.created_at <= NOW()
                ) AS stored_comment_bodies
         FROM posts AS post
-        WHERE post.id = ${id}
+        WHERE post.id = ${id} AND post.created_at <= NOW()
         LIMIT 1`;
       if (rows[0]) {
         const record = rows[0] as Record<string, unknown>;
@@ -156,8 +169,10 @@ export const getPublicPost = cache(async (id: string) => {
         const storedBodies = Array.isArray(record.stored_comment_bodies)
           ? record.stored_comment_bodies.map(String)
           : [];
+        const candidate = cleanRow(record);
+        if (!isPublished(candidate, now)) return null;
         const post = applyPostOverride(
-          withVisibleCommentCount(cleanRow(record), Number(record.auto_comment_count || 0), storedBodies),
+          withVisibleCommentCount(candidate, Number(record.auto_comment_count || 0), storedBodies),
           overrides,
         );
         return post ? {
@@ -171,7 +186,7 @@ export const getPublicPost = cache(async (id: string) => {
     }
   }
   const fallback = builtInPost(id);
-  if (!fallback) return null;
+  if (!fallback || !isPublished(fallback, now)) return null;
   const post = applyPostOverride(builtInWithVisibleCommentCount(fallback), overrides);
   return post ? {
     ...post,
