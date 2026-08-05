@@ -1,4 +1,4 @@
-import JinjuApp from "@/components/JinjuApp";
+import JinjuApp from "@/components/JinjuAppSafe";
 import JinjuRuntimePatch from "@/components/JinjuRuntimePatch";
 import { getPublicPosts, toClientPost } from "@/lib/public-posts";
 
