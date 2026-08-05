@@ -20,6 +20,7 @@ export const dynamic = "force-dynamic";
 
 async function verifyPublicDatabase() {
   if (!databaseEnabled()) throw new Error("DATABASE_URL is not configured");
+  await ensureSchema();
   const sql = db();
   await sql`
     SELECT
