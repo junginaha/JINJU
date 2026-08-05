@@ -12,6 +12,7 @@ import { july30EditorialComments, july30EditorialPosts } from "../lib/daily-edit
 import { august1EditorialComments, august1EditorialPosts } from "../lib/daily-editorial-20260801";
 import { august2EditorialComments, august2EditorialPosts } from "../lib/daily-editorial-20260802";
 import { august3EditorialComments, august3EditorialPosts } from "../lib/daily-editorial-20260803";
+import { august5MorningComments, august5MorningPosts } from "../lib/morning-editorial-20260805";
 import { generateJinjuDisplayName } from "../lib/display-name";
 import { activeReactionHistory, recordReaction } from "../lib/reaction-history";
 import { reviewSubmission } from "../lib/ai-review";
@@ -172,6 +173,20 @@ test("selected August 3 posts use two-word names, 20-33 likes, and complete comm
     assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
     assert.ok(post.heard >= 20 && post.heard <= 33);
     const comments = august3EditorialComments(post.id);
+    assert.equal(comments.length, post.commentCount);
+    for (const comment of comments) {
+      assert.equal(comment.displayName.trim().split(/\s+/).length, 2);
+      assert.ok(Date.parse(comment.createdAt) > Date.parse(post.createdAt));
+    }
+  }
+});
+
+test("August 5 morning posts use two-word names, 20-33 likes, and complete comments", () => {
+  assert.equal(august5MorningPosts.length, 5);
+  for (const post of august5MorningPosts) {
+    assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
+    assert.ok(post.heard >= 20 && post.heard <= 33);
+    const comments = august5MorningComments(post.id);
     assert.equal(comments.length, post.commentCount);
     for (const comment of comments) {
       assert.equal(comment.displayName.trim().split(/\s+/).length, 2);
