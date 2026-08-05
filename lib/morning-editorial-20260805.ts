@@ -13,7 +13,7 @@ export const august5MorningPosts: EditorialPost[] = [
     heard: 31,
     same: 22,
     support: 0,
-    commentCount: 4,
+    commentCount: 6,
   },
   {
     id: "jinju-morning-20260805-subscription-cancel-maze",
@@ -27,7 +27,7 @@ export const august5MorningPosts: EditorialPost[] = [
     heard: 33,
     same: 18,
     support: 0,
-    commentCount: 4,
+    commentCount: 6,
   },
   {
     id: "jinju-morning-20260805-mobile-voucher-fee",
@@ -41,7 +41,7 @@ export const august5MorningPosts: EditorialPost[] = [
     heard: 29,
     same: 21,
     support: 0,
-    commentCount: 4,
+    commentCount: 6,
   },
   {
     id: "jinju-morning-20260805-platform-refund-duty",
@@ -55,7 +55,7 @@ export const august5MorningPosts: EditorialPost[] = [
     heard: 30,
     same: 20,
     support: 0,
-    commentCount: 4,
+    commentCount: 6,
   },
   {
     id: "jinju-morning-20260805-small-store-negotiation",
@@ -69,7 +69,7 @@ export const august5MorningPosts: EditorialPost[] = [
     heard: 27,
     same: 25,
     support: 0,
-    commentCount: 4,
+    commentCount: 6,
   },
 ];
 
@@ -86,30 +86,40 @@ const COMMENTS: Record<string, EditorialComment[]> = {
     comment("morning-0805-wedding-2", "예식장 직원", "실제 비용이 커서 안전장치가 필요한 건 사실입니다. 다만 보증보다 계약금과 취소 규정을 명확히 하는 편이 낫겠죠.", "2026-08-05T06:29:00+09:00"),
     comment("morning-0805-wedding-3", "결혼 계산", "사랑은 둘이 시작했는데 계약서는 양가 친척까지 단체 입장시키네요.", "2026-08-05T06:37:00+09:00"),
     comment("morning-0805-wedding-4", "식대 영수증", "보증을 요구하려면 산정 근거와 책임 범위부터 정확히 설명해야 합니다.", "2026-08-05T06:46:00+09:00"),
+    comment("morning-0805-wedding-5", "하객 보증", "신랑 신부는 서로를 평생 책임지기로 했는데 예식장은 갈비탕까지 양가가 책임지라고 하네요.", "2026-08-05T13:22:00+09:00"),
+    comment("morning-0805-wedding-6", "신혼 식사", "축가는 친구가 부르고 식대는 부모님이 보증하고, 정작 신혼부부는 사진 찍느라 밥도 못 먹습니다.", "2026-08-05T13:24:00+09:00"),
   ],
   "jinju-morning-20260805-subscription-cancel-maze": [
     comment("morning-0805-subscription-1", "체험 종료", "가입과 해지는 같은 단계로 가능해야 공정합니다. 들어오는 문은 자동문인데 나가는 문만 비상구예요.", "2026-08-05T08:19:00+09:00"),
     comment("morning-0805-subscription-2", "구독 사용자", "결제일을 확인하지 않은 책임까지 업체에 돌릴 수는 없습니다. 알림을 설정하는 습관도 필요해요.", "2026-08-05T08:26:00+09:00"),
     comment("morning-0805-subscription-3", "설정 탐험", "AI에게 해지 방법을 물었더니 서비스가 자기 생존에 관한 질문이라 잠시 망설이는 것 같았습니다.", "2026-08-05T08:34:00+09:00"),
     comment("morning-0805-subscription-4", "결제 알림", "무료기간 종료 하루 전 알림과 즉시 해지 버튼을 의무화하면 분쟁이 크게 줄 것 같아요.", "2026-08-05T08:43:00+09:00"),
+    comment("morning-0805-subscription-5", "해지 등산가", "가입은 1층인데 해지 버튼은 설정 메뉴 백두산 정상에 있더군요. 정상에는 할인 제안이 또 기다립니다.", "2026-08-05T13:26:00+09:00"),
+    comment("morning-0805-subscription-6", "무료 탈출", "무료체험은 일주일인데 해지법을 찾는 체험은 평생 무료인가 봅니다.", "2026-08-05T13:28:00+09:00"),
   ],
   "jinju-morning-20260805-mobile-voucher-fee": [
     comment("morning-0805-voucher-1", "상품권 손님", "손님은 이미 정가를 지불했습니다. 결제수단 때문에 가게가 손해를 보는 구조는 고쳐야 해요.", "2026-08-05T10:14:00+09:00"),
     comment("morning-0805-voucher-2", "동네 사장", "상품권 덕분에 새 손님이 오는 효과도 있습니다. 수수료 자체보다 비율과 정산기간이 문제죠.", "2026-08-05T10:20:00+09:00"),
     comment("morning-0805-voucher-3", "선물 받은날", "친구는 커피를 선물했고 플랫폼은 사장님께 계산 문제를 선물했네요.", "2026-08-05T10:29:00+09:00"),
     comment("morning-0805-voucher-4", "수수료 공개", "누가 얼마를 부담하는지 계약 전에 투명하게 보여주는 것부터 필요합니다.", "2026-08-05T10:38:00+09:00"),
+    comment("morning-0805-voucher-5", "선물 회계", "받은 사람은 공짜 커피라 웃고, 사장님은 수수료를 계산하고, 상품권 회사만 선물의 구조를 정확히 아네요.", "2026-08-05T13:30:00+09:00"),
+    comment("morning-0805-voucher-6", "쿠폰 산책", "상품권은 친구 손에서 제 손을 거쳐 가게까지 왔는데 돈은 제일 늦게 도착한다니 여행 코스가 너무 깁니다.", "2026-08-05T13:32:00+09:00"),
   ],
   "jinju-morning-20260805-platform-refund-duty": [
     comment("morning-0805-refund-1", "예약 고객", "결제할 때는 플랫폼 고객이고 문제가 생기면 갑자기 숙소 고객이 되는 구조가 가장 답답합니다.", "2026-08-05T11:49:00+09:00"),
     comment("morning-0805-refund-2", "숙소 운영", "플랫폼이 환불을 일방적으로 결정하면 작은 숙소가 억울한 피해를 볼 수도 있습니다. 사실 확인 절차는 필요해요.", "2026-08-05T11:56:00+09:00"),
     comment("morning-0805-refund-3", "고객센터 여행", "방은 한 곳 예약했는데 책임자를 찾느라 플랫폼과 숙소를 왕복했습니다.", "2026-08-05T12:04:00+09:00"),
     comment("morning-0805-refund-4", "중재 기준", "사진 불일치와 시설 고장처럼 객관적으로 확인 가능한 문제부터 플랫폼이 직접 중재했으면 합니다.", "2026-08-05T12:13:00+09:00"),
+    comment("morning-0805-refund-5", "책임 탁구", "플랫폼과 숙소가 책임을 주고받는 동안 고객만 라켓 없이 탁구를 하고 있네요.", "2026-08-05T13:34:00+09:00"),
+    comment("morning-0805-refund-6", "체크인 실패", "예약한 방은 사진과 달랐고 고객센터 답변은 복사한 사진처럼 매번 똑같았습니다.", "2026-08-05T13:36:00+09:00"),
   ],
   "jinju-morning-20260805-small-store-negotiation": [
     comment("morning-0805-negotiation-1", "골목 사장", "각자 협상하라고 하면 사실상 플랫폼이 정한 조건을 받아들이라는 말과 같습니다.", "2026-08-05T12:54:00+09:00"),
     comment("morning-0805-negotiation-2", "소비자 지갑", "협상 결과가 수수료 인하가 아니라 공동 가격 인상으로 이어지지 않도록 기준이 필요해요.", "2026-08-05T13:01:00+09:00"),
     comment("morning-0805-negotiation-3", "단체 채팅", "사장님들은 연합했는데 회의 장소 정하다가 먼저 지칠 것 같습니다.", "2026-08-05T13:08:00+09:00"),
     comment("morning-0805-negotiation-4", "공개 협상", "협상 대상과 결과를 공개하고 소비자 가격 결정은 각 가게에 맡기면 부작용을 줄일 수 있겠네요.", "2026-08-05T13:16:00+09:00"),
+    comment("morning-0805-negotiation-5", "회의 영수증", "가게들이 모여 수수료를 낮추려다 회의할 때 시킨 배달비부터 공동 부담할 것 같습니다.", "2026-08-05T13:38:00+09:00"),
+    comment("morning-0805-negotiation-6", "골목 대표", "플랫폼은 버튼 한 번에 수수료를 바꾸는데 사장님들은 회의 날짜 잡는 데 단체방 메시지 86개가 필요합니다.", "2026-08-05T13:40:00+09:00"),
   ],
 };
 
