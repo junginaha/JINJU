@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { after } from "next/server";
 import { enqueueAutoCommentJob, processAutoCommentJob } from "../../../lib/auto-comment-jobs";
 import { newPostInitialLikes } from "../../../lib/community-settings";
@@ -17,7 +18,32 @@ import { assessPostQuality, POST_MIN_CONTENT_LENGTH } from "../../../lib/post-qu
 
 export const dynamic = "force-dynamic";
 
+async function verifyPublicDatabase() {
+  if (!databaseEnabled()) throw new Error("DATABASE_URL is not configured");
+  await ensureSchema();
+  const sql = db();
+  await sql`
+    SELECT
+      EXISTS(SELECT 1 FROM posts LIMIT 1) AS posts_readable,
+      EXISTS(SELECT 1 FROM comments LIMIT 1) AS comments_readable,
+      EXISTS(SELECT 1 FROM admin_content_overrides LIMIT 1) AS overrides_readable`;
+}
+
 export async function GET(request: Request) {
+  try {
+    await verifyPublicDatabase();
+  } catch (error) {
+    Sentry.captureException(error, { tags: { area: "public-feed", service: "database" } });
+    console.error("[posts] public database unavailable", error);
+    return Response.json({
+      error: "일부 최신 의견을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+      posts: [],
+      total: 0,
+      database: false,
+      fallback: true,
+    }, { status: 503, headers: { "cache-control": "no-store" } });
+  }
+
   const url = new URL(request.url);
   const requestedCategory = url.searchParams.get("category")?.trim() || "전체";
   const category = requestedCategory === "전체" ? "전체" : normalizePublicCategory(requestedCategory);
@@ -29,7 +55,7 @@ export async function GET(request: Request) {
   posts = [...posts].sort((a, b) => sort === "popular"
     ? (b.heard + b.same + b.commentCount * 3) - (a.heard + a.same + a.commentCount * 3)
     : Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  return Response.json({ posts: posts.slice(0, 100), total: posts.length, database: databaseEnabled() }, { headers: { "cache-control": "no-store" } });
+  return Response.json({ posts: posts.slice(0, 100), total: posts.length, database: true, fallback: false }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request) {

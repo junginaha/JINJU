@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import JinjuApp from "@/components/JinjuApp";
+import JinjuApp from "@/components/JinjuAppSafe";
 import { getPublicPost, getPublicPosts, toClientPost } from "@/lib/public-posts";
 import {
   canonicalUrl,
