@@ -1,0 +1,69 @@
+import * as Sentry from "@sentry/nextjs";
+import { db, databaseEnabled } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const headers = {
+  "cache-control": "no-store, max-age=0",
+  "content-type": "application/json; charset=utf-8",
+};
+
+export async function GET() {
+  const checkedAt = new Date().toISOString();
+
+  if (!databaseEnabled()) {
+    const error = new Error("DATABASE_URL is not configured");
+    Sentry.captureException(error, { tags: { area: "health-check", service: "database" } });
+    console.error("[health] database disabled");
+    return Response.json({
+      service: "jinju.kr",
+      status: "degraded",
+      database: "disabled",
+      checkedAt,
+    }, { status: 503, headers });
+  }
+
+  try {
+    const sql = db();
+    const rows = await sql`
+      SELECT
+        COUNT(*) FILTER (
+          WHERE status = 'approved'
+            AND visibility = 'public'
+            AND created_at <= NOW()
+        )::INTEGER AS public_post_count,
+        MAX(created_at) FILTER (
+          WHERE status = 'approved'
+            AND visibility = 'public'
+            AND created_at <= NOW()
+        ) AS latest_post_at,
+        (
+          SELECT COUNT(*)::INTEGER
+          FROM comments
+          WHERE status = 'approved'
+            AND created_at <= NOW()
+        ) AS public_comment_count
+      FROM posts`;
+    const row = rows[0] as Record<string, unknown> | undefined;
+
+    return Response.json({
+      service: "jinju.kr",
+      status: "ok",
+      database: "connected",
+      publicPostCount: Number(row?.public_post_count || 0),
+      publicCommentCount: Number(row?.public_comment_count || 0),
+      latestPostAt: row?.latest_post_at ? new Date(String(row.latest_post_at)).toISOString() : null,
+      checkedAt,
+    }, { status: 200, headers });
+  } catch (error) {
+    Sentry.captureException(error, { tags: { area: "health-check", service: "database" } });
+    console.error("[health] database read failed", error);
+    return Response.json({
+      service: "jinju.kr",
+      status: "degraded",
+      database: "unavailable",
+      checkedAt,
+    }, { status: 503, headers });
+  }
+}
