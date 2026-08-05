@@ -1,0 +1,118 @@
+import type { EditorialComment, EditorialPost } from "./editorial";
+
+export const august5MorningPosts: EditorialPost[] = [
+  {
+    id: "jinju-morning-20260805-wedding-meal-guarantee",
+    title: "결혼식 식대에 신랑과 신부가 각각 보증까지 해야 하나요",
+    content: "예식장 계약서를 보는데 식대 보증인을 신랑과 신부 쪽에서 각각 세워야 한다고 했습니다.\n\n이미 계약금도 내는데 양가가 서로의 식사비까지 보증해야 한다는 설명은 조금 이상했어요. 예식장은 예약 취소와 미납을 막기 위한 장치라고 합니다.\n\n큰돈이 오가는 계약이라 보호장치가 필요하다는 건 이해합니다. 그래도 결혼 시작부터 두 집안의 신용을 확인하는 방식이 꼭 필요할까요?",
+    category: "돈",
+    displayName: "예식장 계약",
+    mode: "의견 묻기",
+    createdAt: "2026-08-05T06:20:00+09:00",
+    updatedAt: "2026-08-05T06:20:00+09:00",
+    heard: 31,
+    same: 22,
+    support: 0,
+    commentCount: 4,
+  },
+  {
+    id: "jinju-morning-20260805-subscription-cancel-maze",
+    title: "무료체험 가입은 10초인데 해지는 왜 숨은그림찾기인가요",
+    content: "AI 서비스를 일주일 무료로 써봤습니다.\n\n가입할 때는 버튼 하나였는데 해지하려니 설정 안쪽을 몇 번이나 들어가야 했고, 중간마다 할인 제안과 확인창이 계속 나왔어요.\n\n제가 동의해서 시작한 구독이니 날짜를 챙길 책임도 있습니다. 그래도 가입보다 해지를 일부러 어렵게 만든다면 선택을 돕는 디자인이 아니라 포기를 기다리는 디자인 아닐까요?",
+    category: "돈",
+    displayName: "구독 미로",
+    mode: "의견 묻기",
+    createdAt: "2026-08-05T08:15:00+09:00",
+    updatedAt: "2026-08-05T08:15:00+09:00",
+    heard: 33,
+    same: 18,
+    support: 0,
+    commentCount: 4,
+  },
+  {
+    id: "jinju-morning-20260805-mobile-voucher-fee",
+    title: "모바일 상품권으로 결제하면 동네 가게가 손해를 봐야 하나요",
+    content: "친구에게 받은 모바일 상품권으로 동네 가게에서 결제했습니다.\n\n직원분이 상품권은 정산도 늦고 수수료 부담도 있다고 말하셔서 괜히 미안해졌어요. 손님에게는 현금과 같은 선물인데 가게에는 할인된 매출처럼 들어온다는 게 이상했습니다.\n\n상품권 회사가 고객을 모았으니 수수료가 필요한 건 이해합니다. 그렇다고 그 비용을 거절하기 어려운 작은 가게가 대부분 부담하는 것이 맞을까요?",
+    category: "사회",
+    displayName: "작은 매장",
+    mode: "의견 묻기",
+    createdAt: "2026-08-05T10:10:00+09:00",
+    updatedAt: "2026-08-05T10:10:00+09:00",
+    heard: 29,
+    same: 21,
+    support: 0,
+    commentCount: 4,
+  },
+  {
+    id: "jinju-morning-20260805-platform-refund-duty",
+    title: "숙소 환불 문제를 플랫폼이 판매자와 해결하라고만 해도 될까요",
+    content: "숙박앱에서 사진과 다른 방을 배정받아 환불을 요청했습니다.\n\n플랫폼은 숙소가 올린 정보라며 업주와 직접 협의하라고 했고, 숙소는 예약과 결제가 플랫폼을 통해 이뤄졌다며 다시 고객센터로 보내더군요.\n\n플랫폼이 모든 숙소를 직접 확인하기 어렵다는 건 압니다. 하지만 결제 수수료를 받고 거래를 연결했다면 문제가 생겼을 때도 일정한 책임을 져야 하지 않을까요?",
+    category: "질문",
+    displayName: "예약 분쟁",
+    mode: "의견 묻기",
+    createdAt: "2026-08-05T11:45:00+09:00",
+    updatedAt: "2026-08-05T11:45:00+09:00",
+    heard: 30,
+    same: 20,
+    support: 0,
+    commentCount: 4,
+  },
+  {
+    id: "jinju-morning-20260805-small-store-negotiation",
+    title: "작은 가게들이 함께 수수료를 협상하면 담합일까요",
+    content: "동네 가게들은 배달과 결제 수수료가 부담돼도 혼자서는 조건을 바꾸기 어렵다고 합니다.\n\n여러 가게가 모여 플랫폼과 협상하면 힘의 차이를 줄일 수 있지만, 사업자들이 함께 조건을 정하는 일이 담합으로 번질 수 있다는 걱정도 있겠죠.\n\n큰 회사와 대화할 힘을 만들기 위한 연대와 소비자 가격을 함께 올리는 담합은 어디서 구분해야 할까요?",
+    category: "사회",
+    displayName: "골목 협상",
+    mode: "의견 묻기",
+    createdAt: "2026-08-05T12:50:00+09:00",
+    updatedAt: "2026-08-05T12:50:00+09:00",
+    heard: 27,
+    same: 25,
+    support: 0,
+    commentCount: 4,
+  },
+];
+
+const comment = (
+  id: string,
+  displayName: string,
+  body: string,
+  createdAt: string,
+): EditorialComment => ({ id, displayName, body, createdAt });
+
+const COMMENTS: Record<string, EditorialComment[]> = {
+  "jinju-morning-20260805-wedding-meal-guarantee": [
+    comment("morning-0805-wedding-1", "계약서 정독", "미납 위험이 있다면 계약 당사자 한 사람에게 책임을 물으면 됩니다. 양가를 모두 묶는 건 과하다고 봐요.", "2026-08-05T06:24:00+09:00"),
+    comment("morning-0805-wedding-2", "예식장 직원", "실제 비용이 커서 안전장치가 필요한 건 사실입니다. 다만 보증보다 계약금과 취소 규정을 명확히 하는 편이 낫겠죠.", "2026-08-05T06:29:00+09:00"),
+    comment("morning-0805-wedding-3", "결혼 계산", "사랑은 둘이 시작했는데 계약서는 양가 친척까지 단체 입장시키네요.", "2026-08-05T06:37:00+09:00"),
+    comment("morning-0805-wedding-4", "식대 영수증", "보증을 요구하려면 산정 근거와 책임 범위부터 정확히 설명해야 합니다.", "2026-08-05T06:46:00+09:00"),
+  ],
+  "jinju-morning-20260805-subscription-cancel-maze": [
+    comment("morning-0805-subscription-1", "체험 종료", "가입과 해지는 같은 단계로 가능해야 공정합니다. 들어오는 문은 자동문인데 나가는 문만 비상구예요.", "2026-08-05T08:19:00+09:00"),
+    comment("morning-0805-subscription-2", "구독 사용자", "결제일을 확인하지 않은 책임까지 업체에 돌릴 수는 없습니다. 알림을 설정하는 습관도 필요해요.", "2026-08-05T08:26:00+09:00"),
+    comment("morning-0805-subscription-3", "설정 탐험", "AI에게 해지 방법을 물었더니 서비스가 자기 생존에 관한 질문이라 잠시 망설이는 것 같았습니다.", "2026-08-05T08:34:00+09:00"),
+    comment("morning-0805-subscription-4", "결제 알림", "무료기간 종료 하루 전 알림과 즉시 해지 버튼을 의무화하면 분쟁이 크게 줄 것 같아요.", "2026-08-05T08:43:00+09:00"),
+  ],
+  "jinju-morning-20260805-mobile-voucher-fee": [
+    comment("morning-0805-voucher-1", "상품권 손님", "손님은 이미 정가를 지불했습니다. 결제수단 때문에 가게가 손해를 보는 구조는 고쳐야 해요.", "2026-08-05T10:14:00+09:00"),
+    comment("morning-0805-voucher-2", "동네 사장", "상품권 덕분에 새 손님이 오는 효과도 있습니다. 수수료 자체보다 비율과 정산기간이 문제죠.", "2026-08-05T10:20:00+09:00"),
+    comment("morning-0805-voucher-3", "선물 받은날", "친구는 커피를 선물했고 플랫폼은 사장님께 계산 문제를 선물했네요.", "2026-08-05T10:29:00+09:00"),
+    comment("morning-0805-voucher-4", "수수료 공개", "누가 얼마를 부담하는지 계약 전에 투명하게 보여주는 것부터 필요합니다.", "2026-08-05T10:38:00+09:00"),
+  ],
+  "jinju-morning-20260805-platform-refund-duty": [
+    comment("morning-0805-refund-1", "예약 고객", "결제할 때는 플랫폼 고객이고 문제가 생기면 갑자기 숙소 고객이 되는 구조가 가장 답답합니다.", "2026-08-05T11:49:00+09:00"),
+    comment("morning-0805-refund-2", "숙소 운영", "플랫폼이 환불을 일방적으로 결정하면 작은 숙소가 억울한 피해를 볼 수도 있습니다. 사실 확인 절차는 필요해요.", "2026-08-05T11:56:00+09:00"),
+    comment("morning-0805-refund-3", "고객센터 여행", "방은 한 곳 예약했는데 책임자를 찾느라 플랫폼과 숙소를 왕복했습니다.", "2026-08-05T12:04:00+09:00"),
+    comment("morning-0805-refund-4", "중재 기준", "사진 불일치와 시설 고장처럼 객관적으로 확인 가능한 문제부터 플랫폼이 직접 중재했으면 합니다.", "2026-08-05T12:13:00+09:00"),
+  ],
+  "jinju-morning-20260805-small-store-negotiation": [
+    comment("morning-0805-negotiation-1", "골목 사장", "각자 협상하라고 하면 사실상 플랫폼이 정한 조건을 받아들이라는 말과 같습니다.", "2026-08-05T12:54:00+09:00"),
+    comment("morning-0805-negotiation-2", "소비자 지갑", "협상 결과가 수수료 인하가 아니라 공동 가격 인상으로 이어지지 않도록 기준이 필요해요.", "2026-08-05T13:01:00+09:00"),
+    comment("morning-0805-negotiation-3", "단체 채팅", "사장님들은 연합했는데 회의 장소 정하다가 먼저 지칠 것 같습니다.", "2026-08-05T13:08:00+09:00"),
+    comment("morning-0805-negotiation-4", "공개 협상", "협상 대상과 결과를 공개하고 소비자 가격 결정은 각 가게에 맡기면 부작용을 줄일 수 있겠네요.", "2026-08-05T13:16:00+09:00"),
+  ],
+};
+
+export function august5MorningComments(id: string) {
+  return COMMENTS[id] ?? [];
+}
