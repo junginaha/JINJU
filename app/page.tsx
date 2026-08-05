@@ -52,13 +52,14 @@ const fastEntryCss = `
 `;
 
 export default async function Home() {
-  const initialPosts = (await getPublicPosts()).slice(0, 100).map(toClientPost);
+  const publicPosts = await getPublicPosts();
+  const initialPosts = publicPosts.slice(0, 100).map(toClientPost);
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: fastEntryCss }} />
       <JinjuRuntimePatch />
-      <JinjuApp initialPosts={initialPosts} />
+      <JinjuApp initialPosts={initialPosts} initialTotal={publicPosts.length} />
     </>
   );
 }
