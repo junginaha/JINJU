@@ -17,8 +17,9 @@ test("escalates repeated public abuse without affecting the first request window
   assert.equal(blockDurationMsForStrike(4, 10 * 60_000), 30 * 24 * 60 * 60_000);
 });
 
-test("requires Turnstile only on the canonical public domains", () => {
+test("requires Turnstile on every public production address", () => {
   assert.equal(isJinjuPublicHost("xn--o55b9n.kr"), true);
   assert.equal(isJinjuPublicHost("www.xn--o55b9n.kr"), true);
+  assert.equal(isJinjuPublicHost("jinju-two.vercel.app"), true);
   assert.equal(isJinjuPublicHost("preview.vercel.app"), false);
 });
