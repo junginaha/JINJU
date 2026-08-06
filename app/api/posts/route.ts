@@ -12,6 +12,7 @@ import { getPublicPosts } from "../../../lib/public-posts";
 import { rateLimit } from "../../../lib/rate-limit";
 import { notifySearchIndexes } from "../../../lib/search-indexing";
 import { verifyReviewToken } from "../../../lib/review-token";
+import { turnstileFailure, verifyTurnstile } from "../../../lib/turnstile";
 import { hasPii } from "../../../lib/safety";
 import { generateCoreTitle } from "../../../lib/title";
 import { assessPostQuality, POST_MIN_CONTENT_LENGTH } from "../../../lib/post-quality";
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
   const limit = await rateLimit(request, "post", 6, 10 * 60_000);
   if (!limit.allowed) return Response.json({ error: "짧은 시간에 등록 요청이 많았습니다. 잠시 후 다시 시도해주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
   if (!databaseEnabled()) return Response.json({ error: "정식 저장소 연결이 필요합니다." }, { status: 503 });
-  const payload = await request.json() as { title?: string; titleGenerated?: boolean; content?: string; category?: string; reviewToken?: string };
+  const payload = await request.json() as { title?: string; titleGenerated?: boolean; content?: string; category?: string; reviewToken?: string; turnstileToken?: string };
   const content = payload.content?.trim() ?? "";
   const submittedTitle = payload.title?.trim() ?? "";
   const qualityTitle = payload.titleGenerated ? "" : submittedTitle;
@@ -73,6 +74,10 @@ export async function POST(request: Request) {
   }
   const quality = assessPostQuality(qualityTitle, content);
   const verifiedReview = await verifyReviewToken(payload.reviewToken || "", title, content, category);
+  if (!verifiedReview) {
+    const turnstile = await verifyTurnstile(request, payload.turnstileToken, "post");
+    if (!turnstile.ok) return turnstileFailure(turnstile);
+  }
   const review = !quality.passed || hasPii(`${title} ${content}`)
     ? await reviewSubmission(qualityTitle, content, "post")
     : verifiedReview || await reviewSubmission(qualityTitle, content, "post");
