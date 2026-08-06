@@ -15,7 +15,11 @@ declare global {
   }
 }
 
-const PUBLIC_HOSTS = new Set(["xn--o55b9n.kr", "www.xn--o55b9n.kr"]);
+const PUBLIC_HOSTS = new Set([
+  "xn--o55b9n.kr",
+  "www.xn--o55b9n.kr",
+  "jinju-two.vercel.app",
+]);
 const SCRIPT_ID = "jinju-turnstile-script";
 const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
