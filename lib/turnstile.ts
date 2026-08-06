@@ -1,4 +1,8 @@
-const PUBLIC_HOSTS = new Set(["xn--o55b9n.kr", "www.xn--o55b9n.kr"]);
+const PUBLIC_HOSTS = new Set([
+  "xn--o55b9n.kr",
+  "www.xn--o55b9n.kr",
+  "jinju-two.vercel.app",
+]);
 
 type TurnstileResponse = {
   success?: boolean;
