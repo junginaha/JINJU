@@ -188,6 +188,10 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     }
   }, []);
 
+  const syncPostComments = useCallback((postId:string, comments:Comment[]) => {
+    setPosts((current) => current.map((post) => post.id===postId ? {...post,comments} : post));
+  }, []);
+
   useEffect(() => { void loadPosts(); }, [loadPosts]);
 
   useEffect(()=>{
@@ -813,6 +817,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           onCommentVoiceSubmitted={completeCommentVoice}
           canDeleteComment={(commentId)=>Boolean(commentDeleteKeys[String(commentId)])}
           onDeleteComment={(commentId)=>deleteComment(selectedPost.id,commentId)}
+          onCommentsLoaded={syncPostComments}
         />
       ) : (
         <div className="chat-app">
@@ -942,7 +947,7 @@ function PostCard({ post, reactedKind, reactingKind, onOpen, onReact, onShare, o
   );
 }
 
-function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare, onFeedback, onComment, commentVoiceActive, commentVoicePending, commentVoiceState, commentVoiceMessage, onToggleCommentVoice, onCommentVoiceEdit, onCommentVoiceSubmitted, canDeleteComment, onDeleteComment }: {
+function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare, onFeedback, onComment, commentVoiceActive, commentVoicePending, commentVoiceState, commentVoiceMessage, onToggleCommentVoice, onCommentVoiceEdit, onCommentVoiceSubmitted, canDeleteComment, onDeleteComment, onCommentsLoaded }: {
   post: Post;
   reactedKind: ReactionKind | null;
   reactingKind: "heard" | "same" | null;
@@ -960,6 +965,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
   onCommentVoiceSubmitted:()=>void;
   canDeleteComment:(commentId:string|number)=>boolean;
   onDeleteComment:(commentId:string|number)=>Promise<void>;
+  onCommentsLoaded:(postId:string,comments:Comment[])=>void;
 }) {
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
@@ -972,6 +978,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [commentsLoadError, setCommentsLoadError] = useState("");
   const commentVoiceBusy=commentVoiceActive&&(commentVoicePending||commentVoiceState!=="idle");
+  const displayedCommentCount=commentsLoading||commentsLoadError ? "…" : detailComments.length;
 
   const loadComments = useCallback(async () => {
     setCommentsLoading(true);
@@ -980,13 +987,15 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
       const response = await fetch(`/api/posts/${encodeURIComponent(post.id)}/comments`, { cache: "no-store" });
       const data = await response.json() as { comments?: Comment[]; error?: string };
       if (!response.ok) throw new Error(data.error || "댓글을 불러오지 못했습니다.");
-      setDetailComments((data.comments ?? []).filter((item) => item.body));
+      const loadedComments=(data.comments ?? []).filter((item) => item.body);
+      setDetailComments(loadedComments);
+      onCommentsLoaded(post.id,loadedComments);
     } catch (error) {
       setCommentsLoadError(error instanceof Error ? error.message : "댓글을 불러오지 못했습니다.");
     } finally {
       setCommentsLoading(false);
     }
-  }, [post.id]);
+  }, [onCommentsLoaded, post.id]);
 
   useEffect(() => {
     try{setComment(sessionStorage.getItem(`jinju-comment-draft:${post.id}`)||"")}catch{/* Best effort draft restore. */}
@@ -1027,10 +1036,10 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
           <div className="post-meta"><span>{post.category}{post.displayName ? ` · ${post.displayName}` : ""}</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />
-          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button><a href="#comment-list">댓글 <span>{commentsLoading?"…":detailComments.length}</span></a><button onClick={onShare} type="button"><span className="share-label-motion">공유하기</span></button><button type="button" onClick={onFeedback}>의견 보내기</button></div>
+          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button><a href="#comment-list">댓글 <span>{displayedCommentCount}</span></a><button onClick={onShare} type="button"><span className="share-label-motion">공유하기</span></button><button type="button" onClick={onFeedback}>의견 보내기</button></div>
         </article>
         <section className="comment-list" id="comment-list" aria-label="댓글 목록">
-          <h2>댓글 {commentsLoading ? "…" : detailComments.length}</h2>
+          <h2>댓글 {displayedCommentCount}</h2>
           {commentsLoading
             ? <p className="comments-loading" aria-live="polite">댓글을 불러오는 중입니다.</p>
             : commentsLoadError

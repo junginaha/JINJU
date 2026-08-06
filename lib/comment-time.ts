@@ -19,6 +19,18 @@ function stableGap(commentId: string | number) {
 }
 
 /**
+ * Returns exactly the comments that are public at the supplied moment.
+ * Feed counts and detail responses must both use this boundary so scheduled
+ * comments are never counted before they can be opened.
+ */
+export function visibleCommentsAt<T extends TimedComment>(comments: T[], now = Date.now()): T[] {
+  return comments.filter((comment) => {
+    const timestamp = parsedTime(comment.createdAt);
+    return timestamp === null || timestamp <= now;
+  });
+}
+
+/**
  * Keeps comments chronological and guarantees that no public comment appears
  * before its post. Valid timestamps are preserved whenever possible.
  */
@@ -27,11 +39,7 @@ export function normalizeCommentTimes<T extends TimedComment>(postCreatedAt: str
   const postTime = parsedPostTime ?? Math.min(now, Date.now());
   const latestAllowed = Math.max(postTime + comments.length, now);
 
-  const ordered = comments
-    .filter((comment) => {
-      const timestamp = parsedTime(comment.createdAt);
-      return timestamp === null || timestamp <= now;
-    })
+  const ordered = visibleCommentsAt(comments, now)
     .map((comment, index) => ({ comment, index, timestamp: parsedTime(comment.createdAt) }))
     .sort((left, right) => {
       if (left.timestamp === null && right.timestamp === null) return left.index - right.index;
