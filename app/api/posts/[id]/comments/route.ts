@@ -7,7 +7,10 @@ import { generateUniqueJinjuDisplayName } from "../../../../../lib/display-name"
 import { reviewSubmission } from "../../../../../lib/ai-review";
 import { getPublicPost } from "../../../../../lib/public-posts";
 import { rateLimit } from "../../../../../lib/rate-limit";
-import { supplementalComments } from "../../../../../lib/supplemental-comments";
+import {
+  keepsSupplementalCommentsWithAutoSet,
+  supplementalComments,
+} from "../../../../../lib/supplemental-comments";
 import {
   combineBaseAndStoredComments,
   hasCompleteAutoCommentSet,
@@ -48,7 +51,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (!row && !builtIn) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   const rows = await db()`SELECT id, content, display_name, created_at FROM comments WHERE post_id = ${id} AND status = 'approved' AND created_at <= NOW() ORDER BY created_at ASC LIMIT 200`;
   const stored = rows.map((storedRow: Record<string, unknown>) => ({ id: String(storedRow.id), body: String(storedRow.content), displayName: String(storedRow.display_name || "익명"), createdAt: new Date(String(storedRow.created_at)).toISOString() }));
-  const visibleBaseComments = !builtIn && hasCompleteAutoCommentSet(Number(row?.auto_comment_count || 0))
+  const visibleBaseComments = !builtIn
+    && hasCompleteAutoCommentSet(Number(row?.auto_comment_count || 0))
+    && !keepsSupplementalCommentsWithAutoSet(id)
     ? []
     : baseComments;
   const comments = normalizeCommentTimes(
