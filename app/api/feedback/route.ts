@@ -1,6 +1,7 @@
 import { db, databaseEnabled, ensureSchema, hash, token } from "../../../lib/db";
 import { getPublicPost } from "../../../lib/public-posts";
 import { anonymousActorHash, rateLimit } from "../../../lib/rate-limit";
+import { turnstileFailure, verifyTurnstile } from "../../../lib/turnstile";
 
 const REASONS = ["개인정보 노출", "실명 거론·명예훼손", "혐오·괴롭힘", "불법·위험한 내용", "광고·도배", "기타"];
 
@@ -15,12 +16,14 @@ export async function POST(request: Request) {
   const limit = await rateLimit(request, "feedback", 6, 60 * 60_000);
   if (!limit.allowed) return Response.json({ error: "짧은 시간에 의견이 많이 접수됐습니다. 잠시 후 다시 시도해주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
   if (!databaseEnabled()) return Response.json({ error: "의견 접수 저장소가 연결되지 않았습니다." }, { status: 503 });
-  const payload = await request.json().catch(() => ({})) as { postId?: string; reason?: string; detail?: string };
+  const payload = await request.json().catch(() => ({})) as { postId?: string; reason?: string; detail?: string; turnstileToken?: string };
   const postId = payload.postId?.trim() || "";
   const reason = payload.reason?.trim() || "";
   const detail = payload.detail?.trim() || "";
   if (!postId || !REASONS.includes(reason) || detail.length > 300) return Response.json({ error: "대상과 의견 내용을 확인해주세요." }, { status: 400 });
   if (!await getPublicPost(postId)) return Response.json({ error: "의견을 보낼 글을 찾을 수 없습니다." }, { status: 404 });
+  const turnstile = await verifyTurnstile(request, payload.turnstileToken, "feedback");
+  if (!turnstile.ok) return turnstileFailure(turnstile);
   await ensureSchema();
   await db()`DELETE FROM feedback_reports WHERE expires_at <= NOW()`;
   const reporterHash = await anonymousActorHash(request, "feedback-reporter");
@@ -51,6 +54,8 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const limit = await rateLimit(request, "feedback-status", 30, 10 * 60_000);
+  if (!limit.allowed) return Response.json({ error: "확인 요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }, { status: 429, headers: { "retry-after": String(limit.retryAfter) } });
   if (!databaseEnabled()) return Response.json({ error: "의견 접수 저장소가 연결되지 않았습니다." }, { status: 503 });
   const url = new URL(request.url);
   const receipt = url.searchParams.get("receipt")?.trim().toUpperCase() || "";
