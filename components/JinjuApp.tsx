@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import Intro from "./Intro";
 import PostTemperature from "./PostTemperature";
 import FeedbackDialog from "./FeedbackDialog";
+import TurnstileChallenge from "./TurnstileChallenge";
 import { formatCommentTime } from "../lib/comment-time";
 import {
   activeReactionHistory,
@@ -156,6 +157,9 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [body, setBody] = useState("");
   const [submitStatus, setSubmitStatus] = useState("");
   const [submitBusy,setSubmitBusy]=useState(false);
+  const [postTurnstileToken,setPostTurnstileToken]=useState("");
+  const [postTurnstileRequired,setPostTurnstileRequired]=useState(false);
+  const [postTurnstileReset,setPostTurnstileReset]=useState(0);
   const [reviewFeedback,setReviewFeedback]=useState<ReviewFeedback|null>(null);
   const [pendingNotice,setPendingNotice]=useState(false);
   const [draftReady,setDraftReady]=useState(false);
@@ -636,11 +640,12 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     event.preventDefault();
     if (body.trim().length < 30) { setSubmitStatus("상황과 느낀 점을 30자 이상 적어주세요."); return; }
     if(submitBusy)return;
+    if(postTurnstileRequired&&!postTurnstileToken){setSubmitStatus("보안 확인이 끝난 뒤 다시 눌러주세요.");return}
     setSubmitBusy(true);
     setReviewFeedback(null);
     setSubmitStatus("게시 전 우리를 지키는 표현을 확인하고 있어요.");
     try {
-      const reviewResponse = await fetch("/api/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, text: body, category }) });
+      const reviewResponse = await fetch("/api/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, text: body, category, turnstileToken: postTurnstileToken }) });
       const review = await reviewResponse.json() as ReviewFeedback & { error?: string };
       if (!reviewResponse.ok) { setSubmitStatus(review.error || "검수하지 못했습니다. 잠시 후 다시 시도해주세요."); return; }
       const finalTitle = title.trim() || review.suggestedTitle || "익명의 의견";
@@ -654,6 +659,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       setSubmitStatus("연결을 확인한 뒤 다시 시도해주세요. 초안은 그대로 보관되어 있습니다.");
     } finally {
       setSubmitBusy(false);
+      setPostTurnstileToken("");
+      setPostTurnstileReset((value)=>value+1);
     }
   }
 
@@ -702,10 +709,10 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     }
   }
 
-  async function addComment(postId: string, comment: string):Promise<Comment> {
+  async function addComment(postId: string, comment: string, turnstileToken: string):Promise<Comment> {
     const trimmed = comment.trim().slice(0, 2000);
     if (!trimmed) throw new Error("댓글을 두 글자 이상 적어주세요.");
-    const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: trimmed }) });
+    const response = await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: trimmed, turnstileToken }) });
     const data = await response.json() as { error?: string; id?: string;deleteKey?:string; body?: string; createdAt?: string; displayName?: string; review?: ReviewFeedback };
     if (response.status === 422 && data.review) throw new CommentReviewError(data.review);
     if (!response.ok) throw new Error(data.error || "댓글을 등록할 수 없습니다.");
@@ -740,6 +747,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     setMobileMenuOpen(false);
     setPublishedPostId(null);
     setSubmitStatus("");
+    setPostTurnstileToken("");
+    setPostTurnstileReset((value)=>value+1);
     setComposerOpen(true);
   }
 
@@ -792,8 +801,9 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
             <input ref={titleInputRef} className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
             <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder="편하게 적어주세요." aria-label="의견 본문" rows={10} />
             {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
+            <TurnstileChallenge action="post" resetSignal={postTurnstileReset} onToken={setPostTurnstileToken} onRequiredChange={setPostTurnstileRequired} />
             {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
-            <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState!=="idle"?" listening":""}`} onClick={()=>void toggleVoice()} type="button" aria-pressed={(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력${voiceState==="transcribing"?" 다시 시작":""}`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy}><span>{submitBusy?"확인 중…":"게시 전 확인"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
+            <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState!=="idle"?" listening":""}`} onClick={()=>void toggleVoice()} type="button" aria-pressed={(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력${voiceState==="transcribing"?" 다시 시작":""}`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy||(postTurnstileRequired&&!postTurnstileToken)}><span>{submitBusy?"확인 중…":"게시 전 확인"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
           </form>
         </div>
       </section>}
@@ -807,7 +817,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           reactingKind={reacting?.postId===selectedPost.id?reacting.kind:null}
           onShare={() => share(selectedPost)}
           onFeedback={() => openFeedback(selectedPost)}
-          onComment={(comment) => addComment(selectedPost.id, comment)}
+          onComment={(comment,turnstileToken) => addComment(selectedPost.id, comment, turnstileToken)}
           commentVoiceActive={activeVoiceField==="comment"}
           commentVoicePending={voiceStartPendingRef.current}
           commentVoiceState={voiceState}
@@ -955,7 +965,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
   onReact: (kind: "heard" | "same") => void;
   onShare: () => void;
   onFeedback: () => void;
-  onComment: (comment: string) => Promise<Comment>;
+  onComment: (comment: string, turnstileToken: string) => Promise<Comment>;
   commentVoiceActive:boolean;
   commentVoicePending:boolean;
   commentVoiceState:VoiceState;
@@ -972,6 +982,9 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
   const [commentStatus, setCommentStatus] = useState("");
   const [commentReview, setCommentReview] = useState<ReviewFeedback|null>(null);
   const [commentBusy,setCommentBusy]=useState(false);
+  const [commentTurnstileToken,setCommentTurnstileToken]=useState("");
+  const [commentTurnstileRequired,setCommentTurnstileRequired]=useState(false);
+  const [commentTurnstileReset,setCommentTurnstileReset]=useState(0);
   const [commentDraftReady,setCommentDraftReady]=useState(false);
   const [deleteBusy,setDeleteBusy]=useState<string|null>(null);
   const [detailComments, setDetailComments] = useState<Comment[]>(post.comments.filter((item) => item.body));
@@ -1008,12 +1021,13 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
   async function submitComment(event: FormEvent) {
     event.preventDefault();
     if (!comment.trim()||commentBusy||commentVoiceBusy) return;
+    if(commentTurnstileRequired&&!commentTurnstileToken){setCommentError("보안 확인이 끝난 뒤 다시 눌러주세요.");return}
     setCommentError("");
     setCommentReview(null);
     setCommentStatus("게시 전 우리를 지키는 표현을 확인하고 있어요.");
     setCommentBusy(true);
     try {
-      const created=await onComment(comment);
+      const created=await onComment(comment,commentTurnstileToken);
       setDetailComments((current) => [...current, created]);
       onCommentVoiceSubmitted();
       setComment("");
@@ -1023,6 +1037,8 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
     } finally {
       setCommentStatus("");
       setCommentBusy(false);
+      setCommentTurnstileToken("");
+      setCommentTurnstileReset((value)=>value+1);
     }
   }
 
@@ -1052,10 +1068,11 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
           <textarea value={comment} onChange={(event) => {onCommentVoiceEdit();setCommentReview(null);setCommentStatus("");setComment(event.target.value.slice(0, 2000))}} maxLength={2000} rows={5} placeholder="내가 겪은 상황과 느낀 점을 적어주세요." aria-label="댓글 내용" aria-describedby="comment-voice-status comment-safety-status" />
           <span className="search-voice-status" id="comment-voice-status" role="status" aria-live="polite">{commentVoiceMessage}</span>
           {commentVoiceActive&&commentVoiceMessage&&<p className="voice-message">{commentVoiceMessage}</p>}
+          <TurnstileChallenge action="comment" resetSignal={commentTurnstileReset} onToken={setCommentTurnstileToken} onRequiredChange={setCommentTurnstileRequired} />
           {commentStatus && <p className="comment-status" id="comment-safety-status" role="status">{commentStatus}</p>}
           {commentReview && <p className="comment-review" id="comment-safety-status" role="alert"><strong>이 문장만 조금 바꾸면 올릴 수 있어요.</strong>{(commentReview.suggestion||commentReview.explanation)&&<span>{commentReview.suggestion||commentReview.explanation}</span>}</p>}
           {commentError && <p className="comment-error" role="alert">{commentError}</p>}
-          <div className="comment-footer"><span>{comment.length}/2,000 · 입력 내용은 등록 전까지 이 기기에 보관됩니다</span><div className="comment-actions"><button className={`comment-voice-button${commentVoiceBusy?" listening":""}`} onClick={()=>void onToggleCommentVoice(comment,(value)=>{setCommentReview(null);setCommentStatus("");setComment(value.slice(0,2000))})} type="button" disabled={commentBusy||commentVoicePending} aria-pressed={commentVoiceActive&&commentVoiceState==="recording"} aria-label={commentVoicePending?"댓글 음성 연결 중":commentVoiceActive&&commentVoiceState==="recording"?"댓글 음성 입력 중지":commentVoiceActive&&commentVoiceState==="transcribing"?"댓글 음성 입력 다시 시작":"댓글 음성 입력"}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button type="submit" disabled={commentBusy||commentVoiceBusy}>{commentBusy?"확인 중…":"댓글 남기기"}</button></div></div>
+          <div className="comment-footer"><span>{comment.length}/2,000 · 입력 내용은 등록 전까지 이 기기에 보관됩니다</span><div className="comment-actions"><button className={`comment-voice-button${commentVoiceBusy?" listening":""}`} onClick={()=>void onToggleCommentVoice(comment,(value)=>{setCommentReview(null);setCommentStatus("");setComment(value.slice(0,2000))})} type="button" disabled={commentBusy||commentVoicePending} aria-pressed={commentVoiceActive&&commentVoiceState==="recording"} aria-label={commentVoicePending?"댓글 음성 연결 중":commentVoiceActive&&commentVoiceState==="recording"?"댓글 음성 입력 중지":commentVoiceActive&&commentVoiceState==="transcribing"?"댓글 음성 입력 다시 시작":"댓글 음성 입력"}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button type="submit" disabled={commentBusy||commentVoiceBusy||(commentTurnstileRequired&&!commentTurnstileToken)}>{commentBusy?"확인 중…":"댓글 남기기"}</button></div></div>
         </form>
       </div>
     </main>

@@ -11,6 +11,11 @@ const headers = {
 
 export async function GET() {
   const checkedAt = new Date().toISOString();
+  const abuseProtection = {
+    hmac: Boolean(process.env.ABUSE_HMAC_SECRET),
+    turnstile: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY),
+  };
+  const protectionReady = abuseProtection.hmac && abuseProtection.turnstile;
 
   if (!databaseEnabled()) {
     const error = new Error("DATABASE_URL is not configured");
@@ -20,6 +25,7 @@ export async function GET() {
       service: "jinju.kr",
       status: "degraded",
       database: "disabled",
+      abuseProtection,
       checkedAt,
     }, { status: 503, headers });
   }
@@ -49,13 +55,14 @@ export async function GET() {
 
     return Response.json({
       service: "jinju.kr",
-      status: "ok",
+      status: protectionReady ? "ok" : "degraded",
       database: "connected",
+      abuseProtection,
       publicPostCount: Number(row?.public_post_count || 0),
       publicCommentCount: Number(row?.public_comment_count || 0),
       latestPostAt: row?.latest_post_at ? new Date(String(row.latest_post_at)).toISOString() : null,
       checkedAt,
-    }, { status: 200, headers });
+    }, { status: protectionReady ? 200 : 503, headers });
   } catch (error) {
     Sentry.captureException(error, { tags: { area: "health-check", service: "database" } });
     console.error("[health] database read failed", error);
@@ -63,6 +70,7 @@ export async function GET() {
       service: "jinju.kr",
       status: "degraded",
       database: "unavailable",
+      abuseProtection,
       checkedAt,
     }, { status: 503, headers });
   }

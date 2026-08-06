@@ -80,6 +80,17 @@ export async function ensureSchema() {
           PRIMARY KEY (scope, actor_hash, window_start)
         )`;
       await sql`
+        CREATE TABLE IF NOT EXISTS abuse_restrictions (
+          scope TEXT NOT NULL,
+          actor_hash TEXT NOT NULL,
+          strike_count INTEGER NOT NULL DEFAULT 0,
+          blocked_until TIMESTAMPTZ NOT NULL,
+          last_window_start BIGINT NOT NULL,
+          last_violation_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          expires_at TIMESTAMPTZ NOT NULL,
+          PRIMARY KEY (scope, actor_hash)
+        )`;
+      await sql`
         CREATE TABLE IF NOT EXISTS zk_members (
           member_index BIGSERIAL PRIMARY KEY,
           commitment TEXT NOT NULL UNIQUE,
@@ -155,6 +166,7 @@ export async function ensureSchema() {
       await sql`CREATE INDEX IF NOT EXISTS auto_comment_jobs_due_idx ON auto_comment_jobs(status, next_attempt_at, updated_at)`;
       await sql`CREATE INDEX IF NOT EXISTS admin_sessions_expiry_idx ON admin_sessions(expires_at)`;
       await sql`CREATE INDEX IF NOT EXISTS rate_limits_expiry_idx ON rate_limits(expires_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS abuse_restrictions_expiry_idx ON abuse_restrictions(expires_at)`;
       await sql`CREATE INDEX IF NOT EXISTS zk_members_expiry_idx ON zk_members(expires_at)`;
       await sql`CREATE INDEX IF NOT EXISTS zk_group_roots_expiry_idx ON zk_group_roots(expires_at)`;
       await sql`CREATE INDEX IF NOT EXISTS zk_nullifiers_expiry_idx ON zk_nullifiers(expires_at)`;
