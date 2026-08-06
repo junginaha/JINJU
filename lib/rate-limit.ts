@@ -44,9 +44,7 @@ async function hmacSha256(secret: string, value: string) {
 
 function abuseSecret() {
   const configured = process.env.ABUSE_HMAC_SECRET
-    || process.env.RATE_LIMIT_SECRET
-    || process.env.ADMIN_REVIEW_SECRET
-    || process.env.DATABASE_URL;
+    || process.env.RATE_LIMIT_SECRET;
   if (configured) return configured;
   if (process.env.NODE_ENV !== "production") return "jinju-rate-limit-development";
   throw new Error("ABUSE_HMAC_SECRET is not configured");
