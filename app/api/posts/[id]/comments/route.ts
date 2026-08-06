@@ -1,12 +1,14 @@
 import { builtInComments, builtInPost } from "../../../../../lib/built-in-content";
 import { applyCommentOverrides, contentOverrides } from "../../../../../lib/content-overrides";
 import { normalizeCommentTimes } from "../../../../../lib/comment-time";
+import { isDuplicateComment } from "../../../../../lib/comment-dedup";
 import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../../lib/db";
 import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 import { generateUniqueJinjuDisplayName } from "../../../../../lib/display-name";
 import { reviewSubmission } from "../../../../../lib/ai-review";
 import { getPublicPost } from "../../../../../lib/public-posts";
 import { rateLimit } from "../../../../../lib/rate-limit";
+import { turnstileFailure, verifyTurnstile } from "../../../../../lib/turnstile";
 import {
   keepsSupplementalCommentsWithAutoSet,
   supplementalComments,
@@ -71,12 +73,25 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (HIDDEN_DUPLICATE_POST_IDS.has(postId)) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
   const publicPost = await getPublicPost(postId);
   if (!publicPost) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
-  const payload = await request.json() as { content?: string };
+  const payload = await request.json() as { content?: string; turnstileToken?: string };
   const content = payload.content?.trim() ?? "";
   if (content.length < 2 || content.length > 2000) return Response.json({ error: "댓글은 2~2,000자로 작성해주세요." }, { status: 400 });
+  const turnstile = await verifyTurnstile(request, payload.turnstileToken, "comment");
+  if (!turnstile.ok) return turnstileFailure(turnstile);
+  await ensureSchema();
+  const recentComments = await db()`
+    SELECT content
+    FROM comments
+    WHERE post_id = ${postId}
+      AND status = 'approved'
+      AND created_at > NOW() - INTERVAL '30 days'
+    ORDER BY created_at DESC
+    LIMIT 500`;
+  if (isDuplicateComment(content, recentComments.map((row: Record<string, unknown>) => String(row.content)))) {
+    return Response.json({ error: "같은 댓글이 이미 등록되어 있습니다. 다른 의견을 적어주세요." }, { status: 409 });
+  }
   const review = await reviewSubmission("", content, "comment");
   if (review.decision === "revise") return Response.json({ error: "이 문장만 조금 바꾸면 올릴 수 있어요.", review }, { status: 422 });
-  await ensureSchema();
   const displayName = await generateUniqueJinjuDisplayName(async (candidate) => {
     const rows = await db()`
       SELECT 1 FROM posts WHERE display_name = ${candidate}
