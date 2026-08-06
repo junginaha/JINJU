@@ -117,6 +117,7 @@ const COMMENT_SYSTEM_PROMPT = `당신은 한국어 익명 커뮤니티 '진주'�
 - 1~3번은 게시 직후 보이는 댓글이다. 각각 재치와 생활감, 따뜻한 공감, 지적인 관점을 담당한다.
 - 4번 이후에는 찬성, 조심스러운 반대, 다른 당사자의 사정, 현실적인 제안, 질문, 다정한 위로, 절제된 유머를 고르게 섞는다.
 - 짧게 웃기는 댓글과 충분히 읽을 만한 의식 있는 댓글을 섞되, 같은 표현·논리·말투를 반복하지 않는다.
+- 제목이나 본문을 큰따옴표로 그대로 옮기지 말고 자기 말로 자연스럽게 풀어 쓴다. 꼭 필요한 직접 인용은 전체 댓글 중 하나만 허용한다.
 - 게시글의 주장에 무조건 동의하지 않아도 되지만 사람을 공격하거나 비꼬지 않는다.
 - 30~180자의 자연스러운 한국어로 쓰고, 상투적인 공감만으로 끝내지 않는다.
 - "저도 해봤어요", "다들 비슷하게 사네요", "별일 아닌데 생각나죠", "좋은 글이네요", "공감합니다"처럼 어느 글에나 붙일 수 있는 문장은 금지한다.
@@ -173,22 +174,31 @@ function anchoredFallbackComments(post: AutoCommentPost) {
   while (details.length < 5) details.push(title);
   const [first, second, third, fourth, fifth] = details;
   return [
-    `“${first}” 대목에서 상황이 바로 그려졌어요. 웃고 넘길 수도 있지만, 당사자에게는 꽤 오래 남을 만한 순간이었겠네요.`,
-    `제목의 “${title}”라는 질문이 좋습니다. 한쪽을 쉽게 탓하기보다 서로 무엇을 다르게 보고 있는지부터 살펴보게 하네요.`,
-    `“${second}”라는 대목을 기준으로 보면 답이 한쪽으로만 정리되지는 않겠어요. 무엇을 더 중요하게 보는지에 따라 판단이 꽤 달라질 듯합니다.`,
-    `다만 “${first}”만 떼어 놓고 보면 글쓴이와 다른 결론도 가능하겠어요. 같은 장면을 각자 어떻게 읽었는지 이유까지 들어보고 싶습니다.`,
-    `글에서 제시한 “${third}”만으로 결론을 내리기 전에 선택지 밖에 빠진 기준은 없는지도 살펴보면 좋겠습니다.`,
-    `“${fourth}”라는 문장이 묘하게 오래 남네요. 제목 한 줄로 시작했는데 댓글창에서는 작은 토론회가 열릴 것 같습니다.`,
-    `다른 자리에서 보면 “${second}”를 전혀 다르게 받아들일 수도 있겠죠. 반대 의견도 사람보다 주장에 초점을 맞추면 더 읽을 만해질 것 같아요.`,
-    `정답만 고르기보다 “${first}”를 왜 그렇게 판단했는지 한 문장씩 덧붙이면 서로의 기준이 더 선명하게 보이겠습니다.`,
-    `“${fifth}”까지 읽으니 누가 맞는지를 서둘러 정하기보다 각 선택이 어떤 결과로 이어지는지 생각해보게 됩니다.`,
-    `이 글의 좋은 점은 “${third}”를 사소한 일로 접지 않았다는 데 있어요. 작은 불편을 정확히 말하는 사람이 결국 생활의 규칙을 바꾸더라고요.`,
-    `“${second}”를 읽고 처음 떠오른 답과 조금 생각한 뒤의 답이 달라졌어요. 이런 질문은 결론보다 생각이 바뀌는 과정이 더 흥미롭습니다.`,
-    `“${fourth}”에는 완벽한 정답보다 서로 납득할 수 있는 이유가 더 중요할지도 모르겠습니다. 선택은 달라도 설명은 나눌 수 있으니까요.`,
-    `작성자가 “${first}”를 그냥 삼키지 않고 꺼내줘서 좋네요. 말로 꺼낸 불편은 싸움의 시작이 아니라 조정의 출발점이 될 수도 있습니다.`,
-    `“${title}”라니, 제목 한 줄이 이미 작은 토론회네요. 입장료는 없지만 각자 가져온 사정은 꽤 묵직합니다.`,
-    `결국 “${fifth}”를 어떤 기준으로 바라보느냐가 답을 바꿀 것 같아요. 다른 결론이 나오더라도 서로를 함부로 단정하지 않는 대화였으면 합니다.`,
+    `처음 눈에 들어온 건 ${first} 대목이었습니다. 가볍게 넘길 수도 있지만 당사자에게는 오래 남을 만한 일이겠네요.`,
+    `${title}라는 질문은 한쪽을 쉽게 탓하기보다 서로 무엇을 다르게 보는지부터 생각하게 합니다.`,
+    `${second}를 기준으로 보면 답이 한쪽으로만 정리되지는 않겠어요. 중요하게 보는 기준에 따라 판단이 꽤 달라질 듯합니다.`,
+    `글쓴이가 겪은 ${first} 상황에도 다른 결론은 가능하겠죠. 반대할 때도 사람보다 이유를 먼저 말하면 좋겠습니다.`,
+    `${third}만으로 결론을 내리기 전에 선택지 밖에 빠진 사정은 없는지도 살펴보고 싶어요.`,
+    `${fourth} 부분이 묘하게 오래 남네요. 짧은 질문이지만 댓글창에서는 제법 진지한 토론이 열릴 것 같습니다.`,
+    `다른 자리에서는 ${second}를 전혀 다르게 받아들일 수도 있겠습니다. 서로의 경험이 판단을 어떻게 바꾸는지도 궁금해요.`,
+    `${first}를 왜 그렇게 판단했는지 한 문장씩 보태면 찬반보다 각자의 기준이 더 선명하게 보이겠네요.`,
+    `${fifth}까지 생각하면 누가 맞는지보다 각 선택이 어떤 결과를 만드는지 먼저 따져봐야겠습니다.`,
+    `${third}를 사소한 일로 접지 않은 점이 좋습니다. 생활의 규칙은 이런 구체적인 불편에서 바뀌기도 하니까요.`,
+    `${second}를 보고 처음 떠오른 답과 조금 더 생각한 뒤의 답이 달라졌습니다. 결론보다 생각이 움직이는 과정이 흥미로운 질문이네요.`,
+    `${fourth}에는 완벽한 정답보다 서로 납득할 수 있는 설명이 더 중요할지도 모르겠습니다.`,
+    `${first}를 혼자 삼키지 않고 꺼낸 것부터 조정의 시작이라고 봅니다. 불편을 말하는 일과 싸움을 거는 일은 다르니까요.`,
+    `제목은 짧지만 각자 가져올 사정은 꽤 묵직하겠네요. 댓글이 판정표보다 이유를 나누는 자리가 됐으면 합니다.`,
+    `${fifth}를 어떤 기준으로 보느냐에 따라 답이 달라질 듯합니다. 결론이 달라도 서로를 함부로 단정하지 않았으면 해요.`,
   ];
+}
+
+function limitDirectQuotes(comments: string[]) {
+  let quoted = 0;
+  return comments.filter((comment) => {
+    if (!/[“”"]/u.test(comment)) return true;
+    quoted += 1;
+    return quoted <= 1;
+  });
 }
 
 function contextualFallbackComments(post: AutoCommentPost) {
@@ -230,8 +240,8 @@ export async function generateAutoCommentBodies(post: AutoCommentPost) {
       .map((comment) => comment.replace(/\s+/g, " ").trim())
       .filter((comment, index, all) => all.indexOf(comment) === index)
       .filter((comment) => isContextualComment(comment, post));
-    return [...comments, ...fallback]
-      .filter((comment, index, all) => all.indexOf(comment) === index)
+    return limitDirectQuotes([...comments, ...fallback]
+      .filter((comment, index, all) => all.indexOf(comment) === index))
       .slice(0, AUTO_COMMENT_TOTAL);
   } catch {
     return fallback;
@@ -246,6 +256,9 @@ export function validatedAutoCommentBodies(bodies: string[]) {
     .filter((body, index, all) => body && all.indexOf(body) === index);
   if (normalizedBodies.length !== AUTO_COMMENT_TOTAL) {
     throw new Error(`Automatic comment set must contain exactly ${AUTO_COMMENT_TOTAL} unique comments.`);
+  }
+  if (normalizedBodies.filter((body) => /[“”"]/u.test(body)).length > 1) {
+    throw new Error("Automatic comment set may contain at most one direct quotation.");
   }
   return normalizedBodies;
 }

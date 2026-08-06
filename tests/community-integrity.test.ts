@@ -5,7 +5,11 @@ import {
   hasCompleteAutoCommentSet,
   mergeBaseCommentsByBody,
 } from "../lib/comment-visibility";
-import { autoCommentDisplayName, validatedAutoCommentBodies } from "../lib/auto-comments";
+import {
+  autoCommentDisplayName,
+  generateAutoCommentBodies,
+  validatedAutoCommentBodies,
+} from "../lib/auto-comments";
 import { AUTO_COMMENT_TOTAL, newPostCommentSchedule, newPostInitialLikes } from "../lib/community-settings";
 import { normalizeCommentTimes, visibleCommentsAt } from "../lib/comment-time";
 import { applyCommentOverrides } from "../lib/content-overrides";
@@ -18,6 +22,10 @@ import { august5MorningComments, august5MorningPosts } from "../lib/morning-edit
 import { august6MorningComments, august6MorningPosts } from "../lib/morning-editorial-20260806";
 import { generateJinjuDisplayName } from "../lib/display-name";
 import { visibleBuiltInComments } from "../lib/public-posts";
+import {
+  keepsSupplementalCommentsWithAutoSet,
+  supplementalComments,
+} from "../lib/supplemental-comments";
 import { activeReactionHistory, recordReaction } from "../lib/reaction-history";
 import { reviewSubmission } from "../lib/ai-review";
 import {
@@ -42,6 +50,35 @@ test("automatic comments must be a complete unique set", () => {
   assert.equal(validatedAutoCommentBodies(bodies).length, AUTO_COMMENT_TOTAL);
   assert.throws(() => validatedAutoCommentBodies(bodies.slice(1)));
   assert.throws(() => validatedAutoCommentBodies([...bodies.slice(0, -1), bodies[0]]));
+  assert.throws(() => validatedAutoCommentBodies([
+    "“첫 번째 직접 인용”을 담은 댓글",
+    "“두 번째 직접 인용”을 담은 댓글",
+    ...bodies.slice(2),
+  ]));
+});
+
+test("automatic fallback comments paraphrase the post without repeated quotations", async () => {
+  const openAiKey = process.env.OPENAI_API_KEY;
+  const aiKey = process.env.AI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  delete process.env.AI_API_KEY;
+  try {
+    const comments = await generateAutoCommentBodies({
+      id: "natural-comment-policy",
+      title: "충전이 끝난 자리를 언제 비워야 할까요",
+      content: "아파트 충전기가 부족합니다. 밤에 충전이 끝난 차를 바로 옮기기는 어렵습니다. 다른 주민은 아침까지 기다려야 했습니다.",
+      category: "사회",
+      createdAt: "2026-08-06T14:10:00+09:00",
+    });
+    assert.equal(comments.length, AUTO_COMMENT_TOTAL);
+    assert.equal(new Set(comments).size, AUTO_COMMENT_TOTAL);
+    assert.ok(comments.filter((body) => /[“”"]/u.test(body)).length <= 1);
+  } finally {
+    if (openAiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = openAiKey;
+    if (aiKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = aiKey;
+  }
 });
 
 test("feed and detail use the same visibility boundary for scheduled comments", () => {
@@ -241,6 +278,46 @@ test("a partial automatic set never hides supplemental comments", () => {
   assert.equal(hasCompleteAutoCommentSet(AUTO_COMMENT_TOTAL), true);
 });
 
+test("the latest post receives ten natural comments and the next ten receive three each", () => {
+  const latestId = "303t1k08482d6n4q5x4b";
+  const otherIds = [
+    "jinju-morning-20260806-palace-admission-fee",
+    "jinju-seed-20260806-ev-charger-overnight",
+    "jinju-morning-20260806-ai-emergency-triage",
+    "jinju-morning-20260806-benefit-auto-application",
+    "jinju-morning-20260806-regional-universities",
+    "jinju-seed-20260805-birthday-deposit",
+    "jinju-seed-20260805-delivery-ice-water",
+    "jinju-seed-20260805-office-fridge-peach",
+    "jinju-morning-20260805-small-store-negotiation",
+    "jinju-morning-20260805-platform-refund-duty",
+  ];
+  const commentsFor = (id: string) => supplementalComments({
+    id,
+    title: "검증용 제목",
+    content: "검증용 본문입니다.",
+    category: "사회",
+    createdAt: "2026-08-06T00:00:00.000Z",
+  });
+  const latestComments = commentsFor(latestId);
+  const otherComments = otherIds.flatMap((id) => {
+    const comments = commentsFor(id);
+    assert.equal(comments.length, 3);
+    return comments;
+  });
+  const allComments = [...latestComments, ...otherComments];
+
+  assert.equal(latestComments.length, 10);
+  assert.equal(otherComments.length, 30);
+  assert.equal(allComments.length, 40);
+  assert.equal(new Set(allComments.map((comment) => comment.body)).size, 40);
+  assert.equal(new Set(allComments.map((comment) => comment.displayName)).size, 40);
+  assert.ok(allComments.every((comment) => comment.displayName.trim().split(/\s+/).length === 2));
+  assert.ok(allComments.every((comment) => !/[“”"]/u.test(comment.body)));
+  assert.equal(keepsSupplementalCommentsWithAutoSet(latestId), true);
+  assert.equal(keepsSupplementalCommentsWithAutoSet(otherIds[0]), false);
+});
+
 test("base comments are deduplicated against stored copies without dropping stored comments", () => {
   const base = mergeBaseCommentsByBody(
     [{ body: "같은 댓글", id: "base-1" }],
@@ -281,6 +358,30 @@ test("repetitive bottom comments are rewritten without changing other comment co
     ], new Map())[0].body,
     "나중에 직접 수정한 댓글",
   );
+});
+
+test("the latest tax post automatic comments are rewritten in natural language", () => {
+  const comments = [
+    {
+      id: "jinju-auto-303t1k08482d6n4q5x4b-1",
+      body: "“최근 정부에서 대통령의 초기 약속과 다르게보유세 강화로 세제 개편안을” 대목에서 상황이 바로 그려졌어요. 웃고 넘길 수도 있지만, 당사자에게는 꽤 오래 남을 만한 순간이었겠네요.",
+    },
+    {
+      id: "jinju-auto-303t1k08482d6n4q5x4b-8",
+      body: "정답만 고르기보다 “최근 정부에서 대통령의 초기 약속과 다르게보유세 강화로 세제 개편안을”를 왜 그렇게 판단했는지 한 문장씩 덧붙이면 서로의 기준이 더 선명하게 보이겠습니다.",
+    },
+    {
+      id: "jinju-auto-303t1k08482d6n4q5x4b-15",
+      body: "결국 “1주택 거주자 세금 인하”를 어떤 기준으로 바라보느냐가 답을 바꿀 것 같아요. 다른 결론이 나오더라도 서로를 함부로 단정하지 않는 대화였으면 합니다.",
+    },
+  ];
+  const rewritten = applyCommentOverrides(comments, new Map());
+  assert.deepEqual(rewritten.map((comment) => comment.body), [
+    "약속과 달라졌다고 느낀 지점이 무엇인지 공식 개편안과 함께 확인해보면 좋겠습니다. 세금 이야기는 첫 단추가 사실관계라서요.",
+    "세법은 읽을수록 제가 집을 가진 건지 집이 저를 신고하는 건지 헷갈립니다. 사례별 계산표부터 쉽게 공개해줬으면 해요.",
+    "실거주자를 보호하면서도 부동산 쏠림을 줄이려는 두 목표가 충돌하네요. 어느 쪽의 비용을 누가 부담하는지 공개해야 토론도 정확해지겠습니다.",
+  ]);
+  assert.ok(rewritten.every((comment) => !/[“”"]/u.test(comment.body)));
 });
 
 test("browser reaction history expires on the same retention boundary as the server", () => {

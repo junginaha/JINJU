@@ -5,7 +5,10 @@ import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../lib/
 import { editorialComments, editorialPost, editorialPosts } from "../../../../lib/editorial";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { hasPii } from "../../../../lib/safety";
-import { supplementalComments } from "../../../../lib/supplemental-comments";
+import {
+  keepsSupplementalCommentsWithAutoSet,
+  supplementalComments,
+} from "../../../../lib/supplemental-comments";
 import { enqueueAutoCommentJob, processAutoCommentJob } from "../../../../lib/auto-comment-jobs";
 import { hasCompleteAutoCommentSet } from "../../../../lib/comment-visibility";
 import { notifySearchIndexes } from "../../../../lib/search-indexing";
@@ -106,10 +109,13 @@ export async function GET(request: Request) {
     const createdAt = row ? iso(row.created_at) : fallback!.createdAt;
     const baseComments = fallback
       ? editorialComments(id)
-      : status === "approved" && !hasCompleteAutoCommentSet(
-        (storedComments.get(id) || []).filter(
-          (comment) => String(comment.id).startsWith("jinju-auto-") && String(comment.status) === "approved",
-        ).length,
+      : status === "approved" && (
+        keepsSupplementalCommentsWithAutoSet(id)
+        || !hasCompleteAutoCommentSet(
+          (storedComments.get(id) || []).filter(
+            (comment) => String(comment.id).startsWith("jinju-auto-") && String(comment.status) === "approved",
+          ).length,
+        )
       )
         ? supplementalComments({ id, title, content: body, category, createdAt })
         : [];

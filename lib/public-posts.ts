@@ -6,7 +6,10 @@ import { db, databaseEnabled, ensureSchema } from "./db";
 import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "./content-overrides";
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
 import type { EditorialPost } from "./editorial";
-import { supplementalComments } from "./supplemental-comments";
+import {
+  keepsSupplementalCommentsWithAutoSet,
+  supplementalComments,
+} from "./supplemental-comments";
 import {
   hasCompleteAutoCommentSet,
   mergeBaseCommentsByBody,
@@ -45,9 +48,14 @@ export function visibleBuiltInComments(post: EditorialPost, now = Date.now()): V
 }
 
 function withVisibleCommentCount(post: EditorialPost, autoCommentCount = 0, storedBodies: string[] = [], now = Date.now()) {
+  const supplemental = supplementalComments(post);
   const baseComments = builtInPost(post.id)
     ? visibleBuiltInComments(post, now)
-    : hasCompleteAutoCommentSet(autoCommentCount) ? [] : visibleCommentsAt(supplementalComments(post), now);
+    : keepsSupplementalCommentsWithAutoSet(post.id)
+      ? visibleCommentsAt(supplemental, now)
+      : hasCompleteAutoCommentSet(autoCommentCount)
+        ? []
+        : visibleCommentsAt(supplemental, now);
   const builtInCount = visibleBaseCommentCount(baseComments, storedBodies);
   return {
     ...post,
