@@ -7,6 +7,7 @@ import {
 } from "../lib/comment-visibility";
 import { autoCommentDisplayName, validatedAutoCommentBodies } from "../lib/auto-comments";
 import { AUTO_COMMENT_TOTAL, newPostCommentSchedule, newPostInitialLikes } from "../lib/community-settings";
+import { normalizeCommentTimes, visibleCommentsAt } from "../lib/comment-time";
 import { applyCommentOverrides } from "../lib/content-overrides";
 import { july30EditorialComments, july30EditorialPosts } from "../lib/daily-editorial-20260730";
 import { august1EditorialComments, august1EditorialPosts } from "../lib/daily-editorial-20260801";
@@ -16,6 +17,7 @@ import { august6EditorialComments, august6EditorialPosts } from "../lib/daily-ed
 import { august5MorningComments, august5MorningPosts } from "../lib/morning-editorial-20260805";
 import { august6MorningComments, august6MorningPosts } from "../lib/morning-editorial-20260806";
 import { generateJinjuDisplayName } from "../lib/display-name";
+import { visibleBuiltInComments } from "../lib/public-posts";
 import { activeReactionHistory, recordReaction } from "../lib/reaction-history";
 import { reviewSubmission } from "../lib/ai-review";
 import {
@@ -40,6 +42,22 @@ test("automatic comments must be a complete unique set", () => {
   assert.equal(validatedAutoCommentBodies(bodies).length, AUTO_COMMENT_TOTAL);
   assert.throws(() => validatedAutoCommentBodies(bodies.slice(1)));
   assert.throws(() => validatedAutoCommentBodies([...bodies.slice(0, -1), bodies[0]]));
+});
+
+test("feed and detail use the same visibility boundary for scheduled comments", () => {
+  const post = august6EditorialPosts.find((item) => item.id === "jinju-seed-20260806-ev-charger-overnight");
+  assert.ok(post);
+  const comments = august6EditorialComments(post.id);
+  const beforeFirstComment = Date.parse("2026-08-06T14:12:00+09:00");
+  const afterFirstComment = Date.parse("2026-08-06T14:15:00+09:00");
+
+  assert.equal(visibleCommentsAt(comments, beforeFirstComment).length, 0);
+  assert.equal(visibleBuiltInComments(post, beforeFirstComment).length, 0);
+  assert.equal(normalizeCommentTimes(post.createdAt, comments, beforeFirstComment).length, 0);
+
+  assert.equal(visibleCommentsAt(comments, afterFirstComment).length, 1);
+  assert.equal(visibleBuiltInComments(post, afterFirstComment).length, 1);
+  assert.equal(normalizeCommentTimes(post.createdAt, comments, afterFirstComment).length, 1);
 });
 
 test("automatic comment work retries at most three times", async () => {
