@@ -122,11 +122,13 @@ export async function rateLimit(request: Request, scope: string, limit: number, 
       ON CONFLICT (scope, actor_hash)
       DO UPDATE SET
         strike_count = CASE
+          WHEN abuse_restrictions.expires_at <= NOW() THEN 1
           WHEN abuse_restrictions.last_window_start = EXCLUDED.last_window_start
             THEN abuse_restrictions.strike_count
           ELSE LEAST(abuse_restrictions.strike_count + 1, 4)
         END,
         blocked_until = CASE
+          WHEN abuse_restrictions.expires_at <= NOW() THEN EXCLUDED.blocked_until
           WHEN abuse_restrictions.last_window_start = EXCLUDED.last_window_start
             THEN abuse_restrictions.blocked_until
           WHEN abuse_restrictions.strike_count = 1 THEN NOW() + INTERVAL '1 hour'
@@ -159,7 +161,8 @@ export async function rateLimit(request: Request, scope: string, limit: number, 
     return { allowed: false, retryAfter: retryAfterSeconds(current.resetAt, now), escalated: false };
   }
 
-  const previous = restrictions.get(key);
+  const storedRestriction = restrictions.get(key);
+  const previous = storedRestriction && storedRestriction.expiresAt > now ? storedRestriction : undefined;
   const strikeCount = previous?.lastWindowStart === windowStart ? previous.strikeCount : Math.min((previous?.strikeCount || 0) + 1, 4);
   const blockedUntil = previous?.lastWindowStart === windowStart
     ? previous.blockedUntil
