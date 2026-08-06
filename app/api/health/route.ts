@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 import { db, databaseEnabled } from "@/lib/db";
+import { abuseHmacReady } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,7 +13,7 @@ const headers = {
 export async function GET() {
   const checkedAt = new Date().toISOString();
   const abuseProtection = {
-    hmac: Boolean(process.env.ABUSE_HMAC_SECRET),
+    hmac: abuseHmacReady(),
     turnstile: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY),
   };
   const protectionReady = abuseProtection.hmac && abuseProtection.turnstile;
