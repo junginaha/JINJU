@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { reviewSubmission } from "../lib/ai-review";
+import { canAutoPublish, reviewSubmission } from "../lib/ai-review";
 import { assessPostQuality } from "../lib/post-quality";
 import { hasPii } from "../lib/safety";
 
@@ -29,6 +29,30 @@ test("blocks the reported number-and-insult post deterministically", async () =>
 test("requires enough context but keeps concise meaningful posts", () => {
   assert.equal(assessPostQuality("", "너무 힘들어요.").passed, false);
   assert.equal(assessPostQuality("", "회사에서 제 의견만 계속 빠져 속상했습니다. 다음 회의에서는 어떻게 말하면 좋을까요?").passed, true);
+});
+
+test("publishes a low-risk rules review instead of confusing AI availability with content risk", async () => {
+  const openAiKey = process.env.OPENAI_API_KEY;
+  const aiKey = process.env.AI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  delete process.env.AI_API_KEY;
+  try {
+    const safeRulesReview = await reviewSubmission(
+      "회의에서 제 의견이 자꾸 빠집니다",
+      "회의에서 제가 준비한 의견이 몇 번 연속 빠져서 속상했습니다. 다음 회의에서는 제 생각을 차분히 설명해보려고 합니다.",
+      "post",
+    );
+    assert.equal(safeRulesReview.source, "rules");
+    assert.equal(canAutoPublish(safeRulesReview), true);
+    assert.equal(canAutoPublish({ ...safeRulesReview, decision: "revise" }), false);
+    assert.equal(canAutoPublish({ ...safeRulesReview, riskLevel: "medium" }), false);
+    assert.equal(canAutoPublish({ ...safeRulesReview, containsPii: true }), false);
+  } finally {
+    if (openAiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = openAiKey;
+    if (aiKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = aiKey;
+  }
 });
 
 test("blocks repeated and number-heavy post bodies", () => {

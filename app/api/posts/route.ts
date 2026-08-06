@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import { after } from "next/server";
 import { enqueueAutoCommentJob, processAutoCommentJob } from "../../../lib/auto-comment-jobs";
 import { newPostInitialLikes } from "../../../lib/community-settings";
-import { reviewSubmission } from "../../../lib/ai-review";
+import { canAutoPublish, reviewSubmission } from "../../../lib/ai-review";
 import { builtInPosts } from "../../../lib/built-in-content";
 import { normalizePublicCategory, PUBLIC_CATEGORIES } from "../../../lib/categories";
 import { db, databaseEnabled, ensureSchema, token } from "../../../lib/db";
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
       LIMIT 1`;
     return Boolean(rows[0]);
   });
-  const status = review.source === "ai" ? "approved" : "pending";
+  const status = canAutoPublish(review) ? "approved" : "pending";
   const initialLikes = newPostInitialLikes();
   await db()`
     INSERT INTO posts (
