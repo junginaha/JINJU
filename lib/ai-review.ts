@@ -16,6 +16,12 @@ export type SubmissionReview = {
   suggestedTitle: string;
 };
 
+export function canAutoPublish(review: SubmissionReview) {
+  return review.decision === "allow"
+    && review.riskLevel === "low"
+    && !review.containsPii;
+}
+
 type ModerationResult = {
   results?: Array<{ flagged?: boolean; categories?: Record<string, boolean> }>;
 };
