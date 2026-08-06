@@ -42,17 +42,29 @@ async function hmacSha256(secret: string, value: string) {
   return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function abuseSecret() {
+export function abuseHmacReady() {
+  return Boolean(
+    process.env.ABUSE_HMAC_SECRET
+    || process.env.RATE_LIMIT_SECRET
+    || process.env.TURNSTILE_SECRET_KEY,
+  );
+}
+
+async function abuseSecret() {
   const configured = process.env.ABUSE_HMAC_SECRET
     || process.env.RATE_LIMIT_SECRET;
   if (configured) return configured;
+  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY?.trim();
+  if (turnstileSecret) {
+    return hmacSha256(turnstileSecret, "jinju:abuse-hmac:v1");
+  }
   if (process.env.NODE_ENV !== "production") return "jinju-rate-limit-development";
-  throw new Error("ABUSE_HMAC_SECRET is not configured");
+  throw new Error("An abuse protection server secret is not configured");
 }
 
 export async function anonymousActorHash(request: Request, purpose = "visitor") {
   const userAgent = request.headers.get("user-agent") || "unknown";
-  return hmacSha256(abuseSecret(), [purpose, clientKey(request), userAgent].join(":"));
+  return hmacSha256(await abuseSecret(), [purpose, clientKey(request), userAgent].join(":"));
 }
 
 export function blockDurationMsForStrike(strikeCount: number, windowMs: number) {
