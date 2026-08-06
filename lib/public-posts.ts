@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { builtInComments, builtInPost, builtInPosts } from "./built-in-content";
 import { normalizePublicCategory } from "./categories";
+import { visibleCommentsAt } from "./comment-time";
 import { db, databaseEnabled, ensureSchema } from "./db";
 import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "./content-overrides";
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
@@ -36,14 +37,17 @@ function isPublished(post: Pick<EditorialPost, "createdAt">, now = Date.now()) {
 
 type VisibleBaseComment = ReturnType<typeof builtInComments>[number];
 
-function visibleBuiltInComments(post: EditorialPost): VisibleBaseComment[] {
-  return mergeBaseCommentsByBody(builtInComments(post.id), supplementalComments(post));
+export function visibleBuiltInComments(post: EditorialPost, now = Date.now()): VisibleBaseComment[] {
+  return visibleCommentsAt(
+    mergeBaseCommentsByBody(builtInComments(post.id), supplementalComments(post)),
+    now,
+  );
 }
 
-function withVisibleCommentCount(post: EditorialPost, autoCommentCount = 0, storedBodies: string[] = []) {
+function withVisibleCommentCount(post: EditorialPost, autoCommentCount = 0, storedBodies: string[] = [], now = Date.now()) {
   const baseComments = builtInPost(post.id)
-    ? visibleBuiltInComments(post)
-    : hasCompleteAutoCommentSet(autoCommentCount) ? [] : supplementalComments(post);
+    ? visibleBuiltInComments(post, now)
+    : hasCompleteAutoCommentSet(autoCommentCount) ? [] : visibleCommentsAt(supplementalComments(post), now);
   const builtInCount = visibleBaseCommentCount(baseComments, storedBodies);
   return {
     ...post,
@@ -52,11 +56,11 @@ function withVisibleCommentCount(post: EditorialPost, autoCommentCount = 0, stor
   };
 }
 
-function builtInWithVisibleCommentCount(post: EditorialPost) {
+function builtInWithVisibleCommentCount(post: EditorialPost, now = Date.now()) {
   return {
     ...post,
     category: normalizePublicCategory(post.category),
-    commentCount: visibleBuiltInComments(post).length,
+    commentCount: visibleBuiltInComments(post, now).length,
   };
 }
 
@@ -82,7 +86,7 @@ export const getPublicPosts = cache(async () => {
   const byId = new Map(
     builtInPosts
       .filter((post) => isPublished(post, now))
-      .map((post) => [post.id, builtInWithVisibleCommentCount(post)]),
+      .map((post) => [post.id, builtInWithVisibleCommentCount(post, now)]),
   );
   let overrides = await contentOverrides();
   if (databaseEnabled()) {
@@ -117,7 +121,7 @@ export const getPublicPosts = cache(async () => {
         const storedBodies = Array.isArray(record.stored_comment_bodies)
           ? record.stored_comment_bodies.map(String)
           : [];
-        const post = withVisibleCommentCount(cleanRow(record), Number(record.auto_comment_count || 0), storedBodies);
+        const post = withVisibleCommentCount(cleanRow(record), Number(record.auto_comment_count || 0), storedBodies, now);
         if (!HIDDEN_DUPLICATE_POST_IDS.has(post.id) && isPublished(post, now)) byId.set(post.id, post);
       }
     } catch {
@@ -173,7 +177,7 @@ export const getPublicPost = cache(async (id: string) => {
         const candidate = cleanRow(record);
         if (!isPublished(candidate, now)) return null;
         const post = applyPostOverride(
-          withVisibleCommentCount(candidate, Number(record.auto_comment_count || 0), storedBodies),
+          withVisibleCommentCount(candidate, Number(record.auto_comment_count || 0), storedBodies, now),
           overrides,
         );
         return post ? {
@@ -188,7 +192,7 @@ export const getPublicPost = cache(async (id: string) => {
   }
   const fallback = builtInPost(id);
   if (!fallback || !isPublished(fallback, now)) return null;
-  const post = applyPostOverride(builtInWithVisibleCommentCount(fallback), overrides);
+  const post = applyPostOverride(builtInWithVisibleCommentCount(fallback, now), overrides);
   return post ? {
     ...post,
     category: normalizePublicCategory(post.category),
