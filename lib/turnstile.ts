@@ -37,6 +37,15 @@ export async function verifyTurnstile(
   const host = requestHost(request);
   if (!isJinjuPublicHost(host)) return { ok: true, required: false };
 
+  const responseToken = token?.trim() || "";
+
+  // 댓글은 rate limit, 중복 댓글 차단, 게시 전 안전 검수로 별도 보호한다.
+  // iOS 인앱 웹뷰에서 Turnstile이 로드되지 않아 정상 댓글까지 막는 상황을 피하기 위해
+  // 댓글 요청은 토큰이 없을 때 Turnstile을 필수로 요구하지 않는다.
+  if (expectedAction === "comment" && !responseToken) {
+    return { ok: true, required: false };
+  }
+
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
   const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
   if (!siteKey || !secret) {
@@ -47,7 +56,6 @@ export async function verifyTurnstile(
     };
   }
 
-  const responseToken = token?.trim() || "";
   if (!responseToken || responseToken.length > 2048) {
     return { ok: false, status: 400, error: "보안 확인을 완료한 뒤 다시 눌러주세요." };
   }
