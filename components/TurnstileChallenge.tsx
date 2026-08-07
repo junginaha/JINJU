@@ -53,6 +53,17 @@ export default function TurnstileChallenge({
       return;
     }
 
+    // 댓글은 짧은 시간 등록 제한, 중복 차단, 게시 전 안전 검수로 보호한다.
+    // iOS 인앱 웹뷰에서 Turnstile 스크립트가 멈추면 댓글 버튼까지 영구 잠기는 문제를 피하기 위해
+    // 글쓰기와 문제제보에만 Turnstile을 필수로 유지한다.
+    if (action === "comment") {
+      setRequired(false);
+      setMessage("");
+      requiredCallbackRef.current(false);
+      tokenCallbackRef.current("");
+      return;
+    }
+
     setRequired(true);
     requiredCallbackRef.current(true);
     tokenCallbackRef.current("");
