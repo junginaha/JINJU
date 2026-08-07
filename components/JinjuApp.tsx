@@ -844,7 +844,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           <main className="chat-main" id="feed">
             <header className="mobile-chat-header">
               <button className="mobile-menu-button" onClick={() => setMobileMenuOpen(true)} aria-label="게시판 메뉴 열기">☰</button>
-              <a href="#feed" aria-label="진주 홈"><Pearl size={36} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>
+              <a href="/" aria-label="진주.kr 메인으로"><Pearl size={36} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>
               <button className="mobile-write-link" type="button" onClick={openComposer}>나의 의견</button>
             </header>
 
@@ -919,7 +919,7 @@ function Sidebar({ topic, sort, onTopic, onSort, onWrite, mobileOpen }: {
 }) {
   return (
     <aside className={`chat-sidebar${mobileOpen ? " mobile-open" : ""}`}>
-      <a href="#feed" className="sidebar-brand" aria-label="진주 홈"><Pearl size={44} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>
+      <a href="/" className="sidebar-brand" aria-label="진주.kr 메인으로"><Pearl size={44} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>
       <button className="new-post-button" type="button" onClick={onWrite}><span>＋</span> 새 의견 쓰기</button>
       <p className="sidebar-label">게시판</p>
       <nav className="channel-list" aria-label="주제 게시판">{topics.map((item) => <button key={item} className={topic === item ? "active" : ""} onClick={() => onTopic(item)} type="button"><span>{item === "전체" ? "◉" : "#"}</span>{item}</button>)}</nav>
@@ -1046,7 +1046,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
 
   return (
     <main className="detail-page">
-      <header className="detail-header"><button onClick={onBack} type="button">← 목록으로</button><a href="#comment">댓글 쓰기</a></header>
+      <header className="detail-header"><a className="detail-home" href="/" onClick={(event) => { event.preventDefault(); onBack(); }}>← 진주.kr</a><a href="#comment">댓글 쓰기</a></header>
       <div className="detail-shell">
         <article className="detail-post">
           <div className="post-meta"><span>{post.category}{post.displayName ? ` · ${post.displayName}` : ""}</span><time>{post.date}</time></div>
