@@ -20,6 +20,7 @@ import { august3EditorialComments, august3EditorialPosts } from "../lib/daily-ed
 import { august6EditorialComments, august6EditorialPosts } from "../lib/daily-editorial-20260806";
 import { august5MorningComments, august5MorningPosts } from "../lib/morning-editorial-20260805";
 import { august6MorningComments, august6MorningPosts } from "../lib/morning-editorial-20260806";
+import { august8MorningComments, august8MorningPosts } from "../lib/morning-editorial-20260808";
 import { generateJinjuDisplayName } from "../lib/display-name";
 import { visibleBuiltInComments } from "../lib/public-posts";
 import {
@@ -269,6 +270,24 @@ test("selected August 6 posts use two-word names, 20-33 likes, and complete comm
         assert.equal(comment.displayName.trim().split(/\s+/).length, 2);
         assert.ok(Date.parse(comment.createdAt) > Date.parse(post.createdAt));
       }
+    }
+  }
+});
+
+test("August 8 morning posts use two-word names, 20-33 likes, and four complete comments", () => {
+  assert.equal(august8MorningPosts.length, 5);
+  assert.equal(new Set(august8MorningPosts.map((post) => post.id)).size, 5);
+  for (const post of august8MorningPosts) {
+    assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
+    assert.ok(post.heard >= 20 && post.heard <= 33);
+    const comments = august8MorningComments(post.id);
+    assert.equal(comments.length, 4);
+    assert.equal(comments.length, post.commentCount);
+    assert.equal(new Set(comments.map((comment) => comment.id)).size, 4);
+    assert.equal(new Set(comments.map((comment) => comment.body)).size, 4);
+    for (const item of comments) {
+      assert.equal(item.displayName.trim().split(/\s+/).length, 2);
+      assert.ok(Date.parse(item.createdAt) > Date.parse(post.createdAt));
     }
   }
 });
