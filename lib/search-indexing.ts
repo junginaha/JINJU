@@ -9,6 +9,10 @@ export const SITE_DESCRIPTION = SITE_DEFINITION;
 export const SITE_IDENTITY_DESCRIPTION = `${SITE_DEFINITION} ${SITE_DISCLAIMER}`;
 export const SITE_ORGANIZATION_ID = `${SITE_URL}/#organization`;
 export const SITE_WEBSITE_ID = `${SITE_URL}/#website`;
+export const SITE_SAME_AS = (process.env.NEXT_PUBLIC_SITE_SAME_AS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter((value) => /^https:\/\//i.test(value));
 export const INDEXNOW_KEY = "e2df7f4f1f76295063b8c4894b9632b3";
 
 export function canonicalUrl(path = "/") {
