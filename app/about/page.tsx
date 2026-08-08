@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PolicyPage from "../../components/PolicyPage";
 import {
   canonicalUrl,
-  SITE_DESCRIPTION,
+  SITE_DEFINITION,
   SITE_IDENTITY_DESCRIPTION,
   SITE_NAME,
   SITE_ORGANIZATION_ID,
@@ -42,7 +42,7 @@ export default function AboutPage() {
     "@id": `${aboutUrl}#about`,
     url: aboutUrl,
     name: pageTitle,
-    description: SITE_IDENTITY_DESCRIPTION,
+    description: SITE_DEFINITION,
     inLanguage: "ko-KR",
     isPartOf: { "@id": SITE_WEBSITE_ID },
     about: { "@id": SITE_ORGANIZATION_ID },
@@ -57,7 +57,8 @@ export default function AboutPage() {
       <PolicyPage eyebrow="JINJU.KR · ABOUT" title="진주.kr 소개">
         <section>
           <h2>진주.kr은 어떤 서비스인가</h2>
-          <p>{SITE_DESCRIPTION} ‘{SITE_TAGLINE}’라는 이름으로 운영되며, 경상남도 진주시의 공식 웹사이트와 관련 없는 독립 서비스입니다.</p>
+          <p>{SITE_DEFINITION}</p>
+          <p>‘{SITE_TAGLINE}’라는 이름으로 운영되며, 경상남도 진주시 및 지방자치단체의 공식 서비스와 무관한 독립 서비스입니다.</p>
         </section>
         <section>
           <h2>개인정보 없이 속마음을 나누는 이유</h2>
@@ -65,7 +66,7 @@ export default function AboutPage() {
         </section>
         <section>
           <h2>운영원칙과 안전장치</h2>
-          <p>경험과 의견은 자유롭게 나누되 개인정보 노출, 괴롭힘, 명예훼손, 불법·위험한 내용은 제한합니다. 자세한 기준은 <a href="/principles">운영원칙</a>과 <a href="/safety">안전안내</a>에 공개합니다.</p>
+          <p>경험과 의견은 자유롭게 나누되 개인정보 노출, 괴롭힘, 명예훼손, 불법·위험한 내용은 제한합니다. 자세한 기준은 <a href="/terms">이용약관</a>, <a href="/principles">운영원칙</a>과 <a href="/safety">안전안내</a>에 공개합니다.</p>
         </section>
       </PolicyPage>
     </>
