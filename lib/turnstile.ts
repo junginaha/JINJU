@@ -3,6 +3,7 @@ const PUBLIC_HOSTS = new Set([
   "www.xn--o55b9n.kr",
   "jinju-two.vercel.app",
 ]);
+const IN_APP_USER_AGENT = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\/|DaumApps/i;
 
 type TurnstileResponse = {
   success?: boolean;
@@ -29,6 +30,16 @@ function requestHost(request: Request) {
   return normalizeHost(forwarded || direct || new URL(request.url).hostname);
 }
 
+function inAppPostFallbackReady(request: Request) {
+  const userAgent = request.headers.get("user-agent") || "";
+  if (!IN_APP_USER_AGENT.test(userAgent)) return false;
+  return Boolean(
+    process.env.ABUSE_HMAC_SECRET
+    || process.env.RATE_LIMIT_SECRET
+    || process.env.TURNSTILE_SECRET_KEY,
+  );
+}
+
 export async function verifyTurnstile(
   request: Request,
   token: string | undefined,
@@ -43,6 +54,13 @@ export async function verifyTurnstile(
   // iOS 인앱 웹뷰에서 Turnstile이 로드되지 않아 정상 댓글까지 막는 상황을 피하기 위해
   // 댓글 요청은 토큰이 없을 때 Turnstile을 필수로 요구하지 않는다.
   if (expectedAction === "comment" && !responseToken) {
+    return { ok: true, required: false };
+  }
+
+  // 카카오·네이버 등 인앱 브라우저에서만 글쓰기 Turnstile이 로드되지 않는 경우,
+  // 서버 HMAC 기반 rate limit과 게시 전 안전 검수를 대체 보호선으로 사용한다.
+  // 일반 브라우저와 문제제보는 기존 Turnstile 필수 정책을 유지한다.
+  if (expectedAction === "post" && !responseToken && inAppPostFallbackReady(request)) {
     return { ok: true, required: false };
   }
 
