@@ -7,5 +7,8 @@ export const metadata: Metadata = {
 };
 
 export default function AdminPage() {
-  return <AdminReview />;
+  return <>
+    <a href="/admin/bulk" style={{ position: "fixed", right: 16, bottom: 16, zIndex: 2000, padding: "11px 14px", borderRadius: 10, background: "#f3f3f3", color: "#111", fontSize: 12, fontWeight: 750 }}>일괄 블라인드</a>
+    <AdminReview />
+  </>;
 }

@@ -1,0 +1,31 @@
+# 진주.kr / JINJU
+
+진주(JINJU)는 개인정보 없이 할 말을 하는 익명 커뮤니티입니다.
+본 서비스는 경상남도 진주시 및 지방자치단체의 공식 서비스와 무관한 독립 서비스입니다.
+
+Canonical origin: https://xn--o55b9n.kr/
+Korean display domain: https://진주.kr/
+
+## Brand
+- Service: 진주 / JINJU / 진주.kr
+- Tagline: 인간적으로, 할 말은 하세요!
+- Guidance: 안전하고 개운하게 속마음을 털어놓으세요
+
+## Public pages
+- Home: https://xn--o55b9n.kr/
+- About: https://xn--o55b9n.kr/about
+- Terms: https://xn--o55b9n.kr/terms
+- Principles: https://xn--o55b9n.kr/principles
+- Safety: https://xn--o55b9n.kr/safety
+- Privacy: https://xn--o55b9n.kr/privacy
+- Sitemap: https://xn--o55b9n.kr/sitemap.xml
+- RSS: https://xn--o55b9n.kr/rss.xml
+
+## Public community content
+Public post URLs use /post/{id}. Public posts may be indexed and summarized subject to each crawler's policies. API and administrator routes are operational endpoints rather than public content pages.
+
+## Safety and rights
+Users should not publish names, contact details, detailed addresses, account identifiers, harassment, unlawful threats, or content that unlawfully infringes privacy or reputation. Rights-infringement reports and temporary-measure requests are handled through the site's report flow and published policies.
+
+## Contact
+Operational and rights-infringement contact: hello@xn--o55b9n.kr

@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   canonicalUrl,
   INDEXNOW_KEY,
+  SITE_DEFINITION,
+  SITE_DISCLAIMER,
   SITE_IDENTITY_DESCRIPTION,
   notifySearchIndexes,
   SITE_HOST,
@@ -17,11 +19,12 @@ test("canonical search URLs always use the single production host", () => {
   assert.equal(canonicalUrl("post/example"), `https://${SITE_HOST}/post/example`);
 });
 
-test("the shared identity names the domain and distinguishes the independent service", () => {
+test("the shared identity uses the fixed definition and distinguishes the independent service", () => {
+  assert.equal(SITE_DEFINITION, "진주(JINJU)는 개인정보 없이 할 말을 하는 익명 커뮤니티입니다.");
   assert.match(SITE_TITLE, new RegExp(SITE_NAME.replace(".", "\\.")));
   assert.match(SITE_TITLE, /진실의 주둥이/);
-  assert.match(SITE_IDENTITY_DESCRIPTION, /경상남도 진주시/);
-  assert.match(SITE_IDENTITY_DESCRIPTION, /관련 없는 독립 서비스/);
+  assert.equal(SITE_DISCLAIMER, "본 서비스는 경상남도 진주시 및 지방자치단체의 공식 서비스와 무관한 독립 서비스입니다.");
+  assert.equal(SITE_IDENTITY_DESCRIPTION, `${SITE_DEFINITION} ${SITE_DISCLAIMER}`);
 });
 
 test("search and AI answer crawlers can index public pages but not private routes", () => {
@@ -50,6 +53,12 @@ test("search and AI answer crawlers can index public pages but not private route
 test("the public IndexNow ownership file matches the submitted key", async () => {
   const publicKey = await readFile(`public/${INDEXNOW_KEY}.txt`, "utf8");
   assert.equal(publicKey.trim(), INDEXNOW_KEY);
+});
+
+test("llms.txt repeats the official identity and canonical origin", async () => {
+  const llms = await readFile("public/llms.txt", "utf8");
+  assert.match(llms, new RegExp(SITE_DEFINITION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(llms, new RegExp(`https://${SITE_HOST}/`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
 test("IndexNow submissions deduplicate URLs and never block publishing", async () => {
