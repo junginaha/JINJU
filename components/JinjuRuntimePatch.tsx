@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { SITE_DEFINITION } from "@/lib/search-indexing";
 
 const TITLE = "익명 의견 남기기";
 const SUBTITLE = "안전하게 속마음을 들려주세요.";
@@ -14,13 +15,27 @@ export default function JinjuRuntimePatch() {
       if (eyebrow) eyebrow.textContent = "운영 중 · 개인정보 입력을 최소화합니다.";
 
       const notice = document.querySelector<HTMLElement>(".beta-notice");
-      if (!notice) return;
-      const title = notice.querySelector<HTMLElement>("strong");
-      if (title) title.textContent = "운영 중";
-      const detail = notice.querySelector<HTMLElement>(".beta-notice-detail");
-      if (detail) detail.textContent = "실제 사용 환경을 계속 점검하며 글쓰기·검색·문제제보 흐름을 안정적으로 운영하고 있습니다.";
-      const guideLink = notice.querySelector<HTMLAnchorElement>('nav a[href="/beta"]');
-      if (guideLink) guideLink.textContent = "운영안내";
+      if (notice) {
+        const title = notice.querySelector<HTMLElement>("strong");
+        if (title) title.textContent = "운영 중";
+        const detail = notice.querySelector<HTMLElement>(".beta-notice-detail");
+        if (detail) detail.textContent = "실제 사용 환경을 계속 점검하며 글쓰기·검색·문제제보 흐름을 안정적으로 운영하고 있습니다.";
+        const guideLink = notice.querySelector<HTMLAnchorElement>('nav a[href="/beta"]');
+        if (guideLink) guideLink.textContent = "운영안내";
+      }
+
+      const footer = document.querySelector<HTMLElement>(".sidebar-footer");
+      if (footer) {
+        const footerCopy = footer.querySelector<HTMLElement>("p");
+        if (footerCopy) footerCopy.textContent = SITE_DEFINITION;
+        if (!footer.querySelector('a[href="/terms"]')) {
+          const termsLink = document.createElement("a");
+          termsLink.href = "/terms";
+          termsLink.textContent = "이용약관";
+          const contact = footer.querySelector('a[href^="mailto:"]');
+          footer.insertBefore(termsLink, contact || footerCopy || null);
+        }
+      }
     };
 
     const applyComposerCopy = () => {
