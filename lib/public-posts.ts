@@ -3,7 +3,7 @@ import { builtInComments, builtInPost, builtInPosts } from "./built-in-content";
 import { normalizePublicCategory } from "./categories";
 import { visibleCommentsAt } from "./comment-time";
 import { db, databaseEnabled, ensureSchema } from "./db";
-import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "./content-overrides";
+import { applyPostOverride, contentOverrides, hiddenCommentCounts, type ContentOverride } from "./content-overrides";
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
 import type { EditorialPost } from "./editorial";
 import {
@@ -72,6 +72,15 @@ function builtInWithVisibleCommentCount(post: EditorialPost, now = Date.now()) {
   };
 }
 
+async function safeContentOverrides(): Promise<Map<string, ContentOverride>> {
+  try {
+    return await contentOverrides();
+  } catch (error) {
+    console.error("[public-posts] content overrides unavailable", error);
+    return new Map<string, ContentOverride>();
+  }
+}
+
 export function toClientPost(post: EditorialPost): Post {
   return {
     id: post.id,
@@ -96,7 +105,7 @@ export const getPublicPosts = cache(async () => {
       .filter((post) => isPublished(post, now))
       .map((post) => [post.id, builtInWithVisibleCommentCount(post, now)]),
   );
-  let overrides = await contentOverrides();
+  const overrides = await safeContentOverrides();
   if (databaseEnabled()) {
     try {
       await ensureSchema();
@@ -132,8 +141,8 @@ export const getPublicPosts = cache(async () => {
         const post = withVisibleCommentCount(cleanRow(record), Number(record.auto_comment_count || 0), storedBodies, now);
         if (!HIDDEN_DUPLICATE_POST_IDS.has(post.id) && isPublished(post, now)) byId.set(post.id, post);
       }
-    } catch {
-      overrides = new Map();
+    } catch (error) {
+      console.error("[public-posts] database feed unavailable", error);
     }
   }
   const hiddenCounts = hiddenCommentCounts(overrides);
@@ -153,7 +162,7 @@ export const getPublicPosts = cache(async () => {
 export const getPublicPost = cache(async (id: string) => {
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return null;
   const now = Date.now();
-  const overrides = await contentOverrides();
+  const overrides = await safeContentOverrides();
   const hiddenCount = hiddenCommentCounts(overrides).get(id) || 0;
   if (databaseEnabled()) {
     try {
@@ -194,8 +203,8 @@ export const getPublicPost = cache(async (id: string) => {
           commentCount: Math.max(0, post.commentCount - hiddenCount),
         } : null;
       }
-    } catch {
-      // Fall through to the built-in editorial copy.
+    } catch (error) {
+      console.error("[public-posts] database post unavailable", error);
     }
   }
   const fallback = builtInPost(id);
