@@ -9,7 +9,21 @@ const WRITE_BUTTON_LABELS = ["새 의견 쓰기", "나의 의견", "의견 쓰�
 
 export default function JinjuRuntimePatch() {
   useEffect(() => {
-    const applyCopy = () => {
+    const applyOperationCopy = () => {
+      const eyebrow = document.querySelector<HTMLElement>(".feed-heading .eyebrow");
+      if (eyebrow) eyebrow.textContent = "운영 중 · 개인정보 입력을 최소화합니다.";
+
+      const notice = document.querySelector<HTMLElement>(".beta-notice");
+      if (!notice) return;
+      const title = notice.querySelector<HTMLElement>("strong");
+      if (title) title.textContent = "운영 중";
+      const detail = notice.querySelector<HTMLElement>(".beta-notice-detail");
+      if (detail) detail.textContent = "실제 사용 환경을 계속 점검하며 글쓰기·검색·문제제보 흐름을 안정적으로 운영하고 있습니다.";
+      const guideLink = notice.querySelector<HTMLAnchorElement>('nav a[href="/beta"]');
+      if (guideLink) guideLink.textContent = "운영안내";
+    };
+
+    const applyComposerCopy = () => {
       const intro = document.querySelector<HTMLElement>(".composer-intro");
       if (!intro) return false;
 
@@ -40,9 +54,9 @@ export default function JinjuRuntimePatch() {
 
     const watchForComposerOnce = () => {
       stopWatching();
-      if (applyCopy()) return;
+      if (applyComposerCopy()) return;
       observer = new MutationObserver(() => {
-        if (applyCopy()) stopWatching();
+        if (applyComposerCopy()) stopWatching();
       });
       observer.observe(document.body, { childList: true, subtree: true });
       timeout = window.setTimeout(stopWatching, 1500);
@@ -56,7 +70,8 @@ export default function JinjuRuntimePatch() {
       queueMicrotask(watchForComposerOnce);
     };
 
-    applyCopy();
+    applyOperationCopy();
+    applyComposerCopy();
     document.addEventListener("click", handleClick, true);
     return () => {
       document.removeEventListener("click", handleClick, true);
