@@ -53,6 +53,21 @@ export async function ensureSchema() {
           PRIMARY KEY (post_id, voter_hash)
         )`;
       await sql`
+        CREATE TABLE IF NOT EXISTS temperature_vote_locks (
+          post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+          actor_hash TEXT NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (post_id, actor_hash)
+        )`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS temperature_samples (
+          sample_id BIGSERIAL PRIMARY KEY,
+          post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+          value SMALLINT NOT NULL CHECK (value BETWEEN 0 AND 100),
+          recorded_on DATE NOT NULL DEFAULT CURRENT_DATE
+        )`;
+      await sql`
         CREATE TABLE IF NOT EXISTS admin_credentials (
           id TEXT PRIMARY KEY,
           password_salt TEXT NOT NULL,
@@ -162,6 +177,8 @@ export async function ensureSchema() {
       await sql`CREATE INDEX IF NOT EXISTS posts_status_created_idx ON posts(status, created_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS comments_post_created_idx ON comments(post_id, created_at ASC)`;
       await sql`CREATE INDEX IF NOT EXISTS post_reactions_created_idx ON post_reactions(created_at DESC)`;
+      await sql`CREATE INDEX IF NOT EXISTS temperature_vote_locks_expiry_idx ON temperature_vote_locks(expires_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS temperature_samples_post_day_idx ON temperature_samples(post_id, recorded_on DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS admin_content_overrides_post_idx ON admin_content_overrides(post_id, kind)`;
       await sql`CREATE INDEX IF NOT EXISTS auto_comment_jobs_due_idx ON auto_comment_jobs(status, next_attempt_at, updated_at)`;
       await sql`CREATE INDEX IF NOT EXISTS admin_sessions_expiry_idx ON admin_sessions(expires_at)`;
@@ -180,7 +197,7 @@ export async function ensureSchema() {
           WHERE comment.post_id = post.id
             AND comment.status = 'approved'
             AND comment.created_at <= NOW()
-        )
+        ), updated_at = post.updated_at
         WHERE post.comment_count <> (
           SELECT COUNT(*)::INTEGER
           FROM comments AS comment
