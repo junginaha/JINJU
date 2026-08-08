@@ -65,7 +65,14 @@ export async function GET(request: Request) {
   const checkKey = url.searchParams.get("key")?.trim().toUpperCase() || "";
   if (!receipt || !checkKey) return Response.json({ error: "접수번호와 확인키를 입력해주세요." }, { status: 400 });
   await ensureSchema();
-  const rows = await db()`SELECT status, created_at FROM feedback_reports WHERE receipt = ${receipt} AND check_key_hash = ${await hash(checkKey)} AND expires_at > NOW() LIMIT 1`;
+  const rows = await db()`SELECT post_id, status, created_at FROM feedback_reports WHERE receipt = ${receipt} AND check_key_hash = ${await hash(checkKey)} AND expires_at > NOW() LIMIT 1`;
   if (!rows[0]) return Response.json({ error: "접수 내역을 찾을 수 없습니다." }, { status: 404 });
-  return Response.json({ receipt, status: String(rows[0].status), createdAt: new Date(String(rows[0].created_at)).toISOString() }, { headers: { "cache-control": "no-store" } });
+  const status = String(rows[0].status);
+  let resolution: "hidden" | "kept" | "" = "";
+  if (status === "resolved") {
+    const postId = String(rows[0].post_id);
+    const overrides = await db()`SELECT hidden FROM admin_content_overrides WHERE kind = 'post' AND id = ${postId} LIMIT 1`;
+    resolution = Boolean(overrides[0]?.hidden) ? "hidden" : "kept";
+  }
+  return Response.json({ receipt, status, resolution, createdAt: new Date(String(rows[0].created_at)).toISOString() }, { headers: { "cache-control": "no-store" } });
 }
