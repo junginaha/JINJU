@@ -21,6 +21,10 @@ import { august6EditorialComments, august6EditorialPosts } from "../lib/daily-ed
 import { august5MorningComments, august5MorningPosts } from "../lib/morning-editorial-20260805";
 import { august6MorningComments, august6MorningPosts } from "../lib/morning-editorial-20260806";
 import { august8MorningComments, august8MorningPosts } from "../lib/morning-editorial-20260808";
+import {
+  AUGUST8_FRESH_COMMENT_POST_IDS,
+  august8FreshComments,
+} from "../lib/fresh-comments-20260808";
 import { generateJinjuDisplayName } from "../lib/display-name";
 import { visibleBuiltInComments } from "../lib/public-posts";
 import {
@@ -297,7 +301,7 @@ test("a partial automatic set never hides supplemental comments", () => {
   assert.equal(hasCompleteAutoCommentSet(AUTO_COMMENT_TOTAL), true);
 });
 
-test("the latest post receives ten natural comments and the next ten receive three each", () => {
+test("the latest post keeps its natural comments and selected top posts receive two more", () => {
   const latestId = "303t1k08482d6n4q5x4b";
   const otherIds = [
     "jinju-morning-20260806-palace-admission-fee",
@@ -321,20 +325,48 @@ test("the latest post receives ten natural comments and the next ten receive thr
   const latestComments = commentsFor(latestId);
   const otherComments = otherIds.flatMap((id) => {
     const comments = commentsFor(id);
-    assert.equal(comments.length, 3);
+    assert.equal(comments.length, otherIds.slice(0, 3).includes(id) ? 5 : 3);
     return comments;
   });
   const allComments = [...latestComments, ...otherComments];
 
-  assert.equal(latestComments.length, 10);
-  assert.equal(otherComments.length, 30);
-  assert.equal(allComments.length, 40);
-  assert.equal(new Set(allComments.map((comment) => comment.body)).size, 40);
-  assert.equal(new Set(allComments.map((comment) => comment.displayName)).size, 40);
+  assert.equal(latestComments.length, 12);
+  assert.equal(otherComments.length, 36);
+  assert.equal(allComments.length, 48);
+  assert.equal(new Set(allComments.map((comment) => comment.body)).size, 48);
+  assert.equal(new Set(allComments.map((comment) => comment.displayName)).size, 48);
   assert.ok(allComments.every((comment) => comment.displayName.trim().split(/\s+/).length === 2));
   assert.ok(allComments.every((comment) => !/[“”"]/u.test(comment.body)));
   assert.equal(keepsSupplementalCommentsWithAutoSet(latestId), true);
   assert.equal(keepsSupplementalCommentsWithAutoSet(otherIds[0]), false);
+});
+
+test("the current top ten receive two fresh human comments each", () => {
+  assert.equal(AUGUST8_FRESH_COMMENT_POST_IDS.length, 10);
+  assert.equal(new Set(AUGUST8_FRESH_COMMENT_POST_IDS).size, 10);
+  const comments = AUGUST8_FRESH_COMMENT_POST_IDS.flatMap((postId) => {
+    const additions = august8FreshComments(postId);
+    assert.equal(additions.length, 2);
+    assert.deepEqual(
+      supplementalComments({
+        id: postId,
+        title: "검증용 제목",
+        content: "검증용 본문입니다.",
+        category: "사회",
+        createdAt: "2026-08-06T00:00:00.000Z",
+      }).slice(-2),
+      additions,
+    );
+    return additions;
+  });
+
+  assert.equal(comments.length, 20);
+  assert.equal(new Set(comments.map((comment) => comment.id)).size, 20);
+  assert.equal(new Set(comments.map((comment) => comment.body)).size, 20);
+  assert.equal(new Set(comments.map((comment) => comment.displayName)).size, 20);
+  assert.ok(comments.every((comment) => comment.displayName.trim().split(/\s+/).length === 2));
+  assert.ok(comments.every((comment) => !/[“”"]/u.test(comment.body)));
+  assert.ok(comments.every((comment) => Number.isFinite(Date.parse(comment.createdAt))));
 });
 
 test("base comments are deduplicated against stored copies without dropping stored comments", () => {

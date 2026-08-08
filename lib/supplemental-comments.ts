@@ -1,3 +1,5 @@
+import { august8FreshComments } from "./fresh-comments-20260808";
+
 export type CommentSourcePost = {
   id: string;
   title: string;
@@ -589,13 +591,13 @@ export function supplementalComments(post: CommentSourcePost): SupplementalComme
   // 기존 글은 ID로 검수된 댓글만 사용한다. 키워드 우연 일치로
   // 전혀 다른 주제의 댓글이 붙는 일을 막는다.
   const pair = EXACT_PAIRS[post.id];
-  if (!pair) return [];
   const baseTime = Number.isFinite(Date.parse(post.createdAt)) ? Date.parse(post.createdAt) : Date.now();
   const minuteOffsets = COMMENT_MINUTE_OVERRIDES[post.id] || DEFAULT_COMMENT_MINUTES;
-  return pair.map((body, index) => ({
+  const existing = (pair || []).map((body, index) => ({
     id: `jinju-tone-${post.id}-${index + 1}`,
     body: withinTwoSentences(body),
     displayName: DISPLAY_NAME_OVERRIDES[post.id]?.[index] || nickname(post.id, index),
     createdAt: new Date(baseTime + minuteOffsets[index] * 60_000).toISOString(),
   }));
+  return [...existing, ...august8FreshComments(post.id)];
 }
