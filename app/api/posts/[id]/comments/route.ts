@@ -124,7 +124,10 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   if (!payload.commentId || !payload.deleteKey) return Response.json({ error: "이 댓글을 삭제할 권한을 확인할 수 없습니다." }, { status: 403 });
   await ensureSchema();
   const rows = await db()`SELECT delete_key_hash FROM comments WHERE id = ${payload.commentId} AND post_id = ${postId} AND status = 'approved' LIMIT 1`;
-  if (!rows[0] || String(rows[0].delete_key_hash) !== await hash(payload.deleteKey)) {
+  if (!rows[0]) return Response.json({ error: "이 댓글을 삭제할 권한을 확인할 수 없습니다." }, { status: 403 });
+  const storedDeleteHash = String(rows[0].delete_key_hash || "");
+  const adminManagedHash = await hash(`admin:${payload.commentId}`);
+  if (storedDeleteHash === adminManagedHash || storedDeleteHash !== await hash(payload.deleteKey)) {
     return Response.json({ error: "이 댓글을 삭제할 권한을 확인할 수 없습니다." }, { status: 403 });
   }
   await db()`UPDATE comments SET status = 'deleted' WHERE id = ${payload.commentId} AND post_id = ${postId}`;
