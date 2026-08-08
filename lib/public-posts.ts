@@ -3,7 +3,7 @@ import { builtInComments, builtInPost, builtInPosts } from "./built-in-content";
 import { normalizePublicCategory } from "./categories";
 import { visibleCommentsAt } from "./comment-time";
 import { db, databaseEnabled, ensureSchema } from "./db";
-import { applyPostOverride, contentOverrides, hiddenCommentCounts } from "./content-overrides";
+import { applyPostOverride, contentOverrides, hiddenCommentCounts, type ContentOverride } from "./content-overrides";
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
 import type { EditorialPost } from "./editorial";
 import {
@@ -72,12 +72,12 @@ function builtInWithVisibleCommentCount(post: EditorialPost, now = Date.now()) {
   };
 }
 
-async function safeContentOverrides() {
+async function safeContentOverrides(): Promise<Map<string, ContentOverride>> {
   try {
     return await contentOverrides();
   } catch (error) {
     console.error("[public-posts] content overrides unavailable", error);
-    return new Map<Awaited<ReturnType<typeof contentOverrides>> extends Map<infer K, infer V> ? K : string, Awaited<ReturnType<typeof contentOverrides>> extends Map<infer K, infer V> ? V : never>();
+    return new Map<string, ContentOverride>();
   }
 }
 
