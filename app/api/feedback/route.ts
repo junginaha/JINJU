@@ -3,7 +3,8 @@ import { getPublicPost } from "../../../lib/public-posts";
 import { anonymousActorHash, rateLimit } from "../../../lib/rate-limit";
 import { turnstileFailure, verifyTurnstile } from "../../../lib/turnstile";
 
-const REASONS = ["개인정보 노출", "실명 거론·명예훼손", "혐오·괴롭힘", "불법·위험한 내용", "광고·도배", "기타"];
+const RIGHTS_REQUEST = "권리침해·삭제·임시조치 요청";
+const REASONS = [RIGHTS_REQUEST, "개인정보 노출", "실명 거론·명예훼손", "혐오·괴롭힘", "불법·위험한 내용", "광고·도배", "기타"];
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
   const reason = payload.reason?.trim() || "";
   const detail = payload.detail?.trim() || "";
   if (!postId || !REASONS.includes(reason) || detail.length > 300) return Response.json({ error: "대상과 의견 내용을 확인해주세요." }, { status: 400 });
+  if (reason === RIGHTS_REQUEST && detail.length < 10) return Response.json({ error: "침해된 권리와 원하는 조치를 10자 이상 적어주세요." }, { status: 400 });
   if (!await getPublicPost(postId)) return Response.json({ error: "의견을 보낼 글을 찾을 수 없습니다." }, { status: 404 });
   const turnstile = await verifyTurnstile(request, payload.turnstileToken, "feedback");
   if (!turnstile.ok) return turnstileFailure(turnstile);
@@ -35,9 +37,10 @@ export async function POST(request: Request) {
 
   const receipt = receiptNumber();
   const checkKey = token(5).slice(0, 10).toUpperCase();
+  const initialStatus = reason === RIGHTS_REQUEST ? "reviewing" : "received";
   await db()`
-    INSERT INTO feedback_reports (receipt, post_id, reason, detail, check_key_hash, reporter_hash, expires_at)
-    VALUES (${receipt}, ${postId}, ${reason}, ${detail}, ${await hash(checkKey)}, ${reporterHash}, NOW() + INTERVAL '30 days')`;
+    INSERT INTO feedback_reports (receipt, post_id, reason, detail, check_key_hash, reporter_hash, status, expires_at)
+    VALUES (${receipt}, ${postId}, ${reason}, ${detail}, ${await hash(checkKey)}, ${reporterHash}, ${initialStatus}, NOW() + INTERVAL '30 days')`;
   const recent = await db()`
     SELECT COUNT(DISTINCT reporter_hash)::INTEGER AS count
     FROM feedback_reports
@@ -48,9 +51,9 @@ export async function POST(request: Request) {
       INSERT INTO admin_content_overrides (kind, id, post_id, hidden)
       VALUES ('post', ${postId}, ${postId}, TRUE)
       ON CONFLICT (kind, id) DO UPDATE SET hidden = TRUE, updated_at = NOW()`;
-    await db()`UPDATE feedback_reports SET auto_blinded = TRUE, status = 'reviewing', updated_at = NOW() WHERE post_id = ${postId} AND status = 'received'`;
+    await db()`UPDATE feedback_reports SET auto_blinded = TRUE, status = 'reviewing', updated_at = NOW() WHERE post_id = ${postId} AND status IN ('received', 'reviewing')`;
   }
-  return Response.json({ receipt, checkKey, status: shouldBlind ? "reviewing" : "received" }, { status: 201, headers: { "cache-control": "no-store" } });
+  return Response.json({ receipt, checkKey, status: shouldBlind || initialStatus === "reviewing" ? "reviewing" : "received" }, { status: 201, headers: { "cache-control": "no-store" } });
 }
 
 export async function GET(request: Request) {
