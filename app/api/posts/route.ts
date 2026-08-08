@@ -36,13 +36,15 @@ export async function GET(request: Request) {
   } catch (error) {
     Sentry.captureException(error, { tags: { area: "public-feed", service: "database" } });
     console.error("[posts] public database unavailable", error);
+    const fallbackPosts = await getPublicPosts().catch(() => []);
     return Response.json({
-      error: "일부 최신 의견을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
-      posts: [],
-      total: 0,
+      warning: "최신 의견 연결이 잠시 늦어지고 있습니다.",
+      posts: fallbackPosts.slice(0, 100),
+      total: fallbackPosts.length,
       database: false,
       fallback: true,
-    }, { status: 503, headers: { "cache-control": "no-store" } });
+      degraded: true,
+    }, { status: 200, headers: { "cache-control": "no-store" } });
   }
 
   const url = new URL(request.url);
