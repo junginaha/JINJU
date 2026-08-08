@@ -20,8 +20,10 @@ const PUBLIC_HOSTS = new Set([
   "www.xn--o55b9n.kr",
   "jinju-two.vercel.app",
 ]);
+const IN_APP_USER_AGENT = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\/|DaumApps/i;
 const SCRIPT_ID = "jinju-turnstile-script";
 const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+const IN_APP_FALLBACK_MS = 10_000;
 
 export default function TurnstileChallenge({
   action,
@@ -64,16 +66,42 @@ export default function TurnstileChallenge({
       return;
     }
 
+    const inAppPost = action === "post" && IN_APP_USER_AGENT.test(navigator.userAgent);
     setRequired(true);
     requiredCallbackRef.current(true);
     tokenCallbackRef.current("");
     const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
     if (!siteKey) {
-      setMessage("보안 확인 설정을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      if (inAppPost) {
+        setRequired(false);
+        requiredCallbackRef.current(false);
+        setMessage("");
+      } else {
+        setMessage("보안 확인 설정을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      }
       return;
     }
 
     let cancelled = false;
+    let completed = false;
+    let fallbackTimer: number | null = null;
+
+    const clearFallbackTimer = () => {
+      if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
+      fallbackTimer = null;
+    };
+
+    const enableInAppFallback = () => {
+      if (cancelled || !inAppPost || completed) return false;
+      completed = true;
+      clearFallbackTimer();
+      tokenCallbackRef.current("");
+      requiredCallbackRef.current(false);
+      setRequired(false);
+      setMessage("");
+      return true;
+    };
+
     const render = () => {
       if (cancelled || !window.turnstile || !containerRef.current || widgetRef.current !== null) return;
       widgetRef.current = window.turnstile.render(containerRef.current, {
@@ -86,16 +114,19 @@ export default function TurnstileChallenge({
         retry: "auto",
         "refresh-expired": "auto",
         callback: (token: string) => {
+          completed = true;
+          clearFallbackTimer();
           tokenCallbackRef.current(token);
           setMessage("");
         },
         "expired-callback": () => {
+          completed = false;
           tokenCallbackRef.current("");
           setMessage("보안 확인이 만료되어 다시 확인하고 있습니다.");
         },
         "error-callback": () => {
           tokenCallbackRef.current("");
-          setMessage("보안 확인을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.");
+          if (!enableInAppFallback()) setMessage("보안 확인을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.");
         },
       });
     };
@@ -112,12 +143,17 @@ export default function TurnstileChallenge({
       script.async = true;
       script.defer = true;
       script.addEventListener("load", render);
-      script.addEventListener("error", () => setMessage("보안 확인을 불러오지 못했습니다. 네트워크를 확인해주세요."));
+      script.addEventListener("error", () => {
+        if (!enableInAppFallback()) setMessage("보안 확인을 불러오지 못했습니다. 네트워크를 확인해주세요.");
+      });
       document.head.appendChild(script);
     }
 
+    if (inAppPost) fallbackTimer = window.setTimeout(enableInAppFallback, IN_APP_FALLBACK_MS);
+
     return () => {
       cancelled = true;
+      clearFallbackTimer();
       existing?.removeEventListener("load", render);
       tokenCallbackRef.current("");
       if (widgetRef.current !== null && window.turnstile) {
