@@ -14,6 +14,22 @@ export default function JinjuRuntimePatch() {
       const eyebrow = document.querySelector<HTMLElement>(".feed-heading .eyebrow");
       if (eyebrow) eyebrow.textContent = "개인정보 0%";
 
+      const feedTitle = document.querySelector<HTMLElement>(".feed-heading h1");
+      if (feedTitle) {
+        feedTitle.textContent = "진주 익명 의견 게시판";
+        Object.assign(feedTitle.style, {
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          padding: "0",
+          margin: "-1px",
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          whiteSpace: "nowrap",
+          border: "0",
+        });
+      }
+
       const notice = document.querySelector<HTMLElement>(".beta-notice");
       if (notice) {
         const title = notice.querySelector<HTMLElement>("strong");
