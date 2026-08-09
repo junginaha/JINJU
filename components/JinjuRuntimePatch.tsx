@@ -12,12 +12,12 @@ export default function JinjuRuntimePatch() {
   useEffect(() => {
     const applyOperationCopy = () => {
       const eyebrow = document.querySelector<HTMLElement>(".feed-heading .eyebrow");
-      if (eyebrow) eyebrow.textContent = "운영 중 · 개인정보 입력을 최소화합니다.";
+      if (eyebrow) eyebrow.textContent = "개인정보 0%";
 
       const notice = document.querySelector<HTMLElement>(".beta-notice");
       if (notice) {
         const title = notice.querySelector<HTMLElement>("strong");
-        if (title) title.textContent = "운영 중";
+        if (title) title.textContent = "";
         const detail = notice.querySelector<HTMLElement>(".beta-notice-detail");
         if (detail) detail.textContent = "실제 사용 환경을 계속 점검하며 글쓰기·검색·문제제보 흐름을 안정적으로 운영하고 있습니다.";
         const guideLink = notice.querySelector<HTMLAnchorElement>('nav a[href="/beta"]');
