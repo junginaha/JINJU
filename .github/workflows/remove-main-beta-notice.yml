@@ -1,0 +1,89 @@
+name: Remove main beta notice
+
+on:
+  push:
+    branches:
+      - agent/permanent-remove-beta-status
+    paths:
+      - .github/workflows/remove-main-beta-notice.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove main notice and dead presentation code
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          app_path = Path('components/JinjuApp.tsx')
+          bridge_path = Path('components/JinjuAppBridge.tsx')
+          css_path = Path('app/globals.css')
+
+          app = app_path.read_text(encoding='utf-8')
+          app_pattern = re.compile(r'\n\s*<section className="beta-notice" aria-label="공개베타 안내">.*?</section>\n', re.S)
+          app, count = app_pattern.subn('\n', app, count=1)
+          if count != 1:
+              raise SystemExit(f'expected one beta notice section, removed {count}')
+          app_path.write_text(app, encoding='utf-8')
+
+          bridge = bridge_path.read_text(encoding='utf-8')
+          const_line = 'const NOTICE_DETAIL = "실제 사용 환경을 계속 점검하며 글쓰기·검색·문제제보 흐름을 안정적으로 운영하고 있습니다.";\n'
+          if bridge.count(const_line) != 1:
+              raise SystemExit(f'expected one NOTICE_DETAIL constant, found {bridge.count(const_line)}')
+          bridge = bridge.replace(const_line, '')
+          notice_block = '''      const notice = document.querySelector<HTMLElement>(".beta-notice");
+      if (notice) {
+        notice.setAttribute("aria-label", "진주 안내");
+        const detail = notice.querySelector<HTMLElement>(".beta-notice-detail");
+        if (detail && detail.textContent !== NOTICE_DETAIL) detail.textContent = NOTICE_DETAIL;
+        const guideLink = notice.querySelector<HTMLAnchorElement>('nav a[href="/beta"]');
+        if (guideLink && guideLink.textContent !== "운영안내") guideLink.textContent = "운영안내";
+      }
+
+'''
+          if bridge.count(notice_block) != 1:
+              raise SystemExit(f'expected one notice bridge block, found {bridge.count(notice_block)}')
+          bridge_path.write_text(bridge.replace(notice_block, ''), encoding='utf-8')
+
+          css = css_path.read_text(encoding='utf-8')
+          desktop = re.compile(r'\.beta-notice \{[^\n]*\}\n\.beta-notice strong \{[^\n]*\}\n\.beta-notice p \{[^\n]*\}\n\.beta-notice \.beta-notice-identity \{[^\n]*\}\n\.beta-notice \.beta-notice-detail \{[^\n]*\}\n\.beta-notice nav \{[^\n]*\}\n\.beta-notice a \{[^\n]*\}\n\.beta-notice a:hover \{[^\n]*\}\n')
+          css, desktop_count = desktop.subn('', css, count=1)
+          if desktop_count != 1:
+              raise SystemExit(f'expected one desktop beta notice CSS block, removed {desktop_count}')
+          mobile = '''  .beta-notice { grid-template-columns: minmax(0,1fr); align-items: start; padding: 13px; }
+  .beta-notice nav { width: 100%; }
+  .beta-notice a { flex: 1 1 0; justify-content: center; min-width: 0; white-space: nowrap; }
+'''
+          if css.count(mobile) != 1:
+              raise SystemExit(f'expected one mobile beta notice CSS block, found {css.count(mobile)}')
+          css = css.replace(mobile, '')
+          narrow = '  .beta-notice nav { display: grid; grid-template-columns: 1fr; }\n'
+          if css.count(narrow) != 1:
+              raise SystemExit(f'expected one narrow beta notice CSS rule, found {css.count(narrow)}')
+          css_path.write_text(css.replace(narrow, ''), encoding='utf-8')
+          PY
+
+          if grep -RFn --exclude-dir=.git --exclude='remove-main-beta-notice.yml' 'beta-notice' components app; then
+            echo 'beta-notice code remains' >&2
+            exit 1
+          fi
+
+      - name: Commit clean result and self-delete workflow
+        shell: bash
+        run: |
+          git config user.name 'jinju-cleanup-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/remove-main-beta-notice.yml
+          git add components/JinjuApp.tsx components/JinjuAppBridge.tsx app/globals.css
+          git commit -m 'remove redundant main notice card'
+          git push origin HEAD:agent/permanent-remove-beta-status
