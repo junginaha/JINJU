@@ -7,6 +7,7 @@ import {
   SITE_IDENTITY_DESCRIPTION,
   SITE_NAME,
   SITE_ORGANIZATION_ID,
+  SITE_SAME_AS,
   SITE_TAGLINE,
   SITE_TITLE,
   SITE_URL,
@@ -108,6 +109,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         alternateName: SITE_TAGLINE,
         url: `${baseUrl}/`,
         description: SITE_IDENTITY_DESCRIPTION,
+        ...(SITE_SAME_AS.length ? { sameAs: SITE_SAME_AS } : {}),
         logo: {
           "@type": "ImageObject",
           url: `${baseUrl}/jinju-pearl-cutout.png`,
@@ -120,6 +122,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         alternateName: ["진주 익명 커뮤니티", SITE_TAGLINE, SITE_HOST],
         url: `${baseUrl}/`,
         description: siteDescription,
+        ...(SITE_SAME_AS.length ? { sameAs: SITE_SAME_AS } : {}),
         inLanguage: "ko-KR",
         publisher: { "@id": SITE_ORGANIZATION_ID },
       },

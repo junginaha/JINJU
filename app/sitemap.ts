@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 const officialPages = [
   { path: "/about", priority: 0.8 },
+  { path: "/terms", priority: 0.7 },
   { path: "/principles", priority: 0.7 },
   { path: "/safety", priority: 0.7 },
   { path: "/privacy", priority: 0.7 },
