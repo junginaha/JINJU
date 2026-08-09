@@ -21,10 +21,16 @@ import { august6EditorialComments, august6EditorialPosts } from "../lib/daily-ed
 import { august5MorningComments, august5MorningPosts } from "../lib/morning-editorial-20260805";
 import { august6MorningComments, august6MorningPosts } from "../lib/morning-editorial-20260806";
 import { august8MorningComments, august8MorningPosts } from "../lib/morning-editorial-20260808";
+import { august9MorningComments, august9MorningPosts } from "../lib/morning-editorial-20260809";
+import { august9EditorialComments, august9EditorialPosts } from "../lib/daily-editorial-20260809";
 import {
   AUGUST8_FRESH_COMMENT_POST_IDS,
   august8FreshComments,
 } from "../lib/fresh-comments-20260808";
+import {
+  AUGUST9_FRESH_COMMENT_POST_IDS,
+  august9FreshComments,
+} from "../lib/fresh-comments-20260809";
 import { generateJinjuDisplayName } from "../lib/display-name";
 import { visibleBuiltInComments } from "../lib/public-posts";
 import {
@@ -322,9 +328,9 @@ test("the latest post keeps its natural comments and selected top posts receive 
     category: "사회",
     createdAt: "2026-08-06T00:00:00.000Z",
   });
-  const latestComments = commentsFor(latestId);
+  const latestComments = commentsFor(latestId).filter((comment) => !comment.id.startsWith("fresh-0809-"));
   const otherComments = otherIds.flatMap((id) => {
-    const comments = commentsFor(id);
+    const comments = commentsFor(id).filter((comment) => !comment.id.startsWith("fresh-0809-"));
     assert.equal(comments.length, otherIds.slice(0, 3).includes(id) ? 5 : 3);
     return comments;
   });
@@ -354,7 +360,7 @@ test("the current top ten receive two fresh human comments each", () => {
         content: "검증용 본문입니다.",
         category: "사회",
         createdAt: "2026-08-06T00:00:00.000Z",
-      }).slice(-2),
+      }).filter((comment) => comment.id.startsWith("fresh-0808-")),
       additions,
     );
     return additions;
@@ -364,6 +370,79 @@ test("the current top ten receive two fresh human comments each", () => {
   assert.equal(new Set(comments.map((comment) => comment.id)).size, 20);
   assert.equal(new Set(comments.map((comment) => comment.body)).size, 20);
   assert.equal(new Set(comments.map((comment) => comment.displayName)).size, 20);
+  assert.ok(comments.every((comment) => comment.displayName.trim().split(/\s+/).length === 2));
+  assert.ok(comments.every((comment) => !/[“”"]/u.test(comment.body)));
+  assert.ok(comments.every((comment) => Number.isFinite(Date.parse(comment.createdAt))));
+});
+
+test("selected August 9 posts use two-word names, 20-33 likes, and six complete comments", () => {
+  assert.equal(august9EditorialPosts.length, 3);
+  assert.equal(new Set(august9EditorialPosts.map((post) => post.id)).size, 3);
+  const allNames: string[] = [];
+  const allBodies: string[] = [];
+  for (const post of august9EditorialPosts) {
+    assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
+    assert.ok(post.heard >= 20 && post.heard <= 33);
+    const comments = august9EditorialComments(post.id);
+    assert.equal(comments.length, 6);
+    assert.equal(comments.length, post.commentCount);
+    for (const item of comments) {
+      assert.equal(item.displayName.trim().split(/\s+/).length, 2);
+      assert.ok(Date.parse(item.createdAt) > Date.parse(post.createdAt));
+      allNames.push(item.displayName);
+      allBodies.push(item.body);
+    }
+  }
+  assert.equal(new Set(allNames).size, 18);
+  assert.equal(new Set(allBodies).size, 18);
+});
+
+test("August 9 news posts keep balanced six-comment debates and two-word names", () => {
+  assert.equal(august9MorningPosts.length, 5);
+  assert.equal(new Set(august9MorningPosts.map((post) => post.id)).size, 5);
+  const allNames: string[] = [];
+  const allBodies: string[] = [];
+  for (const post of august9MorningPosts) {
+    assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
+    assert.ok(post.heard >= 20 && post.heard <= 33);
+    const comments = august9MorningComments(post.id);
+    assert.equal(comments.length, 6);
+    assert.equal(comments.length, post.commentCount);
+    for (const item of comments) {
+      assert.equal(item.displayName.trim().split(/\s+/).length, 2);
+      assert.ok(Date.parse(item.createdAt) > Date.parse(post.createdAt));
+      assert.ok(!/[“”"]/u.test(item.body));
+      allNames.push(item.displayName);
+      allBodies.push(item.body);
+    }
+  }
+  assert.equal(new Set(allNames).size, 30);
+  assert.equal(new Set(allBodies).size, 30);
+});
+
+test("the current top ten receive exactly one new natural humorous comment each", () => {
+  assert.equal(AUGUST9_FRESH_COMMENT_POST_IDS.length, 10);
+  assert.equal(new Set(AUGUST9_FRESH_COMMENT_POST_IDS).size, 10);
+  const comments = AUGUST9_FRESH_COMMENT_POST_IDS.flatMap((postId) => {
+    const additions = august9FreshComments(postId);
+    assert.equal(additions.length, 1);
+    assert.deepEqual(
+      supplementalComments({
+        id: postId,
+        title: "검증용 제목",
+        content: "검증용 본문입니다.",
+        category: "사회",
+        createdAt: "2026-08-06T00:00:00.000Z",
+      }).slice(-1),
+      additions,
+    );
+    return additions;
+  });
+
+  assert.equal(comments.length, 10);
+  assert.equal(new Set(comments.map((comment) => comment.id)).size, 10);
+  assert.equal(new Set(comments.map((comment) => comment.body)).size, 10);
+  assert.equal(new Set(comments.map((comment) => comment.displayName)).size, 10);
   assert.ok(comments.every((comment) => comment.displayName.trim().split(/\s+/).length === 2));
   assert.ok(comments.every((comment) => !/[“”"]/u.test(comment.body)));
   assert.ok(comments.every((comment) => Number.isFinite(Date.parse(comment.createdAt))));

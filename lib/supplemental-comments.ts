@@ -1,4 +1,5 @@
 import { august8FreshComments } from "./fresh-comments-20260808";
+import { august9FreshComments } from "./fresh-comments-20260809";
 
 export type CommentSourcePost = {
   id: string;
@@ -599,5 +600,5 @@ export function supplementalComments(post: CommentSourcePost): SupplementalComme
     displayName: DISPLAY_NAME_OVERRIDES[post.id]?.[index] || nickname(post.id, index),
     createdAt: new Date(baseTime + minuteOffsets[index] * 60_000).toISOString(),
   }));
-  return [...existing, ...august8FreshComments(post.id)];
+  return [...existing, ...august8FreshComments(post.id), ...august9FreshComments(post.id)];
 }
