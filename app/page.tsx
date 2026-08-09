@@ -1,5 +1,4 @@
-import JinjuApp from "@/components/JinjuAppSafe";
-import JinjuRuntimePatch from "@/components/JinjuRuntimePatch";
+import JinjuApp from "@/components/JinjuAppBridge";
 import { getPublicPosts, toClientPost } from "@/lib/public-posts";
 
 export const revalidate = 30;
@@ -58,7 +57,6 @@ export default async function Home() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: fastEntryCss }} />
-      <JinjuRuntimePatch />
       <JinjuApp initialPosts={initialPosts} initialTotal={publicPosts.length} />
     </>
   );
