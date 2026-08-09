@@ -11,7 +11,6 @@ type JinjuAppBridgeProps = {
 };
 
 const FEED_ACCESSIBLE_NAME = "진주 익명 의견 게시판";
-const FEED_EYEBROW = "개인정보 0%";
 const COMPOSER_TITLE = "익명 의견 남기기";
 const COMPOSER_SUBTITLE = "안전하게 속마음을 들려주세요.";
 const BODY_PLACEHOLDER = "무슨 일이 있었는지 천천히 들려주세요.\n편한 마음으로 적으셔도 괜찮아요.";
@@ -92,9 +91,6 @@ export default function JinjuAppBridge({ initialPosts, initialPostId = null, ini
 
       const main = document.querySelector<HTMLElement>(".chat-main#feed");
       main?.setAttribute("aria-label", FEED_ACCESSIBLE_NAME);
-
-      const eyebrow = heading.querySelector<HTMLElement>(".eyebrow");
-      if (eyebrow && eyebrow.textContent !== FEED_EYEBROW) eyebrow.textContent = FEED_EYEBROW;
 
       const title = heading.querySelector<HTMLElement>("h1");
       if (title) {
