@@ -1,0 +1,58 @@
+name: Permanent beta status copy cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/permanent-remove-beta-status.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove source copy and obsolete bridge code
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app_path = Path('components/JinjuApp.tsx')
+          bridge_path = Path('components/JinjuAppBridge.tsx')
+
+          app = app_path.read_text(encoding='utf-8')
+          target = '                  <strong>공개베타 운영 중</strong>\n'
+          if app.count(target) != 1:
+              raise SystemExit(f'expected exactly one beta status source node, found {app.count(target)}')
+          app_path.write_text(app.replace(target, ''), encoding='utf-8')
+
+          bridge = bridge_path.read_text(encoding='utf-8')
+          obsolete = '''        const noticeTitle = notice.querySelector<HTMLElement>("strong");
+        if (noticeTitle) noticeTitle.hidden = true;
+'''
+          if bridge.count(obsolete) != 1:
+              raise SystemExit(f'expected exactly one obsolete bridge block, found {bridge.count(obsolete)}')
+          bridge_path.write_text(bridge.replace(obsolete, ''), encoding='utf-8')
+          PY
+
+          if grep -RFn --exclude-dir=.git '공개베타 운영 중' .; then
+            echo 'The deleted status copy still exists.' >&2
+            exit 1
+          fi
+
+      - name: Commit cleanup and remove this temporary workflow
+        shell: bash
+        run: |
+          git config user.name 'jinju-cleanup-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/permanent-remove-beta-status.yml
+          git add components/JinjuApp.tsx components/JinjuAppBridge.tsx
+          git commit -m 'permanently remove public beta status copy'
+          git push origin HEAD:main
