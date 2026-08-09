@@ -107,8 +107,6 @@ export default function JinjuAppBridge({ initialPosts, initialPostId = null, ini
       const notice = document.querySelector<HTMLElement>(".beta-notice");
       if (notice) {
         notice.setAttribute("aria-label", "진주 안내");
-        const noticeTitle = notice.querySelector<HTMLElement>("strong");
-        if (noticeTitle) noticeTitle.hidden = true;
         const detail = notice.querySelector<HTMLElement>(".beta-notice-detail");
         if (detail && detail.textContent !== NOTICE_DETAIL) detail.textContent = NOTICE_DETAIL;
         const guideLink = notice.querySelector<HTMLAnchorElement>('nav a[href="/beta"]');
