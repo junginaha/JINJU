@@ -856,7 +856,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               <section className="beta-notice" aria-label="공개베타 안내">
                 <div>
-                  <strong>공개베타 운영 중</strong>
                   <p className="beta-notice-identity">조개가 아픔을 감내하며 귀한 보석을 만들어내듯, 사용자의 상처받은 경험과 진짜 속마음을 소중하게 품어주는 다정하고 정제된 공간입니다.</p>
                   <p className="beta-notice-detail">정식 공개 전 실제 사용 환경을 점검하고 있습니다. 글쓰기·검색·문제제보 흐름을 우선 안정화하고 있습니다.</p>
                 </div>
