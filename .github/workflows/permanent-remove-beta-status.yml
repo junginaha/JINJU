@@ -1,0 +1,48 @@
+name: Permanent beta status source cleanup
+
+on:
+  push:
+    branches:
+      - agent/permanent-remove-beta-status
+    paths:
+      - .github/workflows/permanent-remove-beta-status.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cleanup branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Permanently remove status source node
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('components/JinjuApp.tsx')
+          text = path.read_text(encoding='utf-8')
+          target = '                  <strong>공개베타 운영 중</strong>\n'
+          count = text.count(target)
+          if count != 1:
+              raise SystemExit(f'expected exactly one source node, found {count}')
+          path.write_text(text.replace(target, ''), encoding='utf-8')
+          PY
+          if grep -RFn --exclude-dir=.git '공개베타 운영 중' components app lib; then
+            echo 'Deleted status copy still exists in application source.' >&2
+            exit 1
+          fi
+
+      - name: Commit source cleanup and self-delete
+        shell: bash
+        run: |
+          git config user.name 'jinju-cleanup-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/permanent-remove-beta-status.yml
+          git add components/JinjuApp.tsx
+          git commit -m 'permanently remove public beta status copy'
+          git push origin HEAD:agent/permanent-remove-beta-status
