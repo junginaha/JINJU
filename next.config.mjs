@@ -10,13 +10,13 @@ const nextConfig = {
         source: "/:path*",
         has: [{ type: "host", value: "www.xn--o55b9n.kr" }],
         destination: "https://xn--o55b9n.kr/:path*",
-        permanent: true,
+        statusCode: 301,
       },
       {
         source: "/:path*",
         has: [{ type: "host", value: "jinju-two.vercel.app" }],
         destination: "https://xn--o55b9n.kr/:path*",
-        permanent: true,
+        statusCode: 301,
       },
     ];
   },
