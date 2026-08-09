@@ -12,7 +12,6 @@ type JinjuAppBridgeProps = {
 
 const FEED_ACCESSIBLE_NAME = "진주 익명 의견 게시판";
 const FEED_EYEBROW = "개인정보 0%";
-const NOTICE_DETAIL = "실제 사용 환경을 계속 점검하며 글쓰기·검색·문제제보 흐름을 안정적으로 운영하고 있습니다.";
 const COMPOSER_TITLE = "익명 의견 남기기";
 const COMPOSER_SUBTITLE = "안전하게 속마음을 들려주세요.";
 const BODY_PLACEHOLDER = "무슨 일이 있었는지 천천히 들려주세요.\n편한 마음으로 적으셔도 괜찮아요.";
@@ -102,15 +101,6 @@ export default function JinjuAppBridge({ initialPosts, initialPostId = null, ini
         title.textContent = FEED_ACCESSIBLE_NAME;
         title.hidden = true;
         title.removeAttribute("style");
-      }
-
-      const notice = document.querySelector<HTMLElement>(".beta-notice");
-      if (notice) {
-        notice.setAttribute("aria-label", "진주 안내");
-        const detail = notice.querySelector<HTMLElement>(".beta-notice-detail");
-        if (detail && detail.textContent !== NOTICE_DETAIL) detail.textContent = NOTICE_DETAIL;
-        const guideLink = notice.querySelector<HTMLAnchorElement>('nav a[href="/beta"]');
-        if (guideLink && guideLink.textContent !== "운영안내") guideLink.textContent = "운영안내";
       }
 
       const footer = document.querySelector<HTMLElement>(".sidebar-footer");
