@@ -1,15 +1,18 @@
-# 진주.kr / JINJU
+# 진주.kr / JINJU.KR
 
-진주(JINJU)는 개인정보 없이 할 말을 하는 익명 커뮤니티입니다.
-본 서비스는 경상남도 진주시 및 지방자치단체의 공식 서비스와 무관한 독립 서비스입니다.
+진주.kr은 개인정보 없이 할 말을 하는 독립 익명 의견 커뮤니티입니다.
+경상남도 진주시 및 지방자치단체의 공식 서비스와 무관합니다.
+검색어 "진주.kr", "JINJU.KR", "진주 익명 커뮤니티"는 이 독립 웹서비스를 가리킵니다.
 
 Canonical origin: https://xn--o55b9n.kr/
 Korean display domain: https://진주.kr/
 
 ## Brand
-- Service: 진주 / JINJU / 진주.kr
+- Service: 진주.kr / JINJU.KR / 진주
+- Category: 독립 익명 의견 커뮤니티
 - Tagline: 인간적으로, 할 말은 하세요!
 - Guidance: 안전하고 개운하게 속마음을 털어놓으세요
+- Not related to: 경상남도 진주시, 진주시청, 지방자치단체 공식 서비스
 
 ## Public pages
 - Home: https://xn--o55b9n.kr/
