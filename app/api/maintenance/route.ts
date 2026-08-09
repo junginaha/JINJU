@@ -1,6 +1,7 @@
 import { db, databaseEnabled, ensureSchema } from "../../../lib/db";
 import { LEGACY_GENERIC_AUTO_COMMENT_BODIES } from "../../../lib/auto-comments";
 import { processDueAutoCommentJobs } from "../../../lib/auto-comment-jobs";
+import { PUBLIC_COMMENT_REWRITES } from "../../../lib/content-overrides";
 import { purgeExpiredReactions } from "../../../lib/reactions";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,15 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   if (!databaseEnabled()) return Response.json({ ok: false }, { status: 503 });
   await ensureSchema();
+  let rewrittenComments = 0;
+  for (const [id, rewrite] of PUBLIC_COMMENT_REWRITES) {
+    const rows = await db()`
+      UPDATE comments
+      SET content = ${rewrite.to}
+      WHERE id = ${id} AND content = ${rewrite.from}
+      RETURNING id`;
+    rewrittenComments += rows.length;
+  }
   const removedLegacyComments: Array<Record<string, unknown>> = [];
   for (const body of LEGACY_GENERIC_AUTO_COMMENT_BODIES) {
     const rows = await db()`
@@ -39,6 +49,7 @@ export async function GET() {
   const autoCommentJobs = await processDueAutoCommentJobs();
   return Response.json({
     ok: true,
+    rewrittenComments,
     removedLegacyComments: removedLegacyComments.length,
     processedAutoCommentJobs: autoCommentJobs.length,
   }, { headers: { "cache-control": "no-store" } });
