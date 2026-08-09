@@ -90,10 +90,10 @@ export const LEGACY_GENERIC_AUTO_COMMENT_BODIES = [
 const BEAUTY_CHOICE_COMMENTS = [
   "얼굴이냐 몸매냐 고르라면 질문부터 조금 좁은 것 같아요. 첫눈은 외모가 잡아도 다음 약속은 대화와 태도가 잡더라고요.",
   "취향은 솔직할 수 있지만 사람을 두 항목으로만 비교하면 상대도 나를 조건표로 보게 되죠. 선택하는 사람도 동시에 선택받는 사람입니다.",
-  "얼굴은 조명, 몸매는 각도의 도움을 받을 수 있지만 대화가 안 맞는 90분은 어떤 필터로도 짧아지지 않더라고요.",
+  "얼굴은 조명, 몸매는 각도의 도움을 받을 수 있지만 대화가 안 맞는 90분은 어떤 필터로도 짧아지지 않더라고요. 결국 필터보다 대화가 오래 남습니다.",
   "연애를 시작할 때 외모의 영향이 큰 건 사실이라고 봐요. 다만 끌리는 기준과 사람의 가치를 평가하는 기준은 구분했으면 합니다.",
   "얼굴과 몸매는 세월과 생활에 따라 달라집니다. 오래 함께할 사람이라면 변한 뒤에도 존중할 수 있는지가 더 어려운 질문 같아요.",
-  "‘누굴 택할까요’라는 질문에서 정작 두 여성의 선택은 빠져 있네요. 상대도 나를 보고 고른다는 조건을 넣으면 문제가 훨씬 현실적이 됩니다.",
+  "누구를 택하느냐는 질문에서 정작 두 여성의 선택은 빠져 있네요. 상대도 나를 보고 고른다는 조건을 넣으면 문제가 훨씬 현실적이 됩니다.",
   "저라면 얼굴형보다 표정을 봅니다. 나를 볼 때 편하게 웃는 얼굴은 숫자로 비교하기 어렵지만 오래 기억에 남아요.",
   "몸매 관리를 성실함이나 생활 습관의 매력으로 보는 사람도 있겠죠. 중요한 건 그 취향을 상대를 줄 세우는 말로 바꾸지 않는 일이라고 생각합니다.",
   "미모라는 말 안에는 얼굴, 체형뿐 아니라 목소리와 자세, 표정까지 들어갑니다. 두 칸짜리 선택지로는 사람이 자꾸 밖으로 삐져나와요.",
@@ -117,6 +117,7 @@ const COMMENT_SYSTEM_PROMPT = `당신은 한국어 익명 커뮤니티 '진주'�
 - 1~3번은 게시 직후 보이는 댓글이다. 각각 재치와 생활감, 따뜻한 공감, 지적인 관점을 담당한다.
 - 4번 이후에는 찬성, 조심스러운 반대, 다른 당사자의 사정, 현실적인 제안, 질문, 다정한 위로, 절제된 유머를 고르게 섞는다.
 - 짧게 웃기는 댓글과 충분히 읽을 만한 의식 있는 댓글을 섞되, 같은 표현·논리·말투를 반복하지 않는다.
+- 모든 댓글은 정확히 두 문장으로 쓴다. 게시글 문장 일부를 조사와 어색하게 이어 붙이거나 문장 조각을 재사용하지 않는다.
 - 제목이나 본문을 큰따옴표로 그대로 옮기지 말고 자기 말로 자연스럽게 풀어 쓴다. 꼭 필요한 직접 인용은 전체 댓글 중 하나만 허용한다.
 - 게시글의 주장에 무조건 동의하지 않아도 되지만 사람을 공격하거나 비꼬지 않는다.
 - 30~180자의 자연스러운 한국어로 쓰고, 상투적인 공감만으로 끝내지 않는다.
@@ -139,6 +140,13 @@ const TOKEN_STOP_WORDS = new Set([
 
 const GENERIC_COMMENT_PATTERN = /(저도 해봤|다들 비슷하게|별일 아닌데|하루 종일 생각날 때|좋은 글|공감합니다|제 얘기인 줄)/;
 
+function sentenceCount(value: string) {
+  return (value.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || [])
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .length;
+}
+
 function meaningfulTokens(value: string) {
   return [...new Set((value.match(/[가-힣A-Za-z0-9]{2,}/g) || [])
     .map((token) => token.toLocaleLowerCase("ko-KR"))
@@ -147,49 +155,12 @@ function meaningfulTokens(value: string) {
 
 function isContextualComment(body: string, post: AutoCommentPost) {
   const clean = body.replace(/\s+/g, " ").trim();
-  if (clean.length < 20 || clean.length > 180 || GENERIC_COMMENT_PATTERN.test(clean)) return false;
+  if (clean.length < 30 || clean.length > 180 || sentenceCount(clean) !== 2 || GENERIC_COMMENT_PATTERN.test(clean)) return false;
   const commentTokens = new Set(meaningfulTokens(clean));
   const titleTokens = meaningfulTokens(post.title);
   const contentTokens = meaningfulTokens(post.content);
   return titleTokens.some((token) => commentTokens.has(token))
     || contentTokens.filter((token) => commentTokens.has(token)).length >= 2;
-}
-
-function quotedFragment(value: string, maxLength: number) {
-  const clean = value.replace(/[“”‘’"']/g, "").replace(/\s+/g, " ").trim();
-  if (clean.length <= maxLength) return clean.replace(/[.!?]+$/g, "");
-  const shortened = clean.slice(0, maxLength + 1);
-  const boundary = shortened.lastIndexOf(" ");
-  return shortened.slice(0, boundary >= Math.floor(maxLength * 0.65) ? boundary : maxLength).replace(/[,:;.!?…\s]+$/g, "");
-}
-
-function anchoredFallbackComments(post: AutoCommentPost) {
-  const title = quotedFragment(post.title, 42);
-  const details = (post.content.match(/[^.!?。！？\n]+[.!?。！？]?/g) || [post.content])
-    .map((sentence) => sentence.trim())
-    .filter((sentence) => meaningfulTokens(sentence).length >= 2)
-    .map((sentence) => quotedFragment(sentence, 38))
-    .filter(Boolean)
-    .slice(0, 5);
-  while (details.length < 5) details.push(title);
-  const [first, second, third, fourth, fifth] = details;
-  return [
-    `처음 눈에 들어온 건 ${first} 대목이었습니다. 가볍게 넘길 수도 있지만 당사자에게는 오래 남을 만한 일이겠네요.`,
-    `${title}라는 질문은 한쪽을 쉽게 탓하기보다 서로 무엇을 다르게 보는지부터 생각하게 합니다.`,
-    `${second}를 기준으로 보면 답이 한쪽으로만 정리되지는 않겠어요. 중요하게 보는 기준에 따라 판단이 꽤 달라질 듯합니다.`,
-    `글쓴이가 겪은 ${first} 상황에도 다른 결론은 가능하겠죠. 반대할 때도 사람보다 이유를 먼저 말하면 좋겠습니다.`,
-    `${third}만으로 결론을 내리기 전에 선택지 밖에 빠진 사정은 없는지도 살펴보고 싶어요.`,
-    `${fourth} 부분이 묘하게 오래 남네요. 짧은 질문이지만 댓글창에서는 제법 진지한 토론이 열릴 것 같습니다.`,
-    `다른 자리에서는 ${second}를 전혀 다르게 받아들일 수도 있겠습니다. 서로의 경험이 판단을 어떻게 바꾸는지도 궁금해요.`,
-    `${first}를 왜 그렇게 판단했는지 한 문장씩 보태면 찬반보다 각자의 기준이 더 선명하게 보이겠네요.`,
-    `${fifth}까지 생각하면 누가 맞는지보다 각 선택이 어떤 결과를 만드는지 먼저 따져봐야겠습니다.`,
-    `${third}를 사소한 일로 접지 않은 점이 좋습니다. 생활의 규칙은 이런 구체적인 불편에서 바뀌기도 하니까요.`,
-    `${second}를 보고 처음 떠오른 답과 조금 더 생각한 뒤의 답이 달라졌습니다. 결론보다 생각이 움직이는 과정이 흥미로운 질문이네요.`,
-    `${fourth}에는 완벽한 정답보다 서로 납득할 수 있는 설명이 더 중요할지도 모르겠습니다.`,
-    `${first}를 혼자 삼키지 않고 꺼낸 것부터 조정의 시작이라고 봅니다. 불편을 말하는 일과 싸움을 거는 일은 다르니까요.`,
-    `제목은 짧지만 각자 가져올 사정은 꽤 묵직하겠네요. 댓글이 판정표보다 이유를 나누는 자리가 됐으면 합니다.`,
-    `${fifth}를 어떤 기준으로 보느냐에 따라 답이 달라질 듯합니다. 결론이 달라도 서로를 함부로 단정하지 않았으면 해요.`,
-  ];
 }
 
 function limitDirectQuotes(comments: string[]) {
@@ -205,13 +176,16 @@ function contextualFallbackComments(post: AutoCommentPost) {
   const combined = `${post.title}\n${post.content}`;
   const matched = TOPIC_FALLBACK_COMMENTS.find((rule) => rule.match.test(combined));
   if (matched) return [...matched.comments];
-  return anchoredFallbackComments(post);
+  return null;
 }
 
 export async function generateAutoCommentBodies(post: AutoCommentPost) {
   const fallback = contextualFallbackComments(post);
   const key = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
-  if (!key) return fallback;
+  if (!key) {
+    if (fallback) return validatedAutoCommentBodies(fallback);
+    throw new Error("Contextual automatic comments require the AI review service.");
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);
   const endpoint = process.env.OPENAI_API_BASE_URL || "https://api.openai.com/v1";
@@ -230,21 +204,23 @@ export async function generateAutoCommentBodies(post: AutoCommentPost) {
       }),
       signal: controller.signal,
     });
-    if (!response.ok) return fallback;
+    if (!response.ok) throw new Error(`Automatic comment generation failed with status ${response.status}.`);
     const result = await response.json() as ChatResult;
     const output = result.choices?.[0]?.message?.content;
-    if (!output) return fallback;
+    if (!output) throw new Error("Automatic comment generation returned no content.");
     const parsed = JSON.parse(output) as { comments?: unknown[] };
     const comments = (Array.isArray(parsed.comments) ? parsed.comments : [])
       .filter((comment): comment is string => typeof comment === "string")
       .map((comment) => comment.replace(/\s+/g, " ").trim())
       .filter((comment, index, all) => all.indexOf(comment) === index)
       .filter((comment) => isContextualComment(comment, post));
-    return limitDirectQuotes([...comments, ...fallback]
+    const candidates = limitDirectQuotes([...comments, ...(fallback || [])]
       .filter((comment, index, all) => all.indexOf(comment) === index))
       .slice(0, AUTO_COMMENT_TOTAL);
-  } catch {
-    return fallback;
+    return validatedAutoCommentBodies(candidates);
+  } catch (error) {
+    if (fallback) return validatedAutoCommentBodies(fallback);
+    throw error instanceof Error ? error : new Error("Automatic comment generation failed.");
   } finally {
     clearTimeout(timeout);
   }
@@ -259,6 +235,12 @@ export function validatedAutoCommentBodies(bodies: string[]) {
   }
   if (normalizedBodies.filter((body) => /[“”"]/u.test(body)).length > 1) {
     throw new Error("Automatic comment set may contain at most one direct quotation.");
+  }
+  const invalidBodyIndex = normalizedBodies.findIndex(
+    (body) => body.length < 30 || body.length > 180 || sentenceCount(body) !== 2,
+  );
+  if (invalidBodyIndex >= 0) {
+    throw new Error(`Automatic comment ${invalidBodyIndex + 1} must contain exactly two complete sentences between 30 and 180 characters.`);
   }
   return normalizedBodies;
 }

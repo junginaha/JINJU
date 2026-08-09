@@ -12,7 +12,7 @@ import {
 } from "../lib/auto-comments";
 import { AUTO_COMMENT_TOTAL, newPostCommentSchedule, newPostInitialLikes } from "../lib/community-settings";
 import { normalizeCommentTimes, visibleCommentsAt } from "../lib/comment-time";
-import { applyCommentOverrides } from "../lib/content-overrides";
+import { applyCommentOverrides, PUBLIC_COMMENT_REWRITES } from "../lib/content-overrides";
 import { july30EditorialComments, july30EditorialPosts } from "../lib/daily-editorial-20260730";
 import { august1EditorialComments, august1EditorialPosts } from "../lib/daily-editorial-20260801";
 import { august2EditorialComments, august2EditorialPosts } from "../lib/daily-editorial-20260802";
@@ -57,32 +57,64 @@ test("new posts receive the complete immediate and hourly comment schedule", () 
 });
 
 test("automatic comments must be a complete unique set", () => {
-  const bodies = Array.from({ length: AUTO_COMMENT_TOTAL }, (_, index) => `댓글 ${index + 1}`);
+  const bodies = Array.from(
+    { length: AUTO_COMMENT_TOTAL },
+    (_, index) => `충전 자리 ${index + 1}의 이용 기준을 구체적으로 짚었습니다. 야간 유예시간도 함께 정하면 좋겠습니다.`,
+  );
   assert.equal(validatedAutoCommentBodies(bodies).length, AUTO_COMMENT_TOTAL);
   assert.throws(() => validatedAutoCommentBodies(bodies.slice(1)));
   assert.throws(() => validatedAutoCommentBodies([...bodies.slice(0, -1), bodies[0]]));
   assert.throws(() => validatedAutoCommentBodies([
-    "“첫 번째 직접 인용”을 담은 댓글",
-    "“두 번째 직접 인용”을 담은 댓글",
+    "“첫 번째 직접 인용”은 기준을 선명하게 보여줍니다. 다른 사정도 함께 살펴야 합니다.",
+    "“두 번째 직접 인용”은 논점을 분명하게 보여줍니다. 반대 이유도 차분히 들어야 합니다.",
     ...bodies.slice(2),
+  ]));
+  assert.throws(() => validatedAutoCommentBodies([
+    "충전이 끝난 차는 바로 옮겨야 한다고 생각합니다.",
+    ...bodies.slice(1),
   ]));
 });
 
-test("automatic fallback comments paraphrase the post without repeated quotations", async () => {
+test("unknown posts fail closed instead of publishing generic fallback comments", async () => {
+  const openAiKey = process.env.OPENAI_API_KEY;
+  const aiKey = process.env.AI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  delete process.env.AI_API_KEY;
+  try {
+    await assert.rejects(
+      generateAutoCommentBodies({
+        id: "natural-comment-policy",
+        title: "충전이 끝난 자리를 언제 비워야 할까요",
+        content: "아파트 충전기가 부족합니다. 밤에 충전이 끝난 차를 바로 옮기기는 어렵습니다. 다른 주민은 아침까지 기다려야 했습니다.",
+        category: "사회",
+        createdAt: "2026-08-06T14:10:00+09:00",
+      }),
+      /require the AI review service/,
+    );
+  } finally {
+    if (openAiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = openAiKey;
+    if (aiKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = aiKey;
+  }
+});
+
+test("a reviewed topic fallback remains complete and natural without the AI service", async () => {
   const openAiKey = process.env.OPENAI_API_KEY;
   const aiKey = process.env.AI_API_KEY;
   delete process.env.OPENAI_API_KEY;
   delete process.env.AI_API_KEY;
   try {
     const comments = await generateAutoCommentBodies({
-      id: "natural-comment-policy",
-      title: "충전이 끝난 자리를 언제 비워야 할까요",
-      content: "아파트 충전기가 부족합니다. 밤에 충전이 끝난 차를 바로 옮기기는 어렵습니다. 다른 주민은 아침까지 기다려야 했습니다.",
-      category: "사회",
+      id: "reviewed-beauty-topic",
+      title: "얼굴과 몸매 중 무엇이 더 중요할까요",
+      content: "외모 취향을 두 가지 선택지로 나눠 물어봤습니다. 관계에서 무엇을 오래 보는지도 궁금합니다.",
+      category: "질문",
       createdAt: "2026-08-06T14:10:00+09:00",
     });
     assert.equal(comments.length, AUTO_COMMENT_TOTAL);
     assert.equal(new Set(comments).size, AUTO_COMMENT_TOTAL);
+    assert.ok(comments.every((body) => (body.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || []).filter((part) => part.trim()).length === 2));
     assert.ok(comments.filter((body) => /[“”"]/u.test(body)).length <= 1);
   } finally {
     if (openAiKey === undefined) delete process.env.OPENAI_API_KEY;
@@ -478,8 +510,8 @@ test("repetitive bottom comments are rewritten without changing other comment co
   ];
   const rewritten = applyCommentOverrides(comments, new Map());
   assert.deepEqual(rewritten.map((comment) => comment.body), [
-    "제목 한 줄만으로 작은 토론회가 열렸네요. 입장료는 없지만 각자 가져온 사정은 꽤 묵직합니다.",
-    "결국 같은 갈등을 두 사람이 어떤 기준으로 바라보느냐에 따라 답이 달라질 것 같아요. 결론이 다르더라도 서로를 함부로 단정하지 않는 대화였으면 합니다.",
+    "부부 사이에는 누가 더 힘든지 겨루는 대신 각자가 견딘 비용을 나란히 놓는 시간이 필요합니다. 떠난 사람의 답답함과 남은 사람의 불안을 함께 인정해야 합의가 시작돼요.",
+    "결혼 생활이 출발 안내판처럼 수시로 바뀌면 남은 사람도 지칩니다. 다음 행선지보다 두 사람이 지킬 연락 규칙부터 정해보세요.",
     "다른 댓글은 그대로 둡니다.",
   ]);
   assert.equal(
@@ -488,6 +520,25 @@ test("repetitive bottom comments are rewritten without changing other comment co
     ], new Map())[0].body,
     "나중에 직접 수정한 댓글",
   );
+});
+
+test("all identified incoherent automatic comments have contextual two-sentence rewrites", () => {
+  const affectedPostIds = ["1m4m5c2q5x121a066u5v", "0451693t131i5b2j2s0j"];
+  const rewrites = [...PUBLIC_COMMENT_REWRITES.entries()]
+    .filter(([id]) => affectedPostIds.some((postId) => id.startsWith(`jinju-auto-${postId}-`)));
+  assert.equal(rewrites.length, 28);
+
+  const oldComments = rewrites.map(([id, rewrite]) => ({ id, body: rewrite.from }));
+  const newComments = applyCommentOverrides(oldComments, new Map());
+  assert.equal(new Set(newComments.map((comment) => comment.body)).size, 28);
+  for (const comment of newComments) {
+    assert.ok(!/[“”"]/u.test(comment.body));
+    assert.ok(!/(작품을만으로|했습니다를|에서를|제목 한 줄|작은 토론회)/.test(comment.body));
+    assert.equal(
+      (comment.body.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || []).filter((part) => part.trim()).length,
+      2,
+    );
+  }
 });
 
 test("the latest tax post automatic comments are rewritten in natural language", () => {
