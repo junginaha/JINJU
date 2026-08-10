@@ -97,19 +97,22 @@ const feedPagerCss = `
 function FeedPagerPortal() {
   const [mount, setMount] = useState<HTMLElement | null>(null);
   const [pager, setPager] = useState<FeedPagerState>({ total: 0, shown: 0 });
+  const mountRef = useRef<HTMLElement | null>(null);
   const visibleLimitRef = useRef(FEED_PAGE_SIZE);
   const signatureRef = useRef("");
 
   useEffect(() => {
     let observer: MutationObserver | null = null;
     let frame = 0;
-    let ownedMount: HTMLElement | null = null;
 
     const sync = () => {
       const feedShell = document.querySelector<HTMLElement>(".feed-shell");
       if (!feedShell) {
         setPager((current) => current.total === 0 && current.shown === 0 ? current : { total: 0, shown: 0 });
-        if (mount && !mount.isConnected) setMount(null);
+        if (mountRef.current && !mountRef.current.isConnected) {
+          mountRef.current = null;
+          setMount(null);
+        }
         return;
       }
 
@@ -135,9 +138,11 @@ function FeedPagerPortal() {
         nextMount.id = "jinju-feed-pager";
         nextMount.className = "feed-pager-slot";
         continuedFeed.insertAdjacentElement("afterend", nextMount);
-        ownedMount = nextMount;
       }
-      if (nextMount !== mount) setMount(nextMount);
+      if (nextMount !== mountRef.current) {
+        mountRef.current = nextMount;
+        setMount(nextMount);
+      }
 
       setPager((current) => current.total === cards.length && current.shown === shown
         ? current
@@ -156,9 +161,10 @@ function FeedPagerPortal() {
     return () => {
       cancelAnimationFrame(frame);
       observer?.disconnect();
-      if (ownedMount?.isConnected) ownedMount.remove();
+      if (mountRef.current?.isConnected) mountRef.current.remove();
+      mountRef.current = null;
     };
-  }, [mount]);
+  }, []);
 
   if (!mount || pager.total <= pager.shown) return null;
 
