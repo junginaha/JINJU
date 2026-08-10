@@ -1,0 +1,868 @@
+name: Portfolio hardening bootstrap
+
+on:
+  push:
+    branches:
+      - agent/portfolio-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply approved production hardening
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import json
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8")
+
+          def write(path, content):
+              target = Path(path)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(content, encoding="utf-8")
+
+          def replace_once(path, before, after):
+              content = read(path)
+              count = content.count(before)
+              if count != 1:
+                  raise RuntimeError(f"{path}: expected one match, found {count}")
+              write(path, content.replace(before, after, 1))
+
+          # 1) Security-patched framework versions and explicit migration command.
+          package_path = Path("package.json")
+          package = json.loads(package_path.read_text(encoding="utf-8"))
+          package["dependencies"]["next"] = "16.2.11"
+          package["dependencies"]["react"] = "19.2.6"
+          package["dependencies"]["react-dom"] = "19.2.6"
+          package["scripts"]["migrate"] = "tsx scripts/migrate.ts"
+          package_path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+          env = read(".env.example")
+          if "CRON_SECRET=" not in env:
+              env += "CRON_SECRET=use-a-long-random-cron-secret\n"
+          write(".env.example", env)
+
+          # 2) Maintenance endpoint: Vercel Cron bearer authentication before any mutation.
+          write("app/api/maintenance/route.ts", r'''import { timingSafeEqual } from "../../../lib/admin-auth";
+          import { db, databaseEnabled, ensureSchema } from "../../../lib/db";
+          import { LEGACY_GENERIC_AUTO_COMMENT_BODIES } from "../../../lib/auto-comments";
+          import { processDueAutoCommentJobs } from "../../../lib/auto-comment-jobs";
+          import { PUBLIC_COMMENT_REWRITES } from "../../../lib/content-overrides";
+          import { purgeExpiredReactions } from "../../../lib/reactions";
+          import { notifySearchIndexes } from "../../../lib/search-indexing";
+
+          export const dynamic = "force-dynamic";
+
+          const responseHeaders = { "cache-control": "no-store" };
+
+          function authorized(request: Request) {
+            const expected = process.env.CRON_SECRET?.trim() || "";
+            if (!expected) return false;
+            const authorization = request.headers.get("authorization") || "";
+            const supplied = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+            return Boolean(supplied) && timingSafeEqual(expected, supplied);
+          }
+
+          export async function GET(request: Request) {
+            if (!process.env.CRON_SECRET?.trim()) {
+              return Response.json({ ok: false, error: "maintenance_secret_not_configured" }, { status: 503, headers: responseHeaders });
+            }
+            if (!authorized(request)) {
+              return Response.json({ ok: false, error: "unauthorized" }, { status: 401, headers: responseHeaders });
+            }
+            if (!databaseEnabled()) return Response.json({ ok: false }, { status: 503, headers: responseHeaders });
+
+            await ensureSchema();
+            let rewrittenComments = 0;
+            for (const [id, rewrite] of PUBLIC_COMMENT_REWRITES) {
+              const rows = await db()`
+                UPDATE comments
+                SET content = ${rewrite.to}
+                WHERE id = ${id} AND content = ${rewrite.from}
+                RETURNING id`;
+              rewrittenComments += rows.length;
+            }
+
+            const removedLegacyComments: Array<Record<string, unknown>> = [];
+            for (const body of LEGACY_GENERIC_AUTO_COMMENT_BODIES) {
+              const rows = await db()`
+                DELETE FROM comments
+                WHERE id LIKE 'jinju-auto-%' AND content = ${body}
+                RETURNING post_id`;
+              removedLegacyComments.push(...rows);
+            }
+
+            const affectedPostIds = [...new Set(removedLegacyComments.map((row) => String(row.post_id)))];
+            for (const postId of affectedPostIds) {
+              await db()`
+                UPDATE posts
+                SET comment_count = (
+                  SELECT COUNT(*)::INTEGER FROM comments
+                  WHERE post_id = ${postId} AND status = 'approved' AND created_at <= NOW()
+                ), updated_at = NOW()
+                WHERE id = ${postId}`;
+            }
+
+            await Promise.all([
+              db()`DELETE FROM admin_sessions WHERE expires_at <= NOW()`,
+              db()`DELETE FROM rate_limits WHERE expires_at <= NOW()`,
+              db()`DELETE FROM abuse_restrictions WHERE expires_at <= NOW()`,
+              db()`DELETE FROM zk_members WHERE expires_at <= NOW()`,
+              db()`DELETE FROM zk_group_roots WHERE expires_at <= NOW()`,
+              db()`DELETE FROM zk_nullifiers WHERE expires_at <= NOW()`,
+              db()`DELETE FROM feedback_reports WHERE expires_at <= NOW()`,
+              purgeExpiredReactions(),
+            ]);
+
+            const autoCommentJobs = await processDueAutoCommentJobs();
+            const indexableRows = await db()`
+              SELECT id
+              FROM posts
+              WHERE status = 'approved'
+                AND visibility = 'public'
+                AND created_at <= NOW() - INTERVAL '12 hours'
+                AND created_at > NOW() - INTERVAL '36 hours'
+              ORDER BY created_at ASC
+              LIMIT 100`;
+            if (indexableRows.length) {
+              await notifySearchIndexes(indexableRows.map((row) => `/post/${encodeURIComponent(String(row.id))}`));
+            }
+
+            return Response.json({
+              ok: true,
+              rewrittenComments,
+              removedLegacyComments: removedLegacyComments.length,
+              processedAutoCommentJobs: autoCommentJobs.length,
+              indexedPosts: indexableRows.length,
+            }, { headers: responseHeaders });
+          }
+          '''.replace("          ", ""))
+
+          # Health exposes whether the protected scheduled-maintenance secret exists, without making site health depend on it.
+          replace_once(
+              "app/api/health/route.ts",
+              '  const protectionReady = abuseProtection.hmac && abuseProtection.turnstile;\n',
+              '  const protectionReady = abuseProtection.hmac && abuseProtection.turnstile;\n  const maintenanceCron = Boolean(process.env.CRON_SECRET?.trim());\n',
+          )
+          health = read("app/api/health/route.ts")
+          health = health.replace('      abuseProtection,\n      checkedAt,', '      abuseProtection,\n      maintenanceCron,\n      checkedAt,')
+          health = health.replace('      abuseProtection,\n      publicPostCount:', '      abuseProtection,\n      maintenanceCron,\n      publicPostCount:')
+          write("app/api/health/route.ts", health)
+
+          # 3) Real 30-item API pagination. Keep the existing seed+DB merge semantics intact.
+          posts_route = read("app/api/posts/route.ts")
+          start = posts_route.index("export async function GET(request: Request) {")
+          end = posts_route.index("export async function POST(request: Request) {")
+          new_get = r'''export async function GET(request: Request) {
+            const url = new URL(request.url);
+            const requestedCategory = url.searchParams.get("category")?.trim() || "전체";
+            const category = requestedCategory === "전체" ? "전체" : normalizePublicCategory(requestedCategory);
+            const query = url.searchParams.get("q")?.trim().toLocaleLowerCase("ko-KR") || "";
+            const sort = url.searchParams.get("sort") === "popular" ? "popular" : "latest";
+            const parsedLimit = Number.parseInt(url.searchParams.get("limit") || "30", 10);
+            const parsedOffset = Number.parseInt(url.searchParams.get("offset") || "0", 10);
+            const limit = Math.min(30, Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : 30));
+            const offset = Math.max(0, Number.isFinite(parsedOffset) ? parsedOffset : 0);
+
+            const selectPage = (source: Awaited<ReturnType<typeof getPublicPosts>>) => {
+              const siteTotal = source.length;
+              let posts = source;
+              if (category !== "전체") posts = posts.filter((post) => post.category === category);
+              if (query) posts = posts.filter((post) => `${post.title} ${post.content} ${post.category}`.toLocaleLowerCase("ko-KR").includes(query));
+              posts = [...posts].sort((a, b) => sort === "popular"
+                ? (b.heard + b.same + b.commentCount * 3) - (a.heard + a.same + a.commentCount * 3)
+                : Date.parse(b.createdAt) - Date.parse(a.createdAt));
+              const total = posts.length;
+              const page = posts.slice(offset, offset + limit);
+              const nextOffset = offset + page.length;
+              return { posts: page, total, siteTotal, hasMore: nextOffset < total, nextOffset };
+            };
+
+            try {
+              await verifyPublicDatabase();
+            } catch (error) {
+              Sentry.captureException(error, { tags: { area: "public-feed", service: "database" } });
+              console.error("[posts] public database unavailable", error);
+              const fallbackPosts = await getPublicPosts().catch(() => []);
+              return Response.json({
+                warning: "최신 의견 연결이 잠시 늦어지고 있습니다.",
+                ...selectPage(fallbackPosts),
+                database: false,
+                fallback: true,
+                degraded: true,
+              }, { status: 200, headers: { "cache-control": "no-store" } });
+            }
+
+            const page = selectPage(await getPublicPosts());
+            return Response.json({ ...page, database: true, fallback: false }, { headers: { "cache-control": "no-store" } });
+          }
+
+          '''.replace("          ", "")
+          posts_route = posts_route[:start] + new_get + posts_route[end:]
+          posts_route = posts_route.replace('notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]),', 'notifySearchIndexes(["/"]),')
+          write("app/api/posts/route.ts", posts_route)
+
+          # 4) Preserve the user's current minimal load-more visual, but move paging into React/API instead of DOM hiding.
+          write("components/JinjuAppBridge.tsx", r'''"use client";
+
+          import { useEffect, useRef } from "react";
+          import { SITE_DEFINITION } from "@/lib/search-indexing";
+          import JinjuApp, { type Post } from "./JinjuApp";
+
+          type JinjuAppBridgeProps = {
+            initialPosts?: Post[];
+            initialPostId?: string | null;
+            initialTotal?: number;
+          };
+
+          const FEED_ACCESSIBLE_NAME = "진주 익명 의견 게시판";
+          const COMPOSER_TITLE = "익명 의견 남기기";
+          const COMPOSER_SUBTITLE = "안전하게 속마음을 들려주세요.";
+          const BODY_PLACEHOLDER = "무슨 일이 있었는지 천천히 들려주세요.\n편한 마음으로 적으셔도 괜찮아요.";
+          const WRITE_BUTTON_LABELS = ["새 의견 쓰기", "나의 의견", "의견 쓰기", "의견 남기기"];
+
+          const feedPagerCss = `
+          .feed-pager-slot {
+            display: flex;
+            width: 100%;
+            justify-content: center;
+            margin: 20px 0 34px;
+            padding: 0;
+          }
+          .feed-more-button {
+            display: inline-flex;
+            min-height: 44px;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 6px 4px;
+            color: #b7b7b7;
+            text-align: center;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            transition: color .2s ease, opacity .2s ease, transform .2s ease;
+          }
+          .feed-more-button:hover { color: #f2f2f2; transform: translateY(-1px); }
+          .feed-more-button:active { opacity: .72; transform: translateY(1px); }
+          .feed-more-button:disabled { cursor: default; opacity: .62; transform: none; }
+          .feed-more-button:focus-visible { outline: 1px solid #777; outline-offset: 7px; border-radius: 6px; }
+          .feed-more-label {
+            color: transparent;
+            font-size: 14px;
+            font-weight: 720;
+            line-height: 1;
+            letter-spacing: -.025em;
+            white-space: nowrap;
+            background: linear-gradient(105deg, #8f8f8f 15%, #f3f3f3 48%, #aaa 72%, #8f8f8f 100%) 0 0 / 220% 100%;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: feed-more-shimmer 3.8s ease-in-out infinite;
+          }
+          .feed-more-arrow {
+            display: inline-block;
+            color: #c8c8c8;
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1;
+            transform: translateY(-1px);
+            animation: feed-more-bob 1.8s ease-in-out infinite;
+          }
+          .feed-more-button:hover .feed-more-arrow { color: #f1f1f1; }
+          @keyframes feed-more-shimmer {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+          }
+          @keyframes feed-more-bob {
+            0%, 100% { opacity: .62; transform: translateY(-2px); }
+            50% { opacity: 1; transform: translateY(3px); }
+          }
+          @media (max-width: 640px) {
+            .feed-pager-slot { margin: 16px 0 28px; }
+            .feed-more-button { min-height: 42px; gap: 7px; }
+            .feed-more-label { font-size: 13.5px; }
+            .feed-more-arrow { font-size: 17px; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .feed-more-label {
+              color: #d8d8d8;
+              background: none;
+              -webkit-text-fill-color: currentColor;
+              animation: none;
+            }
+            .feed-more-arrow { animation: none; opacity: 1; transform: none; }
+            .feed-more-button { transition: none; }
+          }
+          `;
+
+          /** Thin presentation compatibility boundary around the legacy JinjuApp monolith. */
+          export default function JinjuAppBridge({ initialPosts, initialPostId = null, initialTotal }: JinjuAppBridgeProps) {
+            useEffect(() => {
+              let active = true;
+              const frames = new Set<number>();
+
+              function ensureTermsLink(footer: HTMLElement) {
+                if (footer.querySelector('a[href="/terms"]')) return;
+                const termsLink = document.createElement("a");
+                termsLink.href = "/terms";
+                termsLink.textContent = "이용약관";
+                const contact = footer.querySelector('a[href^="mailto:"]');
+                const footerCopy = footer.querySelector("p");
+                footer.insertBefore(termsLink, contact || footerCopy || null);
+              }
+
+              function applyFeedPresentation() {
+                const heading = document.querySelector<HTMLElement>(".feed-heading");
+                if (!heading) return false;
+                document.querySelector<HTMLElement>(".chat-main#feed")?.setAttribute("aria-label", FEED_ACCESSIBLE_NAME);
+                const title = heading.querySelector<HTMLElement>("h1");
+                if (title) {
+                  title.textContent = FEED_ACCESSIBLE_NAME;
+                  title.hidden = true;
+                  title.removeAttribute("style");
+                }
+                const footer = document.querySelector<HTMLElement>(".sidebar-footer");
+                if (footer) {
+                  const footerCopy = footer.querySelector<HTMLElement>("p");
+                  if (footerCopy && footerCopy.textContent !== SITE_DEFINITION) footerCopy.textContent = SITE_DEFINITION;
+                  ensureTermsLink(footer);
+                }
+                return true;
+              }
+
+              function applyComposerPresentation() {
+                const intro = document.querySelector<HTMLElement>(".composer-intro");
+                if (!intro) return false;
+                const eyebrow = intro.querySelector<HTMLElement>(".eyebrow");
+                if (eyebrow) eyebrow.hidden = true;
+                const title = intro.querySelector<HTMLElement>("#write-title");
+                if (title && title.textContent !== COMPOSER_TITLE) title.textContent = COMPOSER_TITLE;
+                const paragraphs = intro.querySelectorAll<HTMLElement>("p");
+                const subtitle = paragraphs[paragraphs.length - 1];
+                if (subtitle && subtitle.textContent !== COMPOSER_SUBTITLE) subtitle.textContent = COMPOSER_SUBTITLE;
+                const textarea = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="의견 본문"]');
+                if (textarea && textarea.placeholder !== BODY_PLACEHOLDER) textarea.placeholder = BODY_PLACEHOLDER;
+                return true;
+              }
+
+              function schedule(action: () => boolean | void, retryOnce = false) {
+                const first = requestAnimationFrame(() => {
+                  frames.delete(first);
+                  if (!active) return;
+                  const applied = action();
+                  if (!retryOnce || applied !== false) return;
+                  const second = requestAnimationFrame(() => {
+                    frames.delete(second);
+                    if (active) action();
+                  });
+                  frames.add(second);
+                });
+                frames.add(first);
+              }
+
+              function handleClick(event: MouseEvent) {
+                const target = event.target instanceof Element ? event.target : null;
+                if (!target) return;
+                if (target.closest(".detail-home")) schedule(applyFeedPresentation, true);
+                const button = target.closest("button");
+                if (!button) return;
+                const label = button.textContent?.replace(/\s+/g, " ").trim() || "";
+                if (WRITE_BUTTON_LABELS.some((item) => label.includes(item))) schedule(applyComposerPresentation, true);
+              }
+
+              applyFeedPresentation();
+              applyComposerPresentation();
+              document.addEventListener("click", handleClick, true);
+              window.addEventListener("popstate", () => schedule(applyFeedPresentation, true));
+
+              return () => {
+                active = false;
+                document.removeEventListener("click", handleClick, true);
+                frames.forEach((frame) => cancelAnimationFrame(frame));
+                frames.clear();
+              };
+            }, [initialPostId, initialPosts?.length]);
+
+            return (
+              <>
+                <style>{feedPagerCss}</style>
+                <JinjuApp initialPosts={initialPosts ?? []} initialPostId={initialPostId} initialTotal={initialTotal} />
+              </>
+            );
+          }
+          '''.replace("          ", ""))
+
+          jinju = read("components/JinjuApp.tsx")
+          before = r'''const topics = ["전체", "일상", "관계", "직장", "돈", "사회", "제안", "질문"];
+          const POST_DRAFT_KEY="jinju-post-draft-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1";
+          const MAX_RECORDING_MS=120_000,TRANSCRIPTION_TIMEOUT_MS=25_000;
+
+          function readKeys'''.replace("          ", "")
+          after = r'''const topics = ["전체", "일상", "관계", "직장", "돈", "사회", "제안", "질문"];
+          const POST_DRAFT_KEY="jinju-post-draft-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1";
+          const MAX_RECORDING_MS=120_000,TRANSCRIPTION_TIMEOUT_MS=25_000,FEED_PAGE_SIZE=30;
+          type FeedApiPost=Omit<Post,"date"|"comments">&{createdAt:string;commentCount?:number};
+          type FeedApiResponse={posts?:FeedApiPost[];total?:number;siteTotal?:number;hasMore?:boolean;nextOffset?:number;error?:string};
+          type FeedQueryOverride={topic?:string;query?:string;sort?:"latest"|"popular"};
+          function normalizeFeedPosts(rows:FeedApiPost[]):Post[]{return rows.map(({createdAt,commentCount,...post})=>({...post,date:new Intl.DateTimeFormat("ko-KR",{year:"numeric",month:"numeric",day:"numeric"}).format(new Date(createdAt)),comments:Array.from({length:commentCount??0},(_,index)=>({id:`count-${index}`,body:"",createdAt:""}))}))}
+
+          function readKeys'''.replace("          ", "")
+          if jinju.count(before) != 1: raise RuntimeError("JinjuApp constants anchor changed")
+          jinju = jinju.replace(before, after, 1)
+
+          before = 'export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null }: { initialPosts?: Post[]; initialPostId?: string | null }) {'
+          after = 'export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null, initialTotal }: { initialPosts?: Post[]; initialPostId?: string | null; initialTotal?: number }) {'
+          if jinju.count(before) != 1: raise RuntimeError("JinjuApp props anchor changed")
+          jinju = jinju.replace(before, after, 1)
+
+          before = r'''  const [posts, setPosts] = useState(initialPosts);
+            const [feedState, setFeedState] = useState<"loading" | "ready" | "error">("loading");'''.replace("            ", "  ")
+          after = r'''  const [posts, setPosts] = useState(initialPosts);
+            const [feedState, setFeedState] = useState<"loading" | "ready" | "error">("loading");
+            const [feedTotal,setFeedTotal]=useState(Math.max(initialTotal??initialPosts.length,initialPosts.length));
+            const [feedNextOffset,setFeedNextOffset]=useState(initialPosts.length);
+            const [hasMorePosts,setHasMorePosts]=useState((initialTotal??initialPosts.length)>initialPosts.length);
+            const [feedLoadingMore,setFeedLoadingMore]=useState(false);
+            const [feedMoreError,setFeedMoreError]=useState(false);'''.replace("            ", "  ")
+          if jinju.count(before) != 1: raise RuntimeError("JinjuApp feed state anchor changed")
+          jinju = jinju.replace(before, after, 1)
+
+          before = r'''  const bodyInputRef=useRef<HTMLTextAreaElement|null>(null);
+
+            const loadPosts = useCallback(async () => {
+              try {
+                const response = await fetch("/api/posts", { cache: "no-store" });
+                if (!response.ok) throw new Error("feed");
+                const data = await response.json() as { posts?: Array<Omit<Post, "date" | "comments"> & { createdAt: string; commentCount?: number }> };
+                setPosts((data.posts || []).map((post) => ({
+                  ...post,
+                  date: new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(post.createdAt)),
+                  comments: Array.from({ length: post.commentCount ?? 0 }, (_, index) => ({ id: `count-${index}`, body: "", createdAt: "" })),
+                })));
+                setFeedState("ready");
+              } catch {
+                setFeedState("error");
+              }
+            }, []);'''.replace("            ", "  ")
+          after = r'''  const bodyInputRef=useRef<HTMLTextAreaElement|null>(null);
+            const feedRequestRef=useRef(0);
+
+            const loadPosts = useCallback(async (offset=0,append=false,override?:FeedQueryOverride) => {
+              const requestId=++feedRequestRef.current;
+              if(append){setFeedLoadingMore(true);setFeedMoreError(false)}else setFeedState("loading");
+              try {
+                const activeTopic=override?.topic??topic,activeQuery=override?.query??query,activeSort=override?.sort??sort;
+                const params=new URLSearchParams({limit:String(FEED_PAGE_SIZE),offset:String(Math.max(0,offset)),sort:activeSort});
+                if(activeTopic!=="전체")params.set("category",activeTopic);
+                if(activeQuery.trim())params.set("q",activeQuery.trim());
+                const response=await fetch(`/api/posts?${params.toString()}`,{cache:"no-store"});
+                const data=await response.json() as FeedApiResponse;
+                if(!response.ok)throw new Error(data.error||"feed");
+                if(requestId!==feedRequestRef.current)return;
+                const incoming=normalizeFeedPosts(data.posts||[]);
+                setPosts((current)=>{
+                  if(!append)return incoming;
+                  const merged=new Map(current.map((post)=>[post.id,post]));
+                  incoming.forEach((post)=>merged.set(post.id,post));
+                  return [...merged.values()];
+                });
+                const nextOffset=Number.isFinite(data.nextOffset)?Math.max(0,Number(data.nextOffset)):offset+incoming.length;
+                const resultTotal=Number.isFinite(data.total)?Math.max(0,Number(data.total)):nextOffset;
+                setFeedNextOffset(nextOffset);
+                setHasMorePosts(typeof data.hasMore==="boolean"?data.hasMore:nextOffset<resultTotal);
+                if(Number.isFinite(data.siteTotal))setFeedTotal(Math.max(0,Number(data.siteTotal)));
+                else if(!append&&!activeQuery.trim()&&activeTopic==="전체")setFeedTotal(resultTotal);
+                setFeedMoreError(false);
+                setFeedState("ready");
+              } catch {
+                if(requestId!==feedRequestRef.current)return;
+                if(append)setFeedMoreError(true);else setFeedState("error");
+              } finally {
+                if(requestId===feedRequestRef.current)setFeedLoadingMore(false);
+              }
+            }, [query,sort,topic]);'''.replace("            ", "  ")
+          if jinju.count(before) != 1: raise RuntimeError("JinjuApp loadPosts anchor changed")
+          jinju = jinju.replace(before, after, 1)
+
+          before = '  useEffect(() => { void loadPosts(); }, [loadPosts]);'
+          after = r'''  useEffect(()=>{
+            if(selectedPostId)return;
+            const timer=window.setTimeout(()=>void loadPosts(0,false),query.trim()?220:0);
+            return()=>window.clearTimeout(timer);
+          },[loadPosts,query,selectedPostId]);'''
+          if jinju.count(before) != 1: raise RuntimeError("JinjuApp feed effect anchor changed")
+          jinju = jinju.replace(before, after, 1)
+
+          before = r'''  const filteredPosts = useMemo(() => {
+            const normalized = query.trim().toLowerCase();
+            return posts
+              .filter((post) => topic === "전체" || post.category === topic)
+              .filter((post) => !normalized || `${post.title} ${post.content}`.toLowerCase().includes(normalized))
+              .sort((a, b) => sort === "popular" ? (b.heard + b.same) - (a.heard + a.same) : 0);
+          }, [posts, query, sort, topic]);'''
+          after = before + r'''
+
+          const loadMorePosts=useCallback(()=>{
+            if(feedLoadingMore||!hasMorePosts)return;
+            void loadPosts(feedNextOffset,true);
+          },[feedLoadingMore,feedNextOffset,hasMorePosts,loadPosts]);'''
+          if jinju.count(before) != 1: raise RuntimeError("JinjuApp filteredPosts anchor changed")
+          jinju = jinju.replace(before, after, 1)
+
+          before = '    await loadPosts();\n    setPublishedPostId(data.id || null);'
+          after = '    await loadPosts(0,false,{topic:"전체",query:"",sort:"latest"});\n    setPublishedPostId(data.id || null);'
+          if jinju.count(before) != 1: raise RuntimeError("JinjuApp publish reload anchor changed")
+          jinju = jinju.replace(before, after, 1)
+
+          if ';await loadPosts()}' not in jinju: raise RuntimeError("JinjuApp delete reload anchor changed")
+          jinju = jinju.replace(';await loadPosts()}', '}', 1)
+          jinju = jinju.replace('<span>{posts.length}개의 공개 의견</span>', '<span>{feedTotal}개의 공개 의견</span>', 1)
+          jinju = jinju.replace('void loadPosts(); }}>다시 불러오기', 'void loadPosts(0,false); }}>다시 불러오기', 1)
+
+          continued = r'''              <section className="post-feed continued-feed" aria-label="더 많은 익명 의견">
+                {filteredPosts.slice(3).map((post) => (
+                  <PostCard key={post.id} post={post} reactedKind={reactedPosts[post.id]?.kind||null} reactingKind={reacting?.postId===post.id?reacting.kind:null} onOpen={() => openPost(post.id)} onReact={(kind) => react(post.id, kind)} onShare={() => share(post)} onFeedback={() => openFeedback(post)} />
+                ))}
+              </section>'''
+          continued_after = continued + r'''
+
+              {hasMorePosts && <div className="feed-pager-slot">
+                <button className="feed-more-button" type="button" onClick={loadMorePosts} disabled={feedLoadingMore} aria-busy={feedLoadingMore}>
+                  <span className="feed-more-label">{feedLoadingMore?"불러오는 중…":feedMoreError?"다시 불러오기":"더 보기"}</span>
+                  <span className="feed-more-arrow" aria-hidden="true">↓</span>
+                </button>
+              </div>}'''
+          if jinju.count(continued) != 1: raise RuntimeError("JinjuApp continued feed anchor changed")
+          jinju = jinju.replace(continued, continued_after, 1)
+
+          empty_before = r'''              {feedState === "ready" && posts.length === 0 && <section className="feed-empty"><h2>아직 공개된 의견이 없어요.</h2><p>첫 의견을 남겨주세요.</p><button type="button" onClick={openComposer}>의견 남기기</button></section>}
+              {posts.length > 0 && !filteredPosts.length && <section className="feed-empty"><h2>찾는 의견이 없습니다</h2><p>다른 검색어나 게시판을 선택해 보세요.</p></section>}'''
+          empty_after = r'''              {feedState === "ready" && feedTotal === 0 && <section className="feed-empty"><h2>아직 공개된 의견이 없어요.</h2><p>첫 의견을 남겨주세요.</p><button type="button" onClick={openComposer}>의견 남기기</button></section>}
+              {feedState === "ready" && feedTotal > 0 && !filteredPosts.length && <section className="feed-empty"><h2>찾는 의견이 없습니다</h2><p>다른 검색어나 게시판을 선택해 보세요.</p></section>}'''
+          if jinju.count(empty_before) != 1: raise RuntimeError("JinjuApp empty state anchor changed")
+          jinju = jinju.replace(empty_before, empty_after, 1)
+          write("components/JinjuApp.tsx", jinju)
+
+          # 5) Remove the 500-post hard ceiling while preserving the current merged public feed semantics.
+          public_posts = read("lib/public-posts.ts")
+          target = '        ORDER BY post.created_at DESC\n        LIMIT 500`;'
+          if public_posts.count(target) != 1: raise RuntimeError("public-posts LIMIT 500 anchor changed")
+          public_posts = public_posts.replace(target, '        ORDER BY post.created_at DESC`;', 1)
+          write("lib/public-posts.ts", public_posts)
+
+          # 6) Schema creation/mutation moves out of request paths into an explicit migration command.
+          db = read("lib/db.ts")
+          if db.count('let schemaReady: Promise<void> | null = null;') != 1: raise RuntimeError("db schemaReady anchor changed")
+          db = db.replace('let schemaReady: Promise<void> | null = null;', 'let migrationReady: Promise<void> | null = null;', 1)
+          if db.count('export async function ensureSchema() {') != 1: raise RuntimeError("db ensureSchema anchor changed")
+          db = db.replace('export async function ensureSchema() {', 'export async function migrateSchema() {', 1)
+          db = db.replace('schemaReady', 'migrationReady')
+          anchor = '\nexport function token(length = 18) {'
+          if db.count(anchor) != 1: raise RuntimeError("db token anchor changed")
+          verifier = r'''
+
+          let schemaVerified: Promise<void> | null = null;
+
+          export async function ensureSchema() {
+            if (!schemaVerified) {
+              schemaVerified = (async () => {
+                const rows = await db()`
+                  SELECT
+                    to_regclass('public.posts') AS posts,
+                    to_regclass('public.comments') AS comments,
+                    to_regclass('public.rate_limits') AS rate_limits,
+                    to_regclass('public.admin_content_overrides') AS overrides`;
+                const row = rows[0] as Record<string, unknown> | undefined;
+                if (!row?.posts || !row?.comments || !row?.rate_limits || !row?.overrides) {
+                  throw new Error("Database schema is not migrated. Run npm run migrate.");
+                }
+              })().catch((error) => {
+                schemaVerified = null;
+                throw error;
+              });
+            }
+            return schemaVerified;
+          }
+          '''.replace("          ", "")
+          db = db.replace(anchor, verifier + anchor, 1)
+          write("lib/db.ts", db)
+
+          write("scripts/migrate.ts", r'''import { migrateSchema } from "../lib/db";
+
+          async function main() {
+            await migrateSchema();
+            console.log("Jinju database migration complete.");
+          }
+
+          main().catch((error) => {
+            console.error(error);
+            process.exitCode = 1;
+          });
+          '''.replace("          ", ""))
+
+          # 7) Hold fresh user-generated pages out of external indexing for 12 hours; homepage remains current.
+          search_indexing = read("lib/search-indexing.ts")
+          anchor = 'export const INDEXNOW_KEY = "e2df7f4f1f76295063b8c4894b9632b3";\n'
+          helper = anchor + r'''
+          export const SEARCH_INDEX_DELAY_MS = 12 * 60 * 60_000;
+
+          export function isSearchIndexable(createdAt: string | Date, now = Date.now()) {
+            const timestamp = createdAt instanceof Date ? createdAt.getTime() : Date.parse(createdAt);
+            return Number.isFinite(timestamp) && now - timestamp >= SEARCH_INDEX_DELAY_MS;
+          }
+          '''.replace("          ", "")
+          if search_indexing.count(anchor) != 1: raise RuntimeError("search indexing anchor changed")
+          search_indexing = search_indexing.replace(anchor, helper, 1)
+          write("lib/search-indexing.ts", search_indexing)
+
+          post_page = read("app/post/[id]/page.tsx")
+          post_page = post_page.replace('  canonicalUrl,\n  SITE_NAME,', '  canonicalUrl,\n  isSearchIndexable,\n  SITE_NAME,', 1)
+          metadata_anchor = '  const description = post.content.replace(/\\s+/g, " ").trim().slice(0, 150);\n'
+          if post_page.count(metadata_anchor) != 1: raise RuntimeError("post metadata anchor changed")
+          post_page = post_page.replace(metadata_anchor, metadata_anchor + '  const searchIndexable = isSearchIndexable(post.createdAt);\n', 1)
+          return_anchor = '    keywords: [post.category, "익명 의견", "진주.kr"],\n'
+          if post_page.count(return_anchor) != 1: raise RuntimeError("post robots anchor changed")
+          post_page = post_page.replace(return_anchor, return_anchor + '    robots: { index: searchIndexable, follow: true },\n', 1)
+          initial_anchor = r'''  const byId = new Map((await getPublicPosts()).map((post) => [post.id, post]));
+            byId.set(selected.id, selected);
+            const initialPosts = [...byId.values()].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).map(toClientPost);'''.replace("            ", "  ")
+          initial_replacement = r'''  const recentPosts = (await getPublicPosts()).filter((post) => post.id !== selected.id).slice(0, 29);
+            const initialPosts = [selected, ...recentPosts].map(toClientPost);'''.replace("            ", "  ")
+          if post_page.count(initial_anchor) != 1: raise RuntimeError("post initial payload anchor changed")
+          post_page = post_page.replace(initial_anchor, initial_replacement, 1)
+          write("app/post/[id]/page.tsx", post_page)
+
+          sitemap = read("app/sitemap.ts")
+          sitemap = sitemap.replace('import { canonicalUrl } from "@/lib/search-indexing";', 'import { canonicalUrl, isSearchIndexable } from "@/lib/search-indexing";', 1)
+          map_anchor = '    ...posts.map((post) => ({\n'
+          if sitemap.count(map_anchor) != 1: raise RuntimeError("sitemap posts anchor changed")
+          sitemap = sitemap.replace(map_anchor, '    ...posts.filter((post) => isSearchIndexable(post.createdAt)).map((post) => ({\n', 1)
+          write("app/sitemap.ts", sitemap)
+
+          # 8) Security headers, report-only CSP first to avoid breaking production interactions.
+          write("next.config.mjs", r'''import { withSentryConfig } from "@sentry/nextjs";
+
+          const contentSecurityPolicy = [
+            "default-src 'self'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "frame-ancestors 'none'",
+            "form-action 'self'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "style-src 'self' 'unsafe-inline'",
+            "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+            "connect-src 'self' https://challenges.cloudflare.com https://*.sentry.io",
+            "frame-src https://challenges.cloudflare.com",
+            "media-src 'self' blob:",
+            "worker-src 'self' blob:",
+            "upgrade-insecure-requests",
+          ].join("; ");
+
+          const securityHeaders = [
+            { key: "X-Content-Type-Options", value: "nosniff" },
+            { key: "X-Frame-Options", value: "DENY" },
+            { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+            { key: "Permissions-Policy", value: "camera=(), geolocation=(), payment=(), usb=(), microphone=(self)" },
+            { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+            { key: "Content-Security-Policy-Report-Only", value: contentSecurityPolicy },
+          ];
+
+          /** @type {import('next').NextConfig} */
+          const nextConfig = {
+            reactStrictMode: true,
+            images: { unoptimized: true },
+            async headers() {
+              return [{ source: "/:path*", headers: securityHeaders }];
+            },
+            async redirects() {
+              return [
+                {
+                  source: "/:path*",
+                  has: [{ type: "host", value: "www.xn--o55b9n.kr" }],
+                  destination: "https://xn--o55b9n.kr/:path*",
+                  statusCode: 301,
+                },
+                {
+                  source: "/:path*",
+                  has: [{ type: "host", value: "jinju-two.vercel.app" }],
+                  destination: "https://xn--o55b9n.kr/:path*",
+                  statusCode: 301,
+                },
+              ];
+            },
+          };
+
+          export default withSentryConfig(nextConfig, {
+            org: process.env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT,
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            silent: !process.env.CI,
+            telemetry: false,
+            widenClientFileUpload: true,
+            sourcemaps: { deleteSourcemapsAfterUpload: true },
+            webpack: {
+              automaticVercelMonitors: true,
+              treeshake: {
+                removeDebugLogging: true,
+                excludeReplayIframe: true,
+                excludeReplayShadowDOM: true,
+                excludeReplayCompressionWorker: true,
+              },
+            },
+          });
+          '''.replace("          ", ""))
+
+          # 9) Keep "개인정보 0%" as the public-facing promise; make the technical explanation precise underneath it.
+          write("app/privacy/page.tsx", r'''import type { Metadata } from "next";
+          import PolicyPage from "../../components/PolicyPage";
+          import { SITE_NAME } from "@/lib/search-indexing";
+
+          const description = "진주.kr의 개인정보 0% 원칙과 익명 참여, 서비스 보호에 필요한 최소 기술정보 처리 방식을 안내합니다.";
+
+          export const metadata: Metadata = {
+            title: "개인정보",
+            description,
+            alternates: { canonical: "/privacy", languages: { "ko-KR": "/privacy" } },
+            openGraph: { title: `개인정보 | ${SITE_NAME}`, description, type: "website", url: "/privacy", siteName: SITE_NAME, locale: "ko_KR" },
+          };
+
+          export default function PrivacyPage() {
+            return <PolicyPage eyebrow="JINJU · PRIVACY" title="개인정보">
+              <section>
+                <h2>개인정보 0%</h2>
+                <p>진주에서 ‘개인정보 0%’는 일반 이용자가 개인을 바로 알아볼 수 있는 이름, 전화번호, 이메일 주소, 주민등록번호, 상세 주소 같은 직접 식별정보를 회원가입이나 필수 입력값으로 요구하지 않는다는 뜻입니다. 회원가입과 실명 확인 없이 익명으로 읽고 의견을 남길 수 있습니다.</p>
+              </section>
+              <section>
+                <h2>글에도 개인을 특정할 정보는 적지 않습니다.</h2>
+                <p>게시글과 댓글에는 본인이나 타인을 알아볼 수 있는 실명, 연락처, 상세 주소, 계정 정보 등을 적지 말아주세요. 게시 전 보호 확인 과정에서 이런 정보가 감지되면 저장하거나 공개하지 않고 수정을 안내할 수 있습니다.</p>
+              </section>
+              <section>
+                <h2>서비스를 지키는 기술정보는 최소한으로 처리합니다.</h2>
+                <p>도배, 반복 요청, 중복 반응을 막기 위해 무작위 익명 참여 토큰과 요청 네트워크·브라우저 정보에서 만든 단방향 해시, 요청 횟수와 만료 시각을 처리할 수 있습니다. 원래 네트워크 주소와 브라우저 문자열을 서비스 데이터베이스에 그대로 저장하는 방식으로 이용자를 프로필화하지 않습니다.</p>
+              </section>
+              <section>
+                <h2>익명 반응과 통계</h2>
+                <p>좋아요·싫어요와 OK↔NOT OK 슬라이더의 최종 응답값은 중복 참여를 막는 익명 기술 식별값과 함께 처리될 수 있습니다. 응답값은 개인 식별정보와 분리된 통계 원자료와 집계값으로 서비스 개선, 연구, 여론·감정 흐름 분석과 리포트에 활용할 수 있습니다.</p>
+              </section>
+              <section>
+                <h2>작성·음성 기능을 위한 외부 처리</h2>
+                <p>서비스 운영에는 Vercel의 호스팅, Neon의 데이터베이스, Cloudflare Turnstile의 보안 확인을 사용하며, 설정되거나 해당 기능을 사용할 때 OpenAI의 게시 전 안전 확인·음성 변환과 Sentry의 오류 확인을 사용할 수 있습니다. 게시 전 확인에는 작성한 내용이, 음성 입력에는 녹음한 음성이 해당 처리 서비스로 전송될 수 있습니다. 광고를 위한 개인정보 판매에는 사용하지 않습니다.</p>
+              </section>
+              <section>
+                <h2>처리 목적과 보관</h2>
+                <p>게시글·댓글은 공개 의견 제공과 분쟁 대응을 위해, 문제제보는 신고 처리와 결과 확인을 위해 필요한 기간 동안 보관합니다. 익명 반응의 중복 방지 식별값은 최대 30일을 기준으로 만료·삭제하며, 요청 제한 기록은 반복 위반 방지에 필요한 기간만 보관합니다. 만료된 운영 기록은 정기적으로 정리합니다.</p>
+              </section>
+              <section>
+                <h2>국외 기반 서비스 이용</h2>
+                <p>호스팅·보안·오류 확인·음성 변환 등 외부 서비스의 처리 위치는 각 제공자의 인프라와 설정에 따라 달라질 수 있습니다. 국외에서 처리가 이루어지는 기능은 서비스 제공과 보안에 필요한 범위에서만 사용하며, 제공자·처리 목적·보관 정책은 이 페이지와 각 제공자의 정책 변경에 맞춰 계속 점검합니다.</p>
+              </section>
+              <section>
+                <h2>안전조치</h2>
+                <p>전송 구간 암호화, 접근 권한 제한, 단방향 해시, 요청 횟수 제한, 보안 확인, 게시 전 개인정보 확인과 문제제보 기능을 사용합니다. 개인정보나 권리침해 내용이 확인되면 공개 범위를 제한하거나 필요한 조치를 합니다.</p>
+              </section>
+              <section>
+                <h2>문의와 권리 행사</h2>
+                <p>본인이 작성한 내용의 삭제, 권리침해 신고, 개인정보 처리 문의는 문제제보 기능 또는 hello@xn--o55b9n.kr로 보내주세요. 확인에 필요한 최소한의 정보만 요청하며 처리 결과를 안내합니다. 시행일: 2026년 8월 10일.</p>
+              </section>
+            </PolicyPage>;
+          }
+          '''.replace("          ", ""))
+
+          # 10) Fix existing identity expectations and test the delayed-index boundary so CI can be authoritative.
+          tests = read("tests/search-indexing.test.ts")
+          tests = tests.replace('  INDEXNOW_KEY,\n', '  INDEXNOW_KEY,\n  isSearchIndexable,\n  SEARCH_INDEX_DELAY_MS,\n', 1)
+          tests = tests.replace('  assert.equal(SITE_DEFINITION, "진주(JINJU)는 개인정보 없이 할 말을 하는 익명 커뮤니티입니다.");', '  assert.equal(SITE_DEFINITION, "진주.kr은 개인정보 없이 할 말을 하는 독립 익명 의견 커뮤니티입니다.");', 1)
+          tests = tests.replace('  assert.match(SITE_TITLE, /진실의 주둥이/);\n', '')
+          tests = tests.replace('  assert.equal(SITE_DISCLAIMER, "본 서비스는 경상남도 진주시 및 지방자치단체의 공식 서비스와 무관한 독립 서비스입니다.");', '  assert.equal(SITE_DISCLAIMER, "경상남도 진주시 및 지방자치단체의 공식 서비스와 무관합니다.");', 1)
+          delay_test = r'''
+
+          test("fresh discussions wait twelve hours before external indexing", () => {
+            const now = Date.parse("2026-08-10T00:00:00.000Z");
+            assert.equal(isSearchIndexable(new Date(now - SEARCH_INDEX_DELAY_MS + 1).toISOString(), now), false);
+            assert.equal(isSearchIndexable(new Date(now - SEARCH_INDEX_DELAY_MS).toISOString(), now), true);
+          });
+          '''
+          if 'fresh discussions wait twelve hours' not in tests:
+              tests += delay_test
+          write("tests/search-indexing.test.ts", tests)
+
+          # 11) CI on every PR and main push.
+          write(".github/workflows/ci.yml", r'''name: CI
+
+          on:
+            pull_request:
+            push:
+              branches: [main]
+
+          concurrency:
+            group: ci-${{ github.workflow }}-${{ github.ref }}
+            cancel-in-progress: true
+
+          permissions:
+            contents: read
+
+          jobs:
+            verify:
+              runs-on: ubuntu-latest
+              env:
+                NEXT_TELEMETRY_DISABLED: "1"
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with:
+                    node-version: 22
+                    cache: npm
+                - run: npm ci
+                - run: npm run lint
+                - run: npm test
+                - run: npm run build
+          '''.replace("          ", ""))
+          PY
+
+      - name: Refresh dependency lockfile
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Commit verified changes
+        shell: bash
+        run: |
+          rm .github/workflows/portfolio-hardening-bootstrap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Harden portfolio production runtime"
+          git push origin HEAD:agent/portfolio-hardening
