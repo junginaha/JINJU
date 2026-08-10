@@ -52,7 +52,7 @@ const fastEntryCss = `
 
 export default async function Home() {
   const publicPosts = await getPublicPosts();
-  const initialPosts = publicPosts.slice(0, 100).map(toClientPost);
+  const initialPosts = publicPosts.slice(0, 30).map(toClientPost);
 
   return (
     <>
