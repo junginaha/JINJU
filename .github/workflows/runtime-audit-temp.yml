@@ -6,36 +6,43 @@ on:
       - agent/portfolio-hardening
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
     runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Registry versions
+      - name: Refresh lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Runtime security audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: TypeScript check
+        run: npm run lint
+      - name: Tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Persist verified lockfile
         shell: bash
         run: |
-          for pkg in next react react-dom postcss brace-expansion fast-uri nanoid sharp; do
-            echo "REGISTRY $pkg latest=$(npm view "$pkg" dist-tags.latest)"
-          done
-          echo "NEXT_TAGS $(npm view next dist-tags --json | tr -d '\n')"
-          echo "BRACE_VERSIONS $(npm view brace-expansion versions --json | tr -d '\n' | tail -c 800)"
-          echo "FAST_URI_VERSIONS $(npm view fast-uri versions --json | tr -d '\n' | tail -c 800)"
-      - run: npm ci --omit=dev
-      - name: Runtime audit details
-        shell: bash
-        run: |
-          npm audit --omit=dev --json > audit.json || true
-          node - <<'NODE'
-          const fs = require('fs');
-          const audit = JSON.parse(fs.readFileSync('audit.json','utf8'));
-          console.log('RUNTIME_AUDIT_COUNTS', JSON.stringify(audit.metadata?.vulnerabilities || {}));
-          for (const [name, item] of Object.entries(audit.vulnerabilities || {})) {
-            console.log('RUNTIME_AUDIT_ITEM', JSON.stringify({name,severity:item.severity,isDirect:item.isDirect,range:item.range,via:item.via,effects:item.effects,fixAvailable:item.fixAvailable}));
-          }
-          NODE
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git diff --cached --check
+          git commit -m "Refresh patched dependency lockfile"
+          git push origin HEAD:agent/portfolio-hardening
