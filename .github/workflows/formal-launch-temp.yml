@@ -1,0 +1,75 @@
+name: Formal launch update
+
+on:
+  push:
+    branches:
+      - agent/portfolio-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  formal-launch:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply formal operation wording
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          app = Path('components/JinjuApp.tsx')
+          text = app.read_text()
+          old = '<a href="/beta">공개베타</a>'
+          new = '<a href="/beta">운영안내</a>'
+          if text.count(old) != 1:
+              raise SystemExit('Expected exactly one public beta footer label')
+          app.write_text(text.replace(old, new, 1))
+
+          page = Path('app/beta/page.tsx')
+          text = page.read_text()
+          replacements = {
+              'const description = "진주.kr 운영 상태와 안정화 원칙, 익명 문제제보 방법을 안내합니다.";': 'const description = "진주.kr의 정식 운영 상태와 안정화 원칙, 익명 문제제보 방법을 안내합니다.";',
+              'title: "운영 안내",': 'title: "정식 운영 안내",',
+              'openGraph: { title: `운영 안내 | ${SITE_NAME}`': 'openGraph: { title: `정식 운영 안내 | ${SITE_NAME}`',
+              'title="운영 안내"': 'title="정식 운영 안내"',
+              '<h2>진주.kr은 현재 운영 중입니다.</h2>': '<h2>진주.kr은 정식 운영 중입니다.</h2>',
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'Formal launch anchor changed: {old}')
+              text = text.replace(old, new, 1)
+          page.write_text(text)
+
+          leftovers = []
+          for path in [Path('components/JinjuApp.tsx'), Path('app/beta/page.tsx')]:
+              if '공개베타' in path.read_text():
+                  leftovers.append(str(path))
+          if leftovers:
+              raise SystemExit('Visible public beta wording remains: ' + ', '.join(leftovers))
+          PY
+      - run: npm ci
+      - name: TypeScript check
+        run: npm run lint
+      - name: Tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Commit formal launch wording
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/JinjuApp.tsx app/beta/page.tsx
+          git diff --cached --check
+          git commit -m "Mark Jinju as formally operational"
+          git push origin HEAD:agent/portfolio-hardening
