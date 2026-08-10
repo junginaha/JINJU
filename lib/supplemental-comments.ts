@@ -1,5 +1,6 @@
 import { august8FreshComments } from "./fresh-comments-20260808";
 import { august9FreshComments } from "./fresh-comments-20260809";
+import { august10TopComments } from "./fresh-comments-20260810";
 
 export type CommentSourcePost = {
   id: string;
@@ -570,6 +571,7 @@ const COMMENT_MINUTE_OVERRIDES: Record<string, number[]> = {
 
 const PERSISTENT_SUPPLEMENTAL_COMMENT_POST_IDS = new Set([
   "303t1k08482d6n4q5x4b",
+  "1m4m5c2q5x121a066u5v",
 ]);
 
 export function keepsSupplementalCommentsWithAutoSet(postId: string) {
@@ -600,5 +602,10 @@ export function supplementalComments(post: CommentSourcePost): SupplementalComme
     displayName: DISPLAY_NAME_OVERRIDES[post.id]?.[index] || nickname(post.id, index),
     createdAt: new Date(baseTime + minuteOffsets[index] * 60_000).toISOString(),
   }));
-  return [...existing, ...august8FreshComments(post.id), ...august9FreshComments(post.id)];
+  return [
+    ...existing,
+    ...august8FreshComments(post.id),
+    ...august9FreshComments(post.id),
+    ...august10TopComments(post.id),
+  ];
 }
