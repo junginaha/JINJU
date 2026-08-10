@@ -17,6 +17,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Registry versions
+        shell: bash
+        run: |
+          for pkg in next react react-dom postcss brace-expansion fast-uri nanoid sharp; do
+            echo "REGISTRY $pkg latest=$(npm view "$pkg" dist-tags.latest)"
+          done
+          echo "NEXT_TAGS $(npm view next dist-tags --json | tr -d '\n')"
+          echo "BRACE_VERSIONS $(npm view brace-expansion versions --json | tr -d '\n' | tail -c 800)"
+          echo "FAST_URI_VERSIONS $(npm view fast-uri versions --json | tr -d '\n' | tail -c 800)"
       - run: npm ci --omit=dev
       - name: Runtime audit details
         shell: bash
@@ -27,14 +36,6 @@ jobs:
           const audit = JSON.parse(fs.readFileSync('audit.json','utf8'));
           console.log('RUNTIME_AUDIT_COUNTS', JSON.stringify(audit.metadata?.vulnerabilities || {}));
           for (const [name, item] of Object.entries(audit.vulnerabilities || {})) {
-            console.log('RUNTIME_AUDIT_ITEM', JSON.stringify({
-              name,
-              severity: item.severity,
-              isDirect: item.isDirect,
-              range: item.range,
-              via: (item.via || []).map(v => typeof v === 'string' ? v : ({name:v.name,title:v.title,url:v.url,range:v.range,severity:v.severity})),
-              effects: item.effects,
-              fixAvailable: item.fixAvailable,
-            }));
+            console.log('RUNTIME_AUDIT_ITEM', JSON.stringify({name,severity:item.severity,isDirect:item.isDirect,range:item.range,via:item.via,effects:item.effects,fixAvailable:item.fixAvailable}));
           }
           NODE
