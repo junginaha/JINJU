@@ -22,6 +22,7 @@ import { august5MorningComments, august5MorningPosts } from "../lib/morning-edit
 import { august6MorningComments, august6MorningPosts } from "../lib/morning-editorial-20260806";
 import { august8MorningComments, august8MorningPosts } from "../lib/morning-editorial-20260808";
 import { august9MorningComments, august9MorningPosts } from "../lib/morning-editorial-20260809";
+import { august10MorningComments, august10MorningPosts } from "../lib/morning-editorial-20260810";
 import { august9EditorialComments, august9EditorialPosts } from "../lib/daily-editorial-20260809";
 import {
   AUGUST8_FRESH_COMMENT_POST_IDS,
@@ -450,6 +451,37 @@ test("August 9 news posts keep balanced six-comment debates and two-word names",
   }
   assert.equal(new Set(allNames).size, 30);
   assert.equal(new Set(allBodies).size, 30);
+});
+
+test("selected August 10 news posts keep balanced six-comment debates and two-word names", () => {
+  assert.equal(august10MorningPosts.length, 3);
+  assert.equal(new Set(august10MorningPosts.map((post) => post.id)).size, 3);
+  const allNames: string[] = [];
+  const allBodies: string[] = [];
+  for (const post of august10MorningPosts) {
+    assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
+    assert.ok(post.heard >= 20 && post.heard <= 33);
+    const comments = august10MorningComments(post.id);
+    assert.equal(comments.length, 6);
+    assert.equal(comments.length, post.commentCount);
+    assert.equal(
+      (post.content.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || []).filter((part) => part.trim()).length,
+      2,
+    );
+    for (const item of comments) {
+      assert.equal(item.displayName.trim().split(/\s+/).length, 2);
+      assert.ok(Date.parse(item.createdAt) > Date.parse(post.createdAt));
+      assert.ok(!/[“”"]/u.test(item.body));
+      assert.equal(
+        (item.body.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || []).filter((part) => part.trim()).length,
+        2,
+      );
+      allNames.push(item.displayName);
+      allBodies.push(item.body);
+    }
+  }
+  assert.equal(new Set(allNames).size, 18);
+  assert.equal(new Set(allBodies).size, 18);
 });
 
 test("the current top ten receive exactly one new natural humorous comment each", () => {
