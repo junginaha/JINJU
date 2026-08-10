@@ -1,0 +1,40 @@
+name: Runtime dependency audit
+
+on:
+  push:
+    branches:
+      - agent/portfolio-hardening
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      - name: Runtime audit details
+        shell: bash
+        run: |
+          npm audit --omit=dev --json > audit.json || true
+          node - <<'NODE'
+          const fs = require('fs');
+          const audit = JSON.parse(fs.readFileSync('audit.json','utf8'));
+          console.log('RUNTIME_AUDIT_COUNTS', JSON.stringify(audit.metadata?.vulnerabilities || {}));
+          for (const [name, item] of Object.entries(audit.vulnerabilities || {})) {
+            console.log('RUNTIME_AUDIT_ITEM', JSON.stringify({
+              name,
+              severity: item.severity,
+              isDirect: item.isDirect,
+              range: item.range,
+              via: (item.via || []).map(v => typeof v === 'string' ? v : ({name:v.name,title:v.title,url:v.url,range:v.range,severity:v.severity})),
+              effects: item.effects,
+              fixAvailable: item.fixAvailable,
+            }));
+          }
+          NODE
