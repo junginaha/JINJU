@@ -6,7 +6,7 @@ import { canAutoPublish, reviewSubmission } from "../../../lib/ai-review";
 import { builtInPosts } from "../../../lib/built-in-content";
 import { normalizePublicCategory, PUBLIC_CATEGORIES } from "../../../lib/categories";
 import { db, databaseEnabled, ensureSchema, token } from "../../../lib/db";
-import { isDuplicatePost } from "../../../lib/dedup";
+import { createDuplicatePostChecker } from "../../../lib/dedup";
 import { generateUniqueJinjuDisplayName } from "../../../lib/display-name";
 import { getPublicPosts } from "../../../lib/public-posts";
 import { rateLimit } from "../../../lib/rate-limit";
@@ -55,12 +55,13 @@ export async function GET(request: Request) {
     return { posts: page, total, siteTotal, hasMore: nextOffset < total, nextOffset };
   };
 
+  const publicPostsPromise = getPublicPosts();
   try {
     await verifyPublicDatabase();
   } catch (error) {
     Sentry.captureException(error, { tags: { area: "public-feed", service: "database" } });
     console.error("[posts] public database unavailable", error);
-    const fallbackPosts = await getPublicPosts().catch(() => []);
+    const fallbackPosts = await publicPostsPromise.catch(() => []);
     return Response.json({
       warning: "최신 의견 연결이 잠시 늦어지고 있습니다.",
       ...selectPage(fallbackPosts),
@@ -70,7 +71,7 @@ export async function GET(request: Request) {
     }, { status: 200, headers: { "cache-control": "no-store" } });
   }
 
-  const page = selectPage(await getPublicPosts());
+  const page = selectPage(await publicPostsPromise);
   return Response.json({ ...page, database: true, fallback: false }, { headers: { "cache-control": "no-store" } });
 }
 
@@ -112,6 +113,7 @@ export async function POST(request: Request) {
     ...builtInPosts,
     ...existingRows.map((row: Record<string, unknown>) => ({ title: String(row.title), content: String(row.content) })),
   ];
+  const isDuplicatePost = createDuplicatePostChecker();
   if (existingPosts.some((post) => isDuplicatePost({ title, content }, post))) {
     return Response.json({ error: "이미 같은 제목이 있거나 본문이 90% 이상 비슷한 의견입니다. 기존 글에 댓글로 참여해주세요." }, { status: 409 });
   }

@@ -226,13 +226,13 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .post-feed { border-top: 1px solid #292929; }
 .feed-post { padding: 25px 4px 21px; border-bottom: 1px solid #292929; }
 .post-main-link { display: block; width: 100%; padding: 0; text-align: left; cursor: pointer; background: transparent; border: 0; }
-.post-meta { display: flex; align-items: center; gap: 7px; color: #a5a5a5; font-size: 11px; }
+.post-meta { display: flex; align-items: center; gap: 7px; color: #a5a5a5; font-size: 12px; }
 .post-meta span:first-child { padding: 4px 7px; color: #cfcfcf; font-weight: 700; background: #292929; border-radius: 999px; }
 .post-meta time { margin-left: auto; }
 .feed-post h2 { margin: 12px 0 8px; color: #f2f2f2; font-size: 19px; line-height: 1.42; letter-spacing: -.035em; overflow-wrap: anywhere; }
-.feed-post .post-main-link > p { display: -webkit-box; margin: 0; overflow: hidden; color: #c6c6c6; font-size: 13px; line-height: 1.72; white-space: pre-wrap; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.feed-post .post-main-link > p { display: -webkit-box; margin: 0; overflow: hidden; color: #c6c6c6; font-size: 14px; line-height: 1.75; white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .post-temperature { --temperature-position: 50%; margin: 24px 2px 4px; }
-.temperature-copy { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; color: #8c8c8c; font-size: 9px; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
+.temperature-copy { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; color: #8c8c8c; font-size: 10px; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
 .temperature-copy span:first-child { color: #7fd4dc; }
 .temperature-copy span:last-child { color: #ef6f6f; }
 .temperature-track { position: relative; height: 7px; background: linear-gradient(90deg,#7fd4dc 0%,#8dcfd7 28%,#cdb6de 52%,#e69a9f 76%,#ef6f6f 100%); border: 1px solid #3a3a3a; border-radius: 999px; box-shadow: inset 0 1px 2px #00000094,0 0 14px #cdb6de1a; }
@@ -349,12 +349,12 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .detail-shell { width: min(100% - 32px,760px); margin: 0 auto; padding: 52px 0 100px; }
 .detail-post { padding-bottom: 36px; border-bottom: 1px solid #292929; }
 .detail-post h1 { margin: 18px 0 20px; color: #f2f2f2; font-size: clamp(28px,5vw,42px); line-height: 1.3; letter-spacing: -.045em; }
-.detail-post > p { color: #c6c6c6; font-size: 15px; line-height: 1.9; white-space: pre-wrap; }
+.detail-post > p { color: #c6c6c6; font-size: 16px; line-height: 1.82; white-space: pre-wrap; }
 .detail-stats { margin-top: 18px; }
 .comment-list { padding: 38px 0 18px; border-bottom: 1px solid #292929; }
 .comment-list h2 { margin: 0 0 20px; font-size: 18px; }
 .comment-list article { padding: 18px 0; border-top: 1px solid #292929; }
-.comment-list article > div { display: flex; justify-content: space-between; color: #aaa; font-size: 11px; }
+.comment-list article > div { display: flex; justify-content: space-between; color: #aaa; font-size: 12px; }
 .comment-list article > div > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
 .comment-list article > div > span:last-child { display: inline-flex; align-items: center; gap: 9px; }
 .comment-delete-button { min-height: 32px; padding: 0 7px; color: #999; font-size: 10px; background: transparent; border: 0; border-radius: 7px; cursor: pointer; }
@@ -560,11 +560,11 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
   .chat-search { gap: 6px; padding-left: 10px; border-radius: 15px; }
   .search-privacy-badge { left: 12px; min-height: 22px; padding: 0 8px; font-size: 9px; }
   .mobile-channel-strip { display: flex; width: 100%; max-width: 100%; gap: 6px; margin: -10px 0 22px; padding: 0 0 2px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: none; }
-  .mobile-channel-strip button { flex: none; padding: 8px 11px; color: #aaa; font-size: 10px; background: #1e1e1e; border: 1px solid #3b3b3b; border-radius: 999px; }
+  .mobile-channel-strip button { flex: none; padding: 9px 12px; color: #aaa; font-size: 11px; background: #1e1e1e; border: 1px solid #3b3b3b; border-radius: 999px; }
   .mobile-channel-strip button.active { color: #111; background: #f4f4f4; border-color: #f4f4f4; }
   .feed-post { padding: 22px 1px 18px; }
-  .feed-post h2 { font-size: 18px; }
-  .feed-post .post-main-link > p { display: block; overflow: visible; white-space: pre-wrap; -webkit-line-clamp: unset; }
+  .feed-post h2 { font-size: clamp(18px,4.8vw,20px); line-height: 1.45; word-break: keep-all; }
+  .feed-post .post-main-link > p { display: block; overflow: visible; font-size: clamp(14px,3.8vw,15px); line-height: 1.78; white-space: pre-wrap; -webkit-line-clamp: unset; }
   .post-actions, .detail-stats { gap: 1px; }
   .post-actions button, .post-actions a, .detail-stats button, .detail-stats a { min-height: 44px; padding: 7px 2px; font-size: 9.5px; }
   .comment-composer button { min-height: 44px; }

@@ -105,11 +105,12 @@ export const getPublicPosts = cache(async () => {
       .filter((post) => isPublished(post, now))
       .map((post) => [post.id, builtInWithVisibleCommentCount(post, now)]),
   );
-  const overrides = await safeContentOverrides();
+  const overridesPromise = safeContentOverrides();
+  let overrides = new Map<string, ContentOverride>();
   if (databaseEnabled()) {
     try {
       await ensureSchema();
-      const rows = await db()`
+      const rowsPromise = db()`
         SELECT post.id, post.title, post.content, post.category, post.display_name, post.created_at, post.updated_at,
                post.status, post.visibility,
                post.heard, post.same, post.support,
@@ -128,6 +129,8 @@ export const getPublicPosts = cache(async () => {
         WHERE post.created_at <= NOW()
         GROUP BY post.id
         ORDER BY post.created_at DESC`;
+      const [loadedOverrides, rows] = await Promise.all([overridesPromise, rowsPromise]);
+      overrides = loadedOverrides;
       for (const row of rows) {
         const record = row as Record<string, unknown>;
         if (String(record.status) !== "approved" || String(record.visibility) !== "public") {
@@ -142,8 +145,9 @@ export const getPublicPosts = cache(async () => {
       }
     } catch (error) {
       console.error("[public-posts] database feed unavailable", error);
+      overrides = await overridesPromise;
     }
-  }
+  } else overrides = await overridesPromise;
   const hiddenCounts = hiddenCommentCounts(overrides);
   return dedupePosts([...byId.values()])
     .flatMap((post) => {
@@ -161,12 +165,12 @@ export const getPublicPosts = cache(async () => {
 export const getPublicPost = cache(async (id: string) => {
   if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return null;
   const now = Date.now();
-  const overrides = await safeContentOverrides();
-  const hiddenCount = hiddenCommentCounts(overrides).get(id) || 0;
+  const overridesPromise = safeContentOverrides();
+  let overrides = new Map<string, ContentOverride>();
   if (databaseEnabled()) {
     try {
       await ensureSchema();
-      const rows = await db()`
+      const rowsPromise = db()`
         SELECT post.id, post.title, post.content, post.category, post.display_name, post.created_at, post.updated_at,
                post.status, post.visibility,
                post.heard, post.same, post.support,
@@ -184,6 +188,8 @@ export const getPublicPost = cache(async (id: string) => {
         FROM posts AS post
         WHERE post.id = ${id} AND post.created_at <= NOW()
         LIMIT 1`;
+      const [loadedOverrides, rows] = await Promise.all([overridesPromise, rowsPromise]);
+      overrides = loadedOverrides;
       if (rows[0]) {
         const record = rows[0] as Record<string, unknown>;
         if (String(record.status) !== "approved" || String(record.visibility) !== "public") return null;
@@ -196,6 +202,7 @@ export const getPublicPost = cache(async (id: string) => {
           withVisibleCommentCount(candidate, Number(record.auto_comment_count || 0), storedBodies, now),
           overrides,
         );
+        const hiddenCount = hiddenCommentCounts(overrides).get(id) || 0;
         return post ? {
           ...post,
           category: normalizePublicCategory(post.category),
@@ -204,11 +211,13 @@ export const getPublicPost = cache(async (id: string) => {
       }
     } catch (error) {
       console.error("[public-posts] database post unavailable", error);
+      overrides = await overridesPromise;
     }
-  }
+  } else overrides = await overridesPromise;
   const fallback = builtInPost(id);
   if (!fallback || !isPublished(fallback, now)) return null;
   const post = applyPostOverride(builtInWithVisibleCommentCount(fallback, now), overrides);
+  const hiddenCount = hiddenCommentCounts(overrides).get(id) || 0;
   return post ? {
     ...post,
     category: normalizePublicCategory(post.category),
