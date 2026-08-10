@@ -51,6 +51,24 @@ jobs:
               'jinju = jinju[:filter_end] + load_more_hook + jinju[filter_end:]'
           )
           code = code[:patch_start] + resilient + code[patch_end:]
+
+          patch2_start = code.index("continued = r'''")
+          patch2_end_marker = "jinju = jinju.replace(empty_before, empty_after, 1)"
+          patch2_end = code.index(patch2_end_marker, patch2_start) + len(patch2_end_marker)
+          resilient2 = (
+              'continued_start = jinju.index(\'              <section className="post-feed continued-feed"\')\n'
+              'continued_close_marker = "              </section>"\n'
+              'continued_close = jinju.index(continued_close_marker, continued_start) + len(continued_close_marker)\n'
+              'pager_markup = "\\n\\n              {hasMorePosts && <div className=\\\"feed-pager-slot\\\">\\n                <button className=\\\"feed-more-button\\\" type=\\\"button\\\" onClick={loadMorePosts} disabled={feedLoadingMore} aria-busy={feedLoadingMore}>\\n                  <span className=\\\"feed-more-label\\\">{feedLoadingMore?\\\"불러오는 중…\\\":feedMoreError?\\\"다시 불러오기\\\":\\\"더 보기\\\"}</span>\\n                  <span className=\\\"feed-more-arrow\\\" aria-hidden=\\\"true\\\">↓</span>\\n                </button>\\n              </div>}"\n'
+              'jinju = jinju[:continued_close] + pager_markup + jinju[continued_close:]\n'
+              'empty_one = \'              {feedState === "ready" && posts.length === 0 && <section className="feed-empty"><h2>아직 공개된 의견이 없어요.</h2><p>첫 의견을 남겨주세요.</p><button type="button" onClick={openComposer}>의견 남기기</button></section>}\'\n'
+              'empty_one_new = \'              {feedState === "ready" && feedTotal === 0 && <section className="feed-empty"><h2>아직 공개된 의견이 없어요.</h2><p>첫 의견을 남겨주세요.</p><button type="button" onClick={openComposer}>의견 남기기</button></section>}\'\n'
+              'empty_two = \'              {posts.length > 0 && !filteredPosts.length && <section className="feed-empty"><h2>찾는 의견이 없습니다</h2><p>다른 검색어나 게시판을 선택해 보세요.</p></section>}\'\n'
+              'empty_two_new = \'              {feedState === "ready" && feedTotal > 0 && !filteredPosts.length && <section className="feed-empty"><h2>찾는 의견이 없습니다</h2><p>다른 검색어나 게시판을 선택해 보세요.</p></section>}\'\n'
+              'if jinju.count(empty_one) != 1 or jinju.count(empty_two) != 1: raise RuntimeError("JinjuApp empty state anchors changed")\n'
+              'jinju = jinju.replace(empty_one, empty_one_new, 1).replace(empty_two, empty_two_new, 1)'
+          )
+          code = code[:patch2_start] + resilient2 + code[patch2_end:]
           exec(compile(code, "portfolio-hardening.py", "exec"))
           PY
 
