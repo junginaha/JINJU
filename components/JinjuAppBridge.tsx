@@ -25,72 +25,81 @@ const FEED_PAGE_SIZE = 30;
 
 const feedPagerCss = `
 .feed-pager-slot {
+  display: flex;
   width: 100%;
-  margin: 16px 0 30px;
-  padding: 0 2px;
+  justify-content: center;
+  margin: 20px 0 34px;
+  padding: 0;
 }
 .feed-more-button {
-  display: grid;
-  width: 100%;
-  min-height: 58px;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  display: inline-flex;
+  min-height: 44px;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px 8px 18px;
-  color: #f2f2f2;
-  text-align: left;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 4px;
+  color: #b7b7b7;
+  text-align: center;
   cursor: pointer;
-  background: linear-gradient(180deg, #202020 0%, #191919 100%);
-  border: 1px solid #373737;
-  border-radius: 18px;
-  box-shadow: 0 12px 30px #00000026, inset 0 1px 0 #ffffff0a;
-  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  transition: color .2s ease, opacity .2s ease, transform .2s ease;
 }
 .feed-more-button:hover {
-  background: linear-gradient(180deg, #252525 0%, #1d1d1d 100%);
-  border-color: #4a4a4a;
+  color: #f2f2f2;
   transform: translateY(-1px);
 }
-.feed-more-button:active { transform: scale(.995); }
-.feed-more-button:focus-visible { outline: 2px solid #f2f2f2; outline-offset: 3px; }
+.feed-more-button:active { opacity: .72; transform: translateY(1px); }
+.feed-more-button:focus-visible { outline: 1px solid #777; outline-offset: 7px; border-radius: 6px; }
 .feed-more-label {
-  overflow: hidden;
-  font-size: 15px;
-  font-weight: 680;
+  color: transparent;
+  font-size: 14px;
+  font-weight: 720;
+  line-height: 1;
   letter-spacing: -.025em;
-  text-overflow: ellipsis;
   white-space: nowrap;
-}
-.feed-more-progress {
-  color: #8f8f8f;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -.01em;
-  white-space: nowrap;
+  background: linear-gradient(105deg, #8f8f8f 15%, #f3f3f3 48%, #aaa 72%, #8f8f8f 100%) 0 0 / 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: feed-more-shimmer 3.8s ease-in-out infinite;
 }
 .feed-more-arrow {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  color: #151515;
-  font-size: 16px;
-  font-weight: 800;
+  display: inline-block;
+  color: #c8c8c8;
+  font-size: 18px;
+  font-weight: 700;
   line-height: 1;
-  background: #eeeae3;
-  border-radius: 999px;
-  transition: transform .16s ease;
+  transform: translateY(-1px);
+  animation: feed-more-bob 1.8s ease-in-out infinite;
 }
-.feed-more-button:hover .feed-more-arrow { transform: translateY(2px); }
+.feed-more-button:hover .feed-more-arrow { color: #f1f1f1; }
+@keyframes feed-more-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes feed-more-bob {
+  0%, 100% { opacity: .62; transform: translateY(-2px); }
+  50% { opacity: 1; transform: translateY(3px); }
+}
 @media (max-width: 640px) {
-  .feed-pager-slot { margin: 14px 0 24px; padding: 0; }
-  .feed-more-button { min-height: 56px; padding-left: 16px; border-radius: 16px; }
-  .feed-more-label { font-size: 14px; }
-  .feed-more-arrow { width: 28px; height: 28px; }
+  .feed-pager-slot { margin: 16px 0 28px; }
+  .feed-more-button { min-height: 42px; gap: 7px; }
+  .feed-more-label { font-size: 13.5px; }
+  .feed-more-arrow { font-size: 17px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .feed-more-button,
-  .feed-more-arrow { transition: none; }
+  .feed-more-label {
+    color: #d8d8d8;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    animation: none;
+  }
+  .feed-more-arrow { animation: none; opacity: 1; transform: none; }
+  .feed-more-button { transition: none; }
 }
 `;
 
@@ -168,8 +177,6 @@ function FeedPagerPortal() {
 
   if (!mount || pager.total <= pager.shown) return null;
 
-  const nextCount = Math.min(FEED_PAGE_SIZE, pager.total - pager.shown);
-
   const showMore = () => {
     const feedShell = document.querySelector<HTMLElement>(".feed-shell");
     if (!feedShell) return;
@@ -187,10 +194,9 @@ function FeedPagerPortal() {
       className="feed-more-button"
       type="button"
       onClick={showMore}
-      aria-label={`의견 ${nextCount}개 더 보기. 현재 ${pager.shown}개 표시 중`}
+      aria-label="의견 더 보기"
     >
       <span className="feed-more-label">더 보기</span>
-      <span className="feed-more-progress" aria-hidden="true">{pager.shown} / {pager.total}</span>
       <span className="feed-more-arrow" aria-hidden="true">↓</span>
     </button>,
     mount,
