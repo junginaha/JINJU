@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getPublicPosts } from "@/lib/public-posts";
-import { canonicalUrl } from "@/lib/search-indexing";
+import { canonicalUrl, isSearchIndexable } from "@/lib/search-indexing";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority,
     })),
-    ...posts.map((post) => ({
+    ...posts.filter((post) => isSearchIndexable(post.createdAt)).map((post) => ({
       url: canonicalUrl(`/post/${encodeURIComponent(post.id)}`),
       lastModified: new Date(post.updatedAt || post.createdAt),
       changeFrequency: "weekly" as const,

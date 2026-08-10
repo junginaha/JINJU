@@ -17,6 +17,7 @@ export async function GET() {
     turnstile: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY),
   };
   const protectionReady = abuseProtection.hmac && abuseProtection.turnstile;
+  const maintenanceCron = Boolean(process.env.CRON_SECRET?.trim());
 
   if (!databaseEnabled()) {
     const error = new Error("DATABASE_URL is not configured");
@@ -27,6 +28,7 @@ export async function GET() {
       status: "degraded",
       database: "disabled",
       abuseProtection,
+      maintenanceCron,
       checkedAt,
     }, { status: 503, headers });
   }
@@ -59,6 +61,7 @@ export async function GET() {
       status: protectionReady ? "ok" : "degraded",
       database: "connected",
       abuseProtection,
+      maintenanceCron,
       publicPostCount: Number(row?.public_post_count || 0),
       publicCommentCount: Number(row?.public_comment_count || 0),
       latestPostAt: row?.latest_post_at ? new Date(String(row.latest_post_at)).toISOString() : null,
@@ -72,6 +75,7 @@ export async function GET() {
       status: "degraded",
       database: "unavailable",
       abuseProtection,
+      maintenanceCron,
       checkedAt,
     }, { status: 503, headers });
   }

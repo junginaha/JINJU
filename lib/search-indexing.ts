@@ -15,6 +15,13 @@ export const SITE_SAME_AS = (process.env.NEXT_PUBLIC_SITE_SAME_AS || "")
   .filter((value) => /^https:\/\//i.test(value));
 export const INDEXNOW_KEY = "e2df7f4f1f76295063b8c4894b9632b3";
 
+export const SEARCH_INDEX_DELAY_MS = 12 * 60 * 60_000;
+
+export function isSearchIndexable(createdAt: string | Date, now = Date.now()) {
+  const timestamp = createdAt instanceof Date ? createdAt.getTime() : Date.parse(createdAt);
+  return Number.isFinite(timestamp) && now - timestamp >= SEARCH_INDEX_DELAY_MS;
+}
+
 export function canonicalUrl(path = "/") {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${SITE_URL}${normalizedPath}`;

@@ -31,6 +31,30 @@ async function verifyPublicDatabase() {
 }
 
 export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const requestedCategory = url.searchParams.get("category")?.trim() || "전체";
+  const category = requestedCategory === "전체" ? "전체" : normalizePublicCategory(requestedCategory);
+  const query = url.searchParams.get("q")?.trim().toLocaleLowerCase("ko-KR") || "";
+  const sort = url.searchParams.get("sort") === "popular" ? "popular" : "latest";
+  const parsedLimit = Number.parseInt(url.searchParams.get("limit") || "30", 10);
+  const parsedOffset = Number.parseInt(url.searchParams.get("offset") || "0", 10);
+  const limit = Math.min(30, Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : 30));
+  const offset = Math.max(0, Number.isFinite(parsedOffset) ? parsedOffset : 0);
+
+  const selectPage = (source: Awaited<ReturnType<typeof getPublicPosts>>) => {
+    const siteTotal = source.length;
+    let posts = source;
+    if (category !== "전체") posts = posts.filter((post) => post.category === category);
+    if (query) posts = posts.filter((post) => `${post.title} ${post.content} ${post.category}`.toLocaleLowerCase("ko-KR").includes(query));
+    posts = [...posts].sort((a, b) => sort === "popular"
+      ? (b.heard + b.same + b.commentCount * 3) - (a.heard + a.same + a.commentCount * 3)
+      : Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    const total = posts.length;
+    const page = posts.slice(offset, offset + limit);
+    const nextOffset = offset + page.length;
+    return { posts: page, total, siteTotal, hasMore: nextOffset < total, nextOffset };
+  };
+
   try {
     await verifyPublicDatabase();
   } catch (error) {
@@ -39,26 +63,15 @@ export async function GET(request: Request) {
     const fallbackPosts = await getPublicPosts().catch(() => []);
     return Response.json({
       warning: "최신 의견 연결이 잠시 늦어지고 있습니다.",
-      posts: fallbackPosts.slice(0, 100),
-      total: fallbackPosts.length,
+      ...selectPage(fallbackPosts),
       database: false,
       fallback: true,
       degraded: true,
     }, { status: 200, headers: { "cache-control": "no-store" } });
   }
 
-  const url = new URL(request.url);
-  const requestedCategory = url.searchParams.get("category")?.trim() || "전체";
-  const category = requestedCategory === "전체" ? "전체" : normalizePublicCategory(requestedCategory);
-  const query = url.searchParams.get("q")?.trim().toLocaleLowerCase("ko-KR") || "";
-  const sort = url.searchParams.get("sort") === "popular" ? "popular" : "latest";
-  let posts = await getPublicPosts();
-  if (category !== "전체") posts = posts.filter((post) => post.category === category);
-  if (query) posts = posts.filter((post) => `${post.title} ${post.content} ${post.category}`.toLocaleLowerCase("ko-KR").includes(query));
-  posts = [...posts].sort((a, b) => sort === "popular"
-    ? (b.heard + b.same + b.commentCount * 3) - (a.heard + a.same + a.commentCount * 3)
-    : Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  return Response.json({ posts: posts.slice(0, 100), total: posts.length, database: true, fallback: false }, { headers: { "cache-control": "no-store" } });
+  const page = selectPage(await getPublicPosts());
+  return Response.json({ ...page, database: true, fallback: false }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(request: Request) {
@@ -126,7 +139,7 @@ export async function POST(request: Request) {
     after(async () => {
       await Promise.allSettled([
         queued ? processAutoCommentJob(id) : Promise.resolve(),
-        notifySearchIndexes(["/", `/post/${encodeURIComponent(id)}`]),
+        notifySearchIndexes(["/"]),
       ]);
     });
   }

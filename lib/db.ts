@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 
-let schemaReady: Promise<void> | null = null;
+let migrationReady: Promise<void> | null = null;
 
 export function databaseEnabled() {
   return Boolean(process.env.DATABASE_URL);
@@ -12,9 +12,9 @@ export function db() {
   return neon(url);
 }
 
-export async function ensureSchema() {
-  if (!schemaReady) {
-    schemaReady = (async () => {
+export async function migrateSchema() {
+  if (!migrationReady) {
+    migrationReady = (async () => {
       const sql = db();
       await sql`
         CREATE TABLE IF NOT EXISTS posts (
@@ -206,11 +206,35 @@ export async function ensureSchema() {
             AND comment.created_at <= NOW()
         )`;
     })().catch((error) => {
-      schemaReady = null;
+      migrationReady = null;
       throw error;
     });
   }
-  return schemaReady;
+  return migrationReady;
+}
+
+
+let schemaVerified: Promise<void> | null = null;
+
+export async function ensureSchema() {
+  if (!schemaVerified) {
+    schemaVerified = (async () => {
+      const rows = await db()`
+        SELECT
+to_regclass('public.posts') AS posts,
+to_regclass('public.comments') AS comments,
+to_regclass('public.rate_limits') AS rate_limits,
+to_regclass('public.admin_content_overrides') AS overrides`;
+      const row = rows[0] as Record<string, unknown> | undefined;
+      if (!row?.posts || !row?.comments || !row?.rate_limits || !row?.overrides) {
+        throw new Error("Database schema is not migrated. Run npm run migrate.");
+      }
+    })().catch((error) => {
+      schemaVerified = null;
+      throw error;
+    });
+  }
+  return schemaVerified;
 }
 
 export function token(length = 18) {

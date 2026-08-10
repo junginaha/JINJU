@@ -127,8 +127,7 @@ export const getPublicPosts = cache(async () => {
           ON comment.post_id = post.id AND comment.status = 'approved' AND comment.created_at <= NOW()
         WHERE post.created_at <= NOW()
         GROUP BY post.id
-        ORDER BY post.created_at DESC
-        LIMIT 500`;
+        ORDER BY post.created_at DESC`;
       for (const row of rows) {
         const record = row as Record<string, unknown>;
         if (String(record.status) !== "approved" || String(record.visibility) !== "public") {

@@ -67,7 +67,11 @@ export type Post = {
 
 const topics = ["전체", "일상", "관계", "직장", "돈", "사회", "제안", "질문"];
 const POST_DRAFT_KEY="jinju-post-draft-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1";
-const MAX_RECORDING_MS=120_000,TRANSCRIPTION_TIMEOUT_MS=25_000;
+const MAX_RECORDING_MS=120_000,TRANSCRIPTION_TIMEOUT_MS=25_000,FEED_PAGE_SIZE=30;
+type FeedApiPost=Omit<Post,"date"|"comments">&{createdAt:string;commentCount?:number};
+type FeedApiResponse={posts?:FeedApiPost[];total?:number;siteTotal?:number;hasMore?:boolean;nextOffset?:number;error?:string};
+type FeedQueryOverride={topic?:string;query?:string;sort?:"latest"|"popular"};
+function normalizeFeedPosts(rows:FeedApiPost[]):Post[]{return rows.map(({createdAt,commentCount,...post})=>({...post,date:new Intl.DateTimeFormat("ko-KR",{year:"numeric",month:"numeric",day:"numeric"}).format(new Date(createdAt)),comments:Array.from({length:commentCount??0},(_,index)=>({id:`count-${index}`,body:"",createdAt:""}))}))}
 
 function readKeys(storageKey:string):DeleteKeys{try{return JSON.parse(localStorage.getItem(storageKey)||"{}") as DeleteKeys}catch{return {}}}
 function saveKeys(storageKey:string,keys:DeleteKeys){try{localStorage.setItem(storageKey,JSON.stringify(keys))}catch{/* Private browsing can reject storage writes. */}}
@@ -139,11 +143,16 @@ function Pearl({ size = 44, className = "" }: { size?: number; className?: strin
   return <Image className={className} src="/jinju-pearl-cutout.png" alt="" width={size} height={size} priority />;
 }
 
-export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null }: { initialPosts?: Post[]; initialPostId?: string | null }) {
+export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null, initialTotal }: { initialPosts?: Post[]; initialPostId?: string | null; initialTotal?: number }) {
   const [showIntro, setShowIntro] = useState(true);
   const [introReady, setIntroReady] = useState(false);
   const [posts, setPosts] = useState(initialPosts);
   const [feedState, setFeedState] = useState<"loading" | "ready" | "error">("loading");
+  const [feedTotal,setFeedTotal]=useState(Math.max(initialTotal??initialPosts.length,initialPosts.length));
+  const [feedNextOffset,setFeedNextOffset]=useState(initialPosts.length);
+  const [hasMorePosts,setHasMorePosts]=useState((initialTotal??initialPosts.length)>initialPosts.length);
+  const [feedLoadingMore,setFeedLoadingMore]=useState(false);
+  const [feedMoreError,setFeedMoreError]=useState(false);
   const [feedbackPost, setFeedbackPost] = useState<Post | null>(null);
   const [topic, setTopic] = useState("전체");
   const [sort, setSort] = useState<"latest" | "popular">("latest");
@@ -175,28 +184,52 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const commentVoiceTargetRef=useRef<CommentVoiceTarget|null>(null),voiceCommentPostIdRef=useRef<string|null>(null);
   const titleInputRef=useRef<HTMLInputElement|null>(null);
   const bodyInputRef=useRef<HTMLTextAreaElement|null>(null);
+  const feedRequestRef=useRef(0);
 
-  const loadPosts = useCallback(async () => {
+  const loadPosts = useCallback(async (offset=0,append=false,override?:FeedQueryOverride) => {
+    const requestId=++feedRequestRef.current;
+    if(append){setFeedLoadingMore(true);setFeedMoreError(false)}else setFeedState("loading");
     try {
-      const response = await fetch("/api/posts", { cache: "no-store" });
-      if (!response.ok) throw new Error("feed");
-      const data = await response.json() as { posts?: Array<Omit<Post, "date" | "comments"> & { createdAt: string; commentCount?: number }> };
-      setPosts((data.posts || []).map((post) => ({
-        ...post,
-        date: new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(post.createdAt)),
-        comments: Array.from({ length: post.commentCount ?? 0 }, (_, index) => ({ id: `count-${index}`, body: "", createdAt: "" })),
-      })));
+      const activeTopic=override?.topic??topic,activeQuery=override?.query??query,activeSort=override?.sort??sort;
+      const params=new URLSearchParams({limit:String(FEED_PAGE_SIZE),offset:String(Math.max(0,offset)),sort:activeSort});
+      if(activeTopic!=="전체")params.set("category",activeTopic);
+      if(activeQuery.trim())params.set("q",activeQuery.trim());
+      const response=await fetch(`/api/posts?${params.toString()}`,{cache:"no-store"});
+      const data=await response.json() as FeedApiResponse;
+      if(!response.ok)throw new Error(data.error||"feed");
+      if(requestId!==feedRequestRef.current)return;
+      const incoming=normalizeFeedPosts(data.posts||[]);
+      setPosts((current)=>{
+        if(!append)return incoming;
+        const merged=new Map(current.map((post)=>[post.id,post]));
+        incoming.forEach((post)=>merged.set(post.id,post));
+        return [...merged.values()];
+      });
+      const nextOffset=Number.isFinite(data.nextOffset)?Math.max(0,Number(data.nextOffset)):offset+incoming.length;
+      const resultTotal=Number.isFinite(data.total)?Math.max(0,Number(data.total)):nextOffset;
+      setFeedNextOffset(nextOffset);
+      setHasMorePosts(typeof data.hasMore==="boolean"?data.hasMore:nextOffset<resultTotal);
+      if(Number.isFinite(data.siteTotal))setFeedTotal(Math.max(0,Number(data.siteTotal)));
+      else if(!append&&!activeQuery.trim()&&activeTopic==="전체")setFeedTotal(resultTotal);
+      setFeedMoreError(false);
       setFeedState("ready");
     } catch {
-      setFeedState("error");
+      if(requestId!==feedRequestRef.current)return;
+      if(append)setFeedMoreError(true);else setFeedState("error");
+    } finally {
+      if(requestId===feedRequestRef.current)setFeedLoadingMore(false);
     }
-  }, []);
+  }, [query,sort,topic]);
 
   const syncPostComments = useCallback((postId:string, comments:Comment[]) => {
     setPosts((current) => current.map((post) => post.id===postId ? {...post,comments} : post));
   }, []);
 
-  useEffect(() => { void loadPosts(); }, [loadPosts]);
+  useEffect(()=>{
+  if(selectedPostId)return;
+  const timer=window.setTimeout(()=>void loadPosts(0,false),query.trim()?220:0);
+  return()=>window.clearTimeout(timer);
+},[loadPosts,query,selectedPostId]);
 
   useEffect(()=>{
     try{const draft=JSON.parse(sessionStorage.getItem(POST_DRAFT_KEY)||"null") as {title?:string;body?:string;category?:string}|null;if(draft){setTitle(draft.title||"");setBody(draft.body||"");if(draft.category) setCategory(draft.category)}}catch{/* Ignore a damaged local draft. */}
@@ -425,6 +458,11 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       .sort((a, b) => sort === "popular" ? (b.heard + b.same) - (a.heard + a.same) : 0);
   }, [posts, query, sort, topic]);
 
+  const loadMorePosts=useCallback(()=>{
+    if(feedLoadingMore||!hasMorePosts)return;
+    void loadPosts(feedNextOffset,true);
+  },[feedLoadingMore,feedNextOffset,hasMorePosts,loadPosts]);
+
   function prepareVoiceField(field: ComposerVoiceField) {
     selectVoiceField(field);
   }
@@ -629,7 +667,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       setPendingNotice(true);
       return true;
     }
-    await loadPosts();
+    await loadPosts(0,false,{topic:"전체",query:"",sort:"latest"});
     setPublishedPostId(data.id || null);
     setSubmitStatus("");
     setComposerOpen(false);
@@ -722,7 +760,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     return created;
   }
 
-  async function deleteComment(postId:string,commentId:string|number){const key=String(commentId),deleteKey=commentDeleteKeys[key];if(!deleteKey)throw new Error("이 댓글을 삭제할 권한을 확인할 수 없습니다.");const response=await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({commentId:key,deleteKey})});const data=await response.json() as {error?:string};if(!response.ok)throw new Error(data.error||"댓글을 삭제하지 못했습니다.");const next={...commentDeleteKeys};delete next[key];setCommentDeleteKeys(next);saveKeys(COMMENT_DELETE_KEYS,next);setPosts(current=>current.map(post=>post.id===postId?{...post,comments:post.comments.filter(item=>String(item.id)!==key)}:post));await loadPosts()}
+  async function deleteComment(postId:string,commentId:string|number){const key=String(commentId),deleteKey=commentDeleteKeys[key];if(!deleteKey)throw new Error("이 댓글을 삭제할 권한을 확인할 수 없습니다.");const response=await fetch(`/api/posts/${encodeURIComponent(postId)}/comments`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({commentId:key,deleteKey})});const data=await response.json() as {error?:string};if(!response.ok)throw new Error(data.error||"댓글을 삭제하지 못했습니다.");const next={...commentDeleteKeys};delete next[key];setCommentDeleteKeys(next);saveKeys(COMMENT_DELETE_KEYS,next);setPosts(current=>current.map(post=>post.id===postId?{...post,comments:post.comments.filter(item=>String(item.id)!==key)}:post))}
 
   function openPost(postId: string) {
     if(voiceFieldRef.current==="query"&&(voiceStartPendingRef.current||voiceState!=="idle"))stopVoice(true);
@@ -851,10 +889,10 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
             <div className="feed-shell">
               <header className="feed-heading">
                 <div><h1>새로운 의견</h1></div>
-                <span>{posts.length}개의 공개 의견</span>
+                <span>{feedTotal}개의 공개 의견</span>
               </header>
 
-              {feedState === "error" && <section className="feed-state feed-state-error" role="alert"><div><h2>의견을 불러오지 못했어요.</h2><p>잠시 후 다시 시도해 주세요.</p></div><button type="button" onClick={() => { setFeedState("loading"); void loadPosts(); }}>다시 불러오기</button></section>}
+              {feedState === "error" && <section className="feed-state feed-state-error" role="alert"><div><h2>의견을 불러오지 못했어요.</h2><p>잠시 후 다시 시도해 주세요.</p></div><button type="button" onClick={() => { setFeedState("loading"); void loadPosts(0,false); }}>다시 불러오기</button></section>}
 
               <form className="chat-search" role="search" onSubmit={(event) => event.preventDefault()}>
                 <span className="search-privacy-badge">개인정보 0%</span>
@@ -885,8 +923,15 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
                 ))}
               </section>
 
-              {feedState === "ready" && posts.length === 0 && <section className="feed-empty"><h2>아직 공개된 의견이 없어요.</h2><p>첫 의견을 남겨주세요.</p><button type="button" onClick={openComposer}>의견 남기기</button></section>}
-              {posts.length > 0 && !filteredPosts.length && <section className="feed-empty"><h2>찾는 의견이 없습니다</h2><p>다른 검색어나 게시판을 선택해 보세요.</p></section>}
+              {hasMorePosts && <div className="feed-pager-slot">
+                <button className="feed-more-button" type="button" onClick={loadMorePosts} disabled={feedLoadingMore} aria-busy={feedLoadingMore}>
+                  <span className="feed-more-label">{feedLoadingMore?"불러오는 중…":feedMoreError?"다시 불러오기":"더 보기"}</span>
+                  <span className="feed-more-arrow" aria-hidden="true">↓</span>
+                </button>
+              </div>}
+
+              {feedState === "ready" && feedTotal === 0 && <section className="feed-empty"><h2>아직 공개된 의견이 없어요.</h2><p>첫 의견을 남겨주세요.</p><button type="button" onClick={openComposer}>의견 남기기</button></section>}
+              {feedState === "ready" && feedTotal > 0 && !filteredPosts.length && <section className="feed-empty"><h2>찾는 의견이 없습니다</h2><p>다른 검색어나 게시판을 선택해 보세요.</p></section>}
             </div>
           </main>
           <button className="floating-write-button" type="button" onClick={openComposer}><span aria-hidden="true">＋</span> 의견 쓰기</button>
@@ -917,7 +962,7 @@ function Sidebar({ topic, sort, onTopic, onSort, onWrite, mobileOpen }: {
       <nav className="channel-list" aria-label="주제 게시판">{topics.map((item) => <button key={item} className={topic === item ? "active" : ""} onClick={() => onTopic(item)} type="button"><span>{item === "전체" ? "◉" : "#"}</span>{item}</button>)}</nav>
       <p className="sidebar-label">피드</p>
       <nav className="channel-list" aria-label="피드 정렬"><button className={sort === "latest" ? "active" : ""} onClick={() => onSort("latest")} type="button"><span>◷</span>최신 의견</button><button className={sort === "popular" ? "active" : ""} onClick={() => onSort("popular")} type="button"><span>↗</span>인기 의견</button></nav>
-      <div className="sidebar-footer"><a href="/about">진주.kr 소개</a><a href="/beta">공개베타</a><a href="/principles">운영원칙</a><a href="/safety">안전안내</a><a href="/privacy">개인정보</a><a href="mailto:hello@xn--o55b9n.kr">문제제보</a><p>개인정보 0%를 지향합니다. 이름·연락처 등 개인 식별정보를 요구하지 않습니다.</p></div>
+      <div className="sidebar-footer"><a href="/about">진주.kr 소개</a><a href="/beta">운영안내</a><a href="/principles">운영원칙</a><a href="/safety">안전안내</a><a href="/privacy">개인정보</a><a href="mailto:hello@xn--o55b9n.kr">문제제보</a><p>개인정보 0%를 지향합니다. 이름·연락처 등 개인 식별정보를 요구하지 않습니다.</p></div>
     </aside>
   );
 }
