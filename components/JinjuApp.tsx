@@ -147,7 +147,9 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [showIntro, setShowIntro] = useState(true);
   const [introReady, setIntroReady] = useState(false);
   const [posts, setPosts] = useState(initialPosts);
-  const [feedState, setFeedState] = useState<"loading" | "ready" | "error">("loading");
+  const [feedState, setFeedState] = useState<"loading" | "ready" | "error">(
+    initialPostId === null && initialTotal !== undefined ? "ready" : "loading",
+  );
   const [feedTotal,setFeedTotal]=useState(Math.max(initialTotal??initialPosts.length,initialPosts.length));
   const [feedNextOffset,setFeedNextOffset]=useState(initialPosts.length);
   const [hasMorePosts,setHasMorePosts]=useState((initialTotal??initialPosts.length)>initialPosts.length);
@@ -185,16 +187,21 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const titleInputRef=useRef<HTMLInputElement|null>(null);
   const bodyInputRef=useRef<HTMLTextAreaElement|null>(null);
   const feedRequestRef=useRef(0);
+  const feedAbortRef=useRef<AbortController|null>(null);
+  const skipInitialFeedRequestRef=useRef(initialPostId===null&&initialTotal!==undefined);
 
   const loadPosts = useCallback(async (offset=0,append=false,override?:FeedQueryOverride) => {
     const requestId=++feedRequestRef.current;
+    feedAbortRef.current?.abort();
+    const controller=new AbortController();
+    feedAbortRef.current=controller;
     if(append){setFeedLoadingMore(true);setFeedMoreError(false)}else setFeedState("loading");
     try {
       const activeTopic=override?.topic??topic,activeQuery=override?.query??query,activeSort=override?.sort??sort;
       const params=new URLSearchParams({limit:String(FEED_PAGE_SIZE),offset:String(Math.max(0,offset)),sort:activeSort});
       if(activeTopic!=="전체")params.set("category",activeTopic);
       if(activeQuery.trim())params.set("q",activeQuery.trim());
-      const response=await fetch(`/api/posts?${params.toString()}`,{cache:"no-store"});
+      const response=await fetch(`/api/posts?${params.toString()}`,{cache:"no-store",signal:controller.signal});
       const data=await response.json() as FeedApiResponse;
       if(!response.ok)throw new Error(data.error||"feed");
       if(requestId!==feedRequestRef.current)return;
@@ -214,9 +221,11 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       setFeedMoreError(false);
       setFeedState("ready");
     } catch {
+      if(controller.signal.aborted)return;
       if(requestId!==feedRequestRef.current)return;
       if(append)setFeedMoreError(true);else setFeedState("error");
     } finally {
+      if(feedAbortRef.current===controller)feedAbortRef.current=null;
       if(requestId===feedRequestRef.current)setFeedLoadingMore(false);
     }
   }, [query,sort,topic]);
@@ -226,10 +235,19 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   }, []);
 
   useEffect(()=>{
-  if(selectedPostId)return;
+  if(selectedPostId){feedAbortRef.current?.abort();return}
+  if(skipInitialFeedRequestRef.current&&topic==="전체"&&sort==="latest"&&!query.trim()){
+    skipInitialFeedRequestRef.current=false;
+    setFeedState("ready");
+    return;
+  }
+  skipInitialFeedRequestRef.current=false;
+  feedAbortRef.current?.abort();
   const timer=window.setTimeout(()=>void loadPosts(0,false),query.trim()?220:0);
   return()=>window.clearTimeout(timer);
-},[loadPosts,query,selectedPostId]);
+},[loadPosts,query,selectedPostId,sort,topic]);
+
+  useEffect(()=>()=>feedAbortRef.current?.abort(),[]);
 
   useEffect(()=>{
     try{const draft=JSON.parse(sessionStorage.getItem(POST_DRAFT_KEY)||"null") as {title?:string;body?:string;category?:string}|null;if(draft){setTitle(draft.title||"");setBody(draft.body||"");if(draft.category) setCategory(draft.category)}}catch{/* Ignore a damaged local draft. */}

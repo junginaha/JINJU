@@ -17,7 +17,7 @@ import { august6MorningComments, august6MorningPosts } from "./morning-editorial
 import { august8MorningComments, august8MorningPosts } from "./morning-editorial-20260808";
 import { august9MorningComments, august9MorningPosts } from "./morning-editorial-20260809";
 import { august10MorningComments, august10MorningPosts } from "./morning-editorial-20260810";
-import { isDuplicatePost } from "./dedup";
+import { createDuplicatePostChecker } from "./dedup";
 import { editorialComments, editorialPosts, type EditorialComment, type EditorialPost } from "./editorial";
 import { launchEditorialComments, launchEditorialPosts } from "./launch-editorial";
 
@@ -32,6 +32,7 @@ function normalizePost(post: EditorialPost): EditorialPost {
 function chooseUniquePosts(posts: EditorialPost[]) {
   const sorted = posts.map(normalizePost).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   const unique: EditorialPost[] = [];
+  const isDuplicatePost = createDuplicatePostChecker();
   for (const post of sorted) {
     const duplicate = unique.some((kept) => post.id === kept.id || isDuplicatePost(post, kept));
     if (!duplicate) unique.push(post);

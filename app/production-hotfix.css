@@ -59,11 +59,14 @@
 }
 
 .chat-search input,
-.chat-title,
 .chat-composer textarea,
 .comment-composer textarea,
 .composer-selects select {
   font-size: 16px;
+}
+
+.chat-title {
+  font-size: 18px;
 }
 
 .chat-composer,
