@@ -3,16 +3,9 @@ import "./globals.css";
 import "./production-hotfix.css";
 import {
   SITE_DESCRIPTION,
-  SITE_DISCLAIMER,
-  SITE_HOST,
-  SITE_IDENTITY_DESCRIPTION,
   SITE_NAME,
-  SITE_ORGANIZATION_ID,
-  SITE_SAME_AS,
-  SITE_TAGLINE,
   SITE_TITLE,
   SITE_URL,
-  SITE_WEBSITE_ID,
 } from "@/lib/search-indexing";
 import ShareBridge from "@/components/ShareBridge";
 
@@ -43,8 +36,8 @@ export const metadata: Metadata = {
   keywords: [
     "진주.kr",
     "JINJU.KR",
+    "진주닷케이알",
     "진주.kr 익명 커뮤니티",
-    "진주 익명 커뮤니티",
     "익명 커뮤니티",
     "익명 게시판",
     "익명 의견",
@@ -102,42 +95,9 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const identityGraph = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Organization",
-        "@id": SITE_ORGANIZATION_ID,
-        name: siteName,
-        alternateName: ["JINJU.KR", "진주.kr 익명 커뮤니티", SITE_TAGLINE],
-        url: `${baseUrl}/`,
-        description: SITE_IDENTITY_DESCRIPTION,
-        disambiguatingDescription: SITE_DISCLAIMER,
-        ...(SITE_SAME_AS.length ? { sameAs: SITE_SAME_AS } : {}),
-        logo: {
-          "@type": "ImageObject",
-          url: `${baseUrl}/jinju-pearl-cutout.png`,
-        },
-      },
-      {
-        "@type": "WebSite",
-        "@id": SITE_WEBSITE_ID,
-        name: siteName,
-        alternateName: ["JINJU.KR", "진주.kr 익명 의견 커뮤니티", "진주 익명 커뮤니티", SITE_TAGLINE, SITE_HOST],
-        url: `${baseUrl}/`,
-        description: siteDescription,
-        disambiguatingDescription: SITE_DISCLAIMER,
-        keywords: ["익명 의견", "익명 커뮤니티", "속마음", "개인정보 없는 커뮤니티"],
-        ...(SITE_SAME_AS.length ? { sameAs: SITE_SAME_AS } : {}),
-        inLanguage: "ko-KR",
-        publisher: { "@id": SITE_ORGANIZATION_ID },
-      },
-    ],
-  };
   return (
     <html lang="ko-KR">
       <body>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(identityGraph).replace(/</g, "\\u003c") }} />
         <ShareBridge />
         {children}
       </body>

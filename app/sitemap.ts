@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { PUBLIC_CATEGORIES } from "@/lib/categories";
 import { getPublicPosts } from "@/lib/public-posts";
 import { canonicalUrl, isSearchIndexable } from "@/lib/search-indexing";
 
@@ -10,8 +11,10 @@ const officialPages = [
   { path: "/principles", priority: 0.7 },
   { path: "/safety", priority: 0.7 },
   { path: "/privacy", priority: 0.7 },
-  { path: "/beta", priority: 0.5 },
+  { path: "/operation", priority: 0.5 },
 ];
+
+const PAGE_SIZE = 30;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await getPublicPosts();
@@ -19,6 +22,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const timestamp = Date.parse(post.updatedAt || post.createdAt);
     return Number.isFinite(timestamp) ? Math.max(latest, timestamp) : latest;
   }, 0);
+  const archivePages = Array.from(
+    { length: Math.max(0, Math.ceil(posts.length / PAGE_SIZE) - 1) },
+    (_, index) => index + 2,
+  );
   return [
     {
       url: canonicalUrl("/"),
@@ -30,6 +37,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: canonicalUrl(path),
       changeFrequency: "monthly" as const,
       priority,
+    })),
+    ...archivePages.map((page) => ({
+      url: canonicalUrl(`/page/${page}`),
+      ...(newestPostTime ? { lastModified: new Date(newestPostTime) } : {}),
+      changeFrequency: "daily" as const,
+      priority: 0.6,
+    })),
+    ...PUBLIC_CATEGORIES.map((category) => ({
+      url: canonicalUrl(`/category/${encodeURIComponent(category)}`),
+      ...(newestPostTime ? { lastModified: new Date(newestPostTime) } : {}),
+      changeFrequency: "daily" as const,
+      priority: 0.6,
     })),
     ...posts.filter((post) => isSearchIndexable(post.createdAt)).map((post) => ({
       url: canonicalUrl(`/post/${encodeURIComponent(post.id)}`),

@@ -1,88 +1,32 @@
-import { builtInComments, builtInPost } from "../../../../../lib/built-in-content";
-import { applyCommentOverrides, contentOverrides, type ContentOverride } from "../../../../../lib/content-overrides";
-import { normalizeCommentTimes } from "../../../../../lib/comment-time";
+import { builtInPost } from "../../../../../lib/built-in-content";
 import { isDuplicateComment } from "../../../../../lib/comment-dedup";
 import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../../lib/db";
 import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 import { generateUniqueJinjuDisplayName } from "../../../../../lib/display-name";
 import { reviewSubmission } from "../../../../../lib/ai-review";
+import { getPublicComments } from "../../../../../lib/public-comments";
 import { getPublicPost } from "../../../../../lib/public-posts";
 import { rateLimit } from "../../../../../lib/rate-limit";
 import { turnstileFailure, verifyTurnstile } from "../../../../../lib/turnstile";
-import {
-  keepsSupplementalCommentsWithAutoSet,
-  supplementalComments,
-} from "../../../../../lib/supplemental-comments";
-import {
-  combineBaseAndStoredComments,
-  hasCompleteAutoCommentSet,
-  mergeBaseCommentsByBody,
-} from "../../../../../lib/comment-visibility";
 
 export const dynamic = "force-dynamic";
 
-type PublicComment = { id: string; body: string; displayName: string; createdAt: string };
-function publicComment(comment: PublicComment): PublicComment {
-  return { id: String(comment.id), body: String(comment.body), displayName: String(comment.displayName || "익명"), createdAt: String(comment.createdAt) };
-}
-
-async function safeContentOverrides(): Promise<Map<string, ContentOverride>> {
-  try {
-    return await contentOverrides();
-  } catch (error) {
-    console.error("[comments] content overrides unavailable", error);
-    return new Map<string, ContentOverride>();
-  }
-}
-
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  if (HIDDEN_DUPLICATE_POST_IDS.has(id)) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
-  const publicPost = await getPublicPost(id);
-  if (!publicPost) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
-  const builtIn = builtInPost(id);
-  const fallback = builtInComments(id);
-  const supplemental = supplementalComments(publicPost);
-  const baseComments = builtIn ? mergeBaseCommentsByBody(fallback, supplemental) : supplemental;
-  const overrides = await safeContentOverrides();
-  const fallbackResponse = () => Response.json({
-    comments: normalizeCommentTimes(publicPost.createdAt, applyCommentOverrides(baseComments, overrides)).map(publicComment),
-    fallback: true,
-  }, { headers: { "cache-control": "no-store" } });
-  if (!databaseEnabled()) return builtIn
-    ? fallbackResponse()
-    : Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
-  try {
-    await ensureSchema();
-    const postRows = await db()`
-      SELECT post.id, post.title, post.content, post.category, post.created_at,
-             (SELECT COUNT(*)::INTEGER FROM comments AS auto_comment
-              WHERE auto_comment.post_id = post.id
-                AND auto_comment.id LIKE 'jinju-auto-%'
-                AND auto_comment.status = 'approved') AS auto_comment_count
-      FROM posts AS post
-      WHERE post.id = ${id} AND post.status = 'approved' AND post.visibility = 'public'
-      LIMIT 1`;
-    const row = postRows[0] as Record<string, unknown> | undefined;
-    if (!row && !builtIn) return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
-    const rows = await db()`SELECT id, content, display_name, created_at FROM comments WHERE post_id = ${id} AND status = 'approved' AND created_at <= NOW() ORDER BY created_at ASC LIMIT 200`;
-    const stored = rows.map((storedRow: Record<string, unknown>) => ({ id: String(storedRow.id), body: String(storedRow.content), displayName: String(storedRow.display_name || "익명"), createdAt: new Date(String(storedRow.created_at)).toISOString() }));
-    const visibleBaseComments = !builtIn
-      && hasCompleteAutoCommentSet(Number(row?.auto_comment_count || 0))
-      && !keepsSupplementalCommentsWithAutoSet(id)
-      ? []
-      : baseComments;
-    const comments = normalizeCommentTimes(
-      publicPost.createdAt,
-      combineBaseAndStoredComments(visibleBaseComments, stored),
-    );
-    return Response.json({ comments: applyCommentOverrides(comments, overrides).map(publicComment), fallback: false }, { headers: { "cache-control": "no-store" } });
-  } catch (error) {
-    console.error("[comments] database read unavailable", error);
-    return builtIn
-      ? fallbackResponse()
-      : Response.json({ error: "댓글을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.", comments: [] }, { status: 503, headers: { "cache-control": "no-store" } });
+  const result = await getPublicComments(id);
+  if (!result.ok && result.reason === "not-found") {
+    return Response.json({ error: "게시물을 찾을 수 없습니다.", comments: [] }, { status: 404 });
   }
+  if (!result.ok) {
+    return Response.json(
+      { error: "댓글을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.", comments: [] },
+      { status: 503, headers: { "cache-control": "no-store" } },
+    );
+  }
+  return Response.json(
+    { comments: result.comments, fallback: result.fallback },
+    { headers: { "cache-control": "no-store" } },
+  );
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {

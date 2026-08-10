@@ -7,6 +7,7 @@ import PostTemperature from "./PostTemperature";
 import FeedbackDialog from "./FeedbackDialog";
 import TurnstileChallenge from "./TurnstileChallenge";
 import { formatCommentTime } from "../lib/comment-time";
+import { formatPublicPostDate } from "../lib/date-format";
 import {
   activeReactionHistory,
   REACTION_HISTORY_KEY,
@@ -71,7 +72,7 @@ const MAX_RECORDING_MS=120_000,TRANSCRIPTION_TIMEOUT_MS=25_000,FEED_PAGE_SIZE=30
 type FeedApiPost=Omit<Post,"date"|"comments">&{createdAt:string;commentCount?:number};
 type FeedApiResponse={posts?:FeedApiPost[];total?:number;siteTotal?:number;hasMore?:boolean;nextOffset?:number;error?:string};
 type FeedQueryOverride={topic?:string;query?:string;sort?:"latest"|"popular"};
-function normalizeFeedPosts(rows:FeedApiPost[]):Post[]{return rows.map(({createdAt,commentCount,...post})=>({...post,date:new Intl.DateTimeFormat("ko-KR",{year:"numeric",month:"numeric",day:"numeric"}).format(new Date(createdAt)),comments:Array.from({length:commentCount??0},(_,index)=>({id:`count-${index}`,body:"",createdAt:""}))}))}
+function normalizeFeedPosts(rows:FeedApiPost[]):Post[]{return rows.map(({createdAt,commentCount,...post})=>({...post,date:formatPublicPostDate(createdAt),comments:Array.from({length:commentCount??0},(_,index)=>({id:`count-${index}`,body:"",createdAt:""}))}))}
 
 function readKeys(storageKey:string):DeleteKeys{try{return JSON.parse(localStorage.getItem(storageKey)||"{}") as DeleteKeys}catch{return {}}}
 function saveKeys(storageKey:string,keys:DeleteKeys){try{localStorage.setItem(storageKey,JSON.stringify(keys))}catch{/* Private browsing can reject storage writes. */}}
@@ -140,7 +141,7 @@ const seedPosts: Post[] = [
 ];
 
 function Pearl({ size = 44, className = "" }: { size?: number; className?: string }) {
-  return <Image className={className} src="/jinju-pearl-cutout.png" alt="" width={size} height={size} priority />;
+  return <Image className={className} src="/jinju-pearl-ui.webp" alt="" width={size} height={size} />;
 }
 
 export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null, initialTotal }: { initialPosts?: Post[]; initialPostId?: string | null; initialTotal?: number }) {
@@ -258,7 +259,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     let seen = false;
     try {
       const forceIntro = new URLSearchParams(window.location.search).get("intro") === "1";
-      seen = !forceIntro && Boolean(sessionStorage.getItem("jinju-intro-seen-v1"));
+      const seenAt = Number(localStorage.getItem("jinju-intro-seen-v2") || 0);
+      seen = !forceIntro && Number.isFinite(seenAt) && Date.now() - seenAt < 30 * 24 * 60 * 60_000;
     } catch {
       seen = false;
     }
@@ -849,6 +851,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
         <PostDetail
           key={selectedPost.id}
           post={selectedPost}
+          relatedPosts={posts.filter((candidate) => candidate.id !== selectedPost.id).slice(0, 4)}
           onBack={closePost}
           onReact={(kind) => react(selectedPost.id, kind)}
           reactedKind={reactedPosts[selectedPost.id]?.kind||null}
@@ -882,29 +885,34 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           <main className="chat-main" id="feed">
             <header className="mobile-chat-header">
               <button className="mobile-menu-button" onClick={() => setMobileMenuOpen(true)} aria-label="게시판 메뉴 열기">☰</button>
-              <a href="/" aria-label="진주.kr 메인으로"><Pearl size={36} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>
+              <a href="/" aria-label="진주.kr 메인으로"><Pearl size={36} /><span><strong>진주.kr</strong><small>익명 의견 커뮤니티</small></span></a>
               <button className="mobile-write-link" type="button" onClick={openComposer}>나의 의견</button>
             </header>
 
             <div className="feed-shell">
               <header className="feed-heading">
-                <div><h1>새로운 의견</h1></div>
+                <div>
+                  <h1>진주.kr</h1>
+                  <p className="feed-definition">전국 누구나 쓰는 독립 익명 의견 커뮤니티</p>
+                  <p className="feed-tagline">개인정보 없이, 할 말은 하세요</p>
+                </div>
                 <span>{feedTotal}개의 공개 의견</span>
               </header>
 
               {feedState === "error" && <section className="feed-state feed-state-error" role="alert"><div><h2>의견을 불러오지 못했어요.</h2><p>잠시 후 다시 시도해 주세요.</p></div><button type="button" onClick={() => { setFeedState("loading"); void loadPosts(0,false); }}>다시 불러오기</button></section>}
 
               <form className="chat-search" role="search" onSubmit={(event) => event.preventDefault()}>
-                <span className="search-privacy-badge">개인정보 0%</span>
+                <a className="search-privacy-badge" href="/privacy" aria-label="개인정보 없이 이용하는 방식 자세히 보기">개인정보 없이</a>
                 <input value={query} onChange={(event) => updateQuery(event.target.value)} placeholder={searchVoicePlaceholder()} aria-label="의견 검색어" aria-describedby="search-voice-status" />
                 <button className={`search-voice-button${activeVoiceField==="query"&&(voiceStartPendingRef.current||voiceState!=="idle")?" listening":""}`} onClick={()=>void toggleVoice("query")} type="button" disabled={voiceStartPendingRef.current} aria-pressed={activeVoiceField==="query"&&voiceState==="recording"} aria-label={voiceStartPendingRef.current?"검색어 음성 연결 중":activeVoiceField==="query"&&voiceState==="recording"?"검색어 음성 입력 중지":"검색어 음성 입력"} title={activeVoiceField==="query"&&voiceState==="idle"&&voiceMessage?voiceMessage:undefined}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button>
                 <button className="search-send" type="submit" aria-label="검색">↑</button>
                 <span className="search-voice-status" id="search-voice-status" role="status" aria-live="polite">{activeVoiceField==="query"?voiceMessage:""}</span>
               </form>
+              <p className="mobile-trust-row">이름·연락처 없이 씁니다 <span aria-hidden="true">·</span> <a href="/safety">안전안내</a> <span aria-hidden="true">·</span> <a href="/privacy">개인정보</a></p>
 
-              <div className="mobile-channel-strip" aria-label="게시판 선택">
-                {topics.map((item) => <button key={item} className={topic === item ? "active" : ""} onClick={() => setTopic(item)} type="button">{item}</button>)}
-              </div>
+              <nav className="mobile-channel-strip" aria-label="게시판 선택">
+                {topics.map((item) => <a key={item} href={item === "전체" ? "/" : `/category/${encodeURIComponent(item)}`} className={topic === item ? "active" : ""} onClick={(event) => {event.preventDefault();setTopic(item)}}>{item}</a>)}
+              </nav>
 
               <section className="post-feed" aria-label="익명 의견 목록">
                 {filteredPosts.slice(0, 3).map((post) => (
@@ -924,10 +932,10 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
               </section>
 
               {hasMorePosts && <div className="feed-pager-slot">
-                <button className="feed-more-button" type="button" onClick={loadMorePosts} disabled={feedLoadingMore} aria-busy={feedLoadingMore}>
+                <a className="feed-more-button" href={topic === "전체" && !query.trim() && sort === "latest" ? `/page/${Math.floor(feedNextOffset / FEED_PAGE_SIZE) + 1}` : topic === "전체" ? "/" : `/category/${encodeURIComponent(topic)}`} onClick={(event) => {if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();loadMorePosts()}} aria-disabled={feedLoadingMore} aria-busy={feedLoadingMore}>
                   <span className="feed-more-label">{feedLoadingMore?"불러오는 중…":feedMoreError?"다시 불러오기":"더 보기"}</span>
                   <span className="feed-more-arrow" aria-hidden="true">↓</span>
-                </button>
+                </a>
               </div>}
 
               {feedState === "ready" && feedTotal === 0 && <section className="feed-empty"><h2>아직 공개된 의견이 없어요.</h2><p>첫 의견을 남겨주세요.</p><button type="button" onClick={openComposer}>의견 남기기</button></section>}
@@ -956,13 +964,13 @@ function Sidebar({ topic, sort, onTopic, onSort, onWrite, mobileOpen }: {
 }) {
   return (
     <aside className={`chat-sidebar${mobileOpen ? " mobile-open" : ""}`}>
-      <a href="/" className="sidebar-brand" aria-label="진주.kr 메인으로"><Pearl size={44} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>
+      <a href="/" className="sidebar-brand" aria-label="진주.kr 메인으로"><Pearl size={44} /><span><strong>진주.kr</strong><small>익명 의견 커뮤니티</small></span></a>
       <button className="new-post-button" type="button" onClick={onWrite}><span>＋</span> 새 의견 쓰기</button>
       <p className="sidebar-label">게시판</p>
-      <nav className="channel-list" aria-label="주제 게시판">{topics.map((item) => <button key={item} className={topic === item ? "active" : ""} onClick={() => onTopic(item)} type="button"><span>{item === "전체" ? "◉" : "#"}</span>{item}</button>)}</nav>
+      <nav className="channel-list" aria-label="주제 게시판">{topics.map((item) => <a key={item} href={item === "전체" ? "/" : `/category/${encodeURIComponent(item)}`} className={topic === item ? "active" : ""} onClick={(event) => {event.preventDefault();onTopic(item)}}><span>{item === "전체" ? "◉" : "#"}</span>{item}</a>)}</nav>
       <p className="sidebar-label">피드</p>
       <nav className="channel-list" aria-label="피드 정렬"><button className={sort === "latest" ? "active" : ""} onClick={() => onSort("latest")} type="button"><span>◷</span>최신 의견</button><button className={sort === "popular" ? "active" : ""} onClick={() => onSort("popular")} type="button"><span>↗</span>인기 의견</button></nav>
-      <div className="sidebar-footer"><a href="/about">진주.kr 소개</a><a href="/beta">운영안내</a><a href="/principles">운영원칙</a><a href="/safety">안전안내</a><a href="/privacy">개인정보</a><a href="mailto:hello@xn--o55b9n.kr">문제제보</a><p>개인정보 0%를 지향합니다. 이름·연락처 등 개인 식별정보를 요구하지 않습니다.</p></div>
+      <div className="sidebar-footer"><a href="/about">진주.kr 소개</a><a href="/operation">운영안내</a><a href="/principles">운영원칙</a><a href="/safety">안전안내</a><a href="/privacy">개인정보</a><a href="/report-status">제보 처리상태</a><a href="mailto:hello@xn--o55b9n.kr">운영문의</a><p>이름·연락처 등 개인 식별정보를 요구하지 않습니다.</p></div>
     </aside>
   );
 }
@@ -984,18 +992,19 @@ function PostCard({ post, reactedKind, reactingKind, onOpen, onReact, onShare, o
       </a>
       <PostTemperature likes={post.heard} dislikes={post.same} />
       <div className="post-actions">
-        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button>
-        <button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button>
+        <button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"공감돼요"}</span><strong>{post.heard}</strong></button>
+        <button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"다르게 생각해요"}</button>
         <button onClick={onOpen} type="button">댓글 <span>{post.comments.length}</span></button>
         <button className="share-post-button" onClick={onShare} type="button"><span className="share-label-motion">공유하기</span></button>
-        <button className="post-report" type="button" onClick={onFeedback}>의견 보내기</button>
+        <button className="post-report" type="button" onClick={onFeedback}>문제제보</button>
       </div>
     </article>
   );
 }
 
-function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare, onFeedback, onComment, commentVoiceActive, commentVoicePending, commentVoiceState, commentVoiceMessage, onToggleCommentVoice, onCommentVoiceEdit, onCommentVoiceSubmitted, canDeleteComment, onDeleteComment, onCommentsLoaded }: {
+function PostDetail({ post, relatedPosts, reactedKind, reactingKind, onBack, onReact, onShare, onFeedback, onComment, commentVoiceActive, commentVoicePending, commentVoiceState, commentVoiceMessage, onToggleCommentVoice, onCommentVoiceEdit, onCommentVoiceSubmitted, canDeleteComment, onDeleteComment, onCommentsLoaded }: {
   post: Post;
+  relatedPosts: Post[];
   reactedKind: ReactionKind | null;
   reactingKind: "heard" | "same" | null;
   onBack: () => void;
@@ -1025,10 +1034,10 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
   const [commentDraftReady,setCommentDraftReady]=useState(false);
   const [deleteBusy,setDeleteBusy]=useState<string|null>(null);
   const [detailComments, setDetailComments] = useState<Comment[]>(post.comments.filter((item) => item.body));
-  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentsLoading, setCommentsLoading] = useState(!post.comments.some((item) => item.body) && post.comments.length > 0);
   const [commentsLoadError, setCommentsLoadError] = useState("");
   const commentVoiceBusy=commentVoiceActive&&(commentVoicePending||commentVoiceState!=="idle");
-  const displayedCommentCount=commentsLoading||commentsLoadError ? "…" : detailComments.length;
+  const displayedCommentCount=detailComments.length ? Math.max(detailComments.length,post.comments.length) : commentsLoading ? "…" : 0;
 
   const loadComments = useCallback(async () => {
     setCommentsLoading(true);
@@ -1089,17 +1098,18 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
           <div className="post-meta"><span>{post.category}{post.displayName ? ` · ${post.displayName}` : ""}</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />
-          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"좋아요"}</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"싫어요"}</button><a href="#comment-list">댓글 <span>{displayedCommentCount}</span></a><button onClick={onShare} type="button"><span className="share-label-motion">공유하기</span></button><button type="button" onClick={onFeedback}>의견 보내기</button></div>
+          <div className="detail-stats"><button className="pearl-reaction" onClick={() => onReact("heard")} type="button" disabled={reactedKind==="heard"||Boolean(reactingKind)} aria-pressed={reactedKind==="heard"} aria-busy={reactingKind==="heard"}><Pearl size={16} /><span>{reactingKind==="heard"?"확인 중…":"공감돼요"}</span><strong>{post.heard}</strong></button><button onClick={() => onReact("same")} type="button" disabled={reactedKind==="same"||Boolean(reactingKind)} aria-pressed={reactedKind==="same"} aria-busy={reactingKind==="same"}>{reactingKind==="same"?"확인 중…":"다르게 생각해요"}</button><a href="#comment-list">댓글 <span>{displayedCommentCount}</span></a><button onClick={onShare} type="button"><span className="share-label-motion">공유하기</span></button><button type="button" onClick={onFeedback}>문제제보</button></div>
         </article>
         <section className="comment-list" id="comment-list" aria-label="댓글 목록">
           <h2>댓글 {displayedCommentCount}</h2>
-          {commentsLoading
-            ? <p className="comments-loading" aria-live="polite">댓글을 불러오는 중입니다.</p>
-            : commentsLoadError
-              ? <div className="comments-load-error" role="alert"><p>{commentsLoadError}</p><button type="button" onClick={()=>void loadComments()}>다시 시도</button></div>
-              : detailComments.length
-                ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><span><time dateTime={item.createdAt}>{formatCommentTime(item.createdAt)}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>)
+          {detailComments.length
+            ? detailComments.map((item) => <article key={item.id}><div><span>{item.displayName || "익명"}</span><span><time dateTime={item.createdAt}>{formatCommentTime(item.createdAt)}</time>{canDeleteComment(item.id)&&<button className="comment-delete-button" onClick={()=>removeComment(item.id)} disabled={deleteBusy===String(item.id)} type="button">{deleteBusy===String(item.id)?"삭제 중":"삭제"}</button>}</span></div><p>{item.body}</p></article>)
+            : commentsLoading
+              ? <p className="comments-loading" aria-live="polite">댓글을 불러오는 중입니다.</p>
+              : commentsLoadError
+                ? <div className="comments-load-error" role="alert"><p>{commentsLoadError}</p><button type="button" onClick={()=>void loadComments()}>다시 시도</button></div>
                 : <p className="no-comments">첫 댓글을 남겨주세요.</p>}
+          {detailComments.length > 0 && commentsLoadError && <div className="comments-load-error" role="status"><p>최신 댓글을 확인하지 못했습니다.</p><button type="button" onClick={()=>void loadComments()}>다시 시도</button></div>}
         </section>
         <form className="comment-composer" id="comment" onSubmit={submitComment}>
           <textarea value={comment} onChange={(event) => {onCommentVoiceEdit();setCommentReview(null);setCommentStatus("");setComment(event.target.value.slice(0, 2000))}} maxLength={2000} rows={5} placeholder="내가 겪은 상황과 느낀 점을 적어주세요." aria-label="댓글 내용" aria-describedby="comment-voice-status comment-safety-status" />
@@ -1111,6 +1121,10 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
           {commentError && <p className="comment-error" role="alert">{commentError}</p>}
           <div className="comment-footer"><span>{comment.length}/2,000 · 입력 내용은 등록 전까지 이 기기에 보관됩니다</span><div className="comment-actions"><button className={`comment-voice-button${commentVoiceBusy?" listening":""}`} onClick={()=>void onToggleCommentVoice(comment,(value)=>{setCommentReview(null);setCommentStatus("");setComment(value.slice(0,2000))})} type="button" disabled={commentBusy||commentVoicePending} aria-pressed={commentVoiceActive&&commentVoiceState==="recording"} aria-label={commentVoicePending?"댓글 음성 연결 중":commentVoiceActive&&commentVoiceState==="recording"?"댓글 음성 입력 중지":commentVoiceActive&&commentVoiceState==="transcribing"?"댓글 음성 입력 다시 시작":"댓글 음성 입력"}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button type="submit" disabled={commentBusy||commentVoiceBusy||(commentTurnstileRequired&&!commentTurnstileToken)}>{commentBusy?"확인 중…":"댓글 남기기"}</button></div></div>
         </form>
+        {relatedPosts.length > 0 && <nav className="detail-related" aria-label="다른 익명 의견">
+          <h2>다른 익명 의견</h2>
+          <ul>{relatedPosts.map((relatedPost) => <li key={relatedPost.id}><a href={`/post/${encodeURIComponent(relatedPost.id)}`}><span>{relatedPost.category}</span>{relatedPost.title}</a></li>)}</ul>
+        </nav>}
       </div>
     </main>
   );

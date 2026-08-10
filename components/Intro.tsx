@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const INTRO_STORAGE_KEY = "jinju-intro-seen-v1";
+const INTRO_STORAGE_KEY = "jinju-intro-seen-v2";
 const INTRO_DURATION = 2800;
 const INTRO_FADE_DURATION = 320;
 
@@ -29,7 +29,7 @@ export default function Intro({ onComplete }: { onComplete: () => void }) {
     clearTimers();
     setClosing(true);
     try {
-      sessionStorage.setItem(INTRO_STORAGE_KEY, "seen");
+      localStorage.setItem(INTRO_STORAGE_KEY, String(Date.now()));
     } catch {
       // The intro still works when storage is unavailable.
     }
@@ -46,7 +46,7 @@ export default function Intro({ onComplete }: { onComplete: () => void }) {
       if (closingRef.current) return;
       closingRef.current = true;
       try {
-        sessionStorage.setItem(INTRO_STORAGE_KEY, "seen");
+        localStorage.setItem(INTRO_STORAGE_KEY, String(Date.now()));
       } catch {
         // Continue without session persistence.
       }
@@ -73,7 +73,7 @@ export default function Intro({ onComplete }: { onComplete: () => void }) {
         <div className="intro-logo-cluster">
           <button className="intro-pearl-wrap" onClick={finish} type="button" aria-label="진주 로고를 눌러 바로 들어가기">
             <span className="intro-pearl-halo" aria-hidden="true" />
-            <Image src="/jinju-pearl-cutout.png" alt="" width={156} height={156} priority />
+            <Image src="/jinju-pearl-intro.webp" alt="" width={156} height={156} priority />
           </button>
           <div className="intro-skip-stack">
             <button className="intro-skip-button" onClick={finish} type="button">
@@ -84,21 +84,20 @@ export default function Intro({ onComplete }: { onComplete: () => void }) {
         </div>
 
         <div className="intro-message">
-          <span>인간적으로,</span>
-          <strong>할 말은 하세요!</strong>
+          <span>진주.kr</span>
+          <strong>전국 누구나 쓰는 독립 익명 의견 커뮤니티</strong>
           <p style={{ margin: "11px 0 0", color: "#c9c5bd", fontSize: "clamp(13px, 1.8vw, 17px)", lineHeight: 1.55, letterSpacing: "-0.025em" }}>
-            안전하고 개운하게 속마음을 털어놓으세요
+            개인정보 없이, 할 말은 하세요
           </p>
         </div>
 
-        <h1 className="intro-wordmark" aria-label="진실의 주둥이">
+        <h1 className="intro-wordmark" aria-label="진주.kr">
           <span className="intro-key intro-key-truth">진</span>
-          <span>실의&nbsp;</span>
           <span className="intro-key intro-key-mouth">주</span>
-          <span>둥이</span>
+          <span>.kr</span>
         </h1>
 
-        <p className="intro-signature">JINJU IS AN ANONYMOUS COMMUNITY WITH ZERO PERSONAL DATA</p>
+        <p className="intro-signature">JINJU.KR · INDEPENDENT ANONYMOUS OPINION COMMUNITY</p>
       </div>
 
       <div className="intro-entry" aria-hidden="true">
@@ -107,7 +106,7 @@ export default function Intro({ onComplete }: { onComplete: () => void }) {
             <span className="intro-temperature-fill" />
             <span className="intro-temperature-rail">
               <span className="intro-temperature-group">
-                <Image className="intro-temperature-pearl" src="/jinju-pearl-cutout.png" alt="" width={18} height={18} />
+                <Image className="intro-temperature-pearl" src="/jinju-pearl-ui.webp" alt="" width={18} height={18} />
                 <span className="intro-temperature-label">개운하게~</span>
               </span>
             </span>

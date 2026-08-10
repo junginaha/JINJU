@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
-export const alt = "진주.kr — 인간적으로, 할 말은 하세요";
+export const alt = "진주.kr — 전국 누구나 쓰는 독립 익명 의견 커뮤니티";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -53,7 +53,7 @@ export default async function OpenGraphImage() {
               color: "#a8edf1",
             }}
           >
-            진주.kr · 익명 의견 커뮤니티
+            진주.kr
           </div>
           <div
             style={{
@@ -65,8 +65,8 @@ export default async function OpenGraphImage() {
               letterSpacing: "-0.055em",
             }}
           >
-            <span>인간적으로,</span>
-            <span>할 말은 하세요.</span>
+            <span>전국 누구나 쓰는</span>
+            <span>독립 익명 의견 커뮤니티</span>
           </div>
           <div
             style={{
@@ -78,7 +78,7 @@ export default async function OpenGraphImage() {
               letterSpacing: "-0.025em",
             }}
           >
-            안전하고 개운하게 속마음을 털어놓는 공간
+            개인정보 없이, 할 말은 하세요
           </div>
         </div>
         <img
