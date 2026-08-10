@@ -894,13 +894,15 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
               {feedState === "error" && <section className="feed-state feed-state-error" role="alert"><div><h2>의견을 불러오지 못했어요.</h2><p>잠시 후 다시 시도해 주세요.</p></div><button type="button" onClick={() => { setFeedState("loading"); void loadPosts(0,false); }}>다시 불러오기</button></section>}
 
-              <form className="chat-search" role="search" onSubmit={(event) => event.preventDefault()}>
-                <span className="search-privacy-badge">개인정보 0%</span>
-                <input value={query} onChange={(event) => updateQuery(event.target.value)} placeholder={searchVoicePlaceholder()} aria-label="의견 검색어" aria-describedby="search-voice-status" />
-                <button className={`search-voice-button${activeVoiceField==="query"&&(voiceStartPendingRef.current||voiceState!=="idle")?" listening":""}`} onClick={()=>void toggleVoice("query")} type="button" disabled={voiceStartPendingRef.current} aria-pressed={activeVoiceField==="query"&&voiceState==="recording"} aria-label={voiceStartPendingRef.current?"검색어 음성 연결 중":activeVoiceField==="query"&&voiceState==="recording"?"검색어 음성 입력 중지":"검색어 음성 입력"} title={activeVoiceField==="query"&&voiceState==="idle"&&voiceMessage?voiceMessage:undefined}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button>
-                <button className="search-send" type="submit" aria-label="검색">↑</button>
-                <span className="search-voice-status" id="search-voice-status" role="status" aria-live="polite">{activeVoiceField==="query"?voiceMessage:""}</span>
-              </form>
+              <div className="chat-search-shell">
+                <span className="search-privacy-badge" id="search-privacy-note">개인정보 0%</span>
+                <form className="chat-search" role="search" onSubmit={(event) => event.preventDefault()}>
+                  <input value={query} onChange={(event) => updateQuery(event.target.value)} placeholder={searchVoicePlaceholder()} aria-label="의견 검색어" aria-describedby="search-privacy-note search-voice-status" />
+                  <button className={`search-voice-button${activeVoiceField==="query"&&(voiceStartPendingRef.current||voiceState!=="idle")?" listening":""}`} onClick={()=>void toggleVoice("query")} type="button" disabled={voiceStartPendingRef.current} aria-pressed={activeVoiceField==="query"&&voiceState==="recording"} aria-label={voiceStartPendingRef.current?"검색어 음성 연결 중":activeVoiceField==="query"&&voiceState==="recording"?"검색어 음성 입력 중지":"검색어 음성 입력"} title={activeVoiceField==="query"&&voiceState==="idle"&&voiceMessage?voiceMessage:undefined}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button>
+                  <button className="search-send" type="submit" aria-label="검색">↑</button>
+                  <span className="search-voice-status" id="search-voice-status" role="status" aria-live="polite">{activeVoiceField==="query"?voiceMessage:""}</span>
+                </form>
+              </div>
 
               <div className="mobile-channel-strip" aria-label="게시판 선택">
                 {topics.map((item) => <button key={item} className={topic === item ? "active" : ""} onClick={() => setTopic(item)} type="button">{item}</button>)}
