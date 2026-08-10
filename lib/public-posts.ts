@@ -5,6 +5,7 @@ import { visibleCommentsAt } from "./comment-time";
 import { db, databaseEnabled, ensureSchema } from "./db";
 import { applyPostOverride, contentOverrides, hiddenCommentCounts, type ContentOverride } from "./content-overrides";
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
+import { formatPublicPostDate } from "./date-format";
 import type { EditorialPost } from "./editorial";
 import {
   keepsSupplementalCommentsWithAutoSet,
@@ -15,7 +16,7 @@ import {
   mergeBaseCommentsByBody,
   visibleBaseCommentCount,
 } from "./comment-visibility";
-import type { Post } from "../components/JinjuApp";
+import type { Comment, Post } from "../components/JinjuApp";
 
 function cleanRow(row: Record<string, unknown>): EditorialPost {
   return {
@@ -81,20 +82,25 @@ async function safeContentOverrides(): Promise<Map<string, ContentOverride>> {
   }
 }
 
-export function toClientPost(post: EditorialPost): Post {
+export function toClientPost(post: EditorialPost, publicComments: Comment[] = []): Post {
+  const visibleComments = publicComments.filter((comment) => comment.body).slice(0, post.commentCount);
+  const placeholderCount = Math.max(0, post.commentCount - visibleComments.length);
   return {
     id: post.id,
     title: post.title,
     content: post.content,
     category: normalizePublicCategory(post.category),
     displayName: post.displayName,
-    date: new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(post.createdAt)),
+    date: formatPublicPostDate(post.createdAt),
     heard: post.heard,
     same: post.same,
-    comments: Array.from(
-      { length: post.commentCount },
-      (_, index) => ({ id: `count-${index}`, body: "", createdAt: "" }),
-    ),
+    comments: [
+      ...visibleComments,
+      ...Array.from(
+        { length: placeholderCount },
+        (_, index) => ({ id: `count-${index}`, body: "", createdAt: "" }),
+      ),
+    ],
   };
 }
 
