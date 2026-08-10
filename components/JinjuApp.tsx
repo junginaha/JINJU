@@ -883,7 +883,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
             <header className="mobile-chat-header">
               <button className="mobile-menu-button" onClick={() => setMobileMenuOpen(true)} aria-label="게시판 메뉴 열기">☰</button>
               <a href="/" aria-label="진주.kr 메인으로"><Pearl size={36} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>
-              <button className="mobile-write-link" type="button" onClick={openComposer}>나의 의견</button>
             </header>
 
             <div className="feed-shell">
