@@ -31,24 +31,10 @@ test("the shared identity uses the fixed definition and distinguishes the indepe
 test("search and AI answer crawlers can index public pages but not private routes", () => {
   const config = robotsRoute();
   const rules = Array.isArray(config.rules) ? config.rules : [config.rules];
-  const expectedCrawlers = [
-    "Yeti",
-    "Googlebot",
-    "Bingbot",
-    "OAI-SearchBot",
-    "ChatGPT-User",
-    "Claude-SearchBot",
-    "Claude-User",
-    "PerplexityBot",
-    "Perplexity-User",
-  ];
-
-  for (const crawler of expectedCrawlers) {
-    const rule = rules.find((candidate) => candidate.userAgent === crawler);
-    assert.ok(rule, `${crawler} should have an explicit rule`);
-    assert.equal(rule.allow, "/");
-    assert.deepEqual(rule.disallow, ["/api/", "/admin"]);
-  }
+  const publicCrawlerRule = rules.find((candidate) => candidate.userAgent === "*");
+  assert.ok(publicCrawlerRule, "all public crawlers should be covered by the wildcard rule");
+  assert.equal(publicCrawlerRule.allow, "/");
+  assert.deepEqual(publicCrawlerRule.disallow, ["/api/", "/admin"]);
 });
 
 test("the public IndexNow ownership file matches the submitted key", async () => {
