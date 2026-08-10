@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "진주.kr — 익명 의견 커뮤니티",
     short_name: "진주.kr",
-    description: "전국 누구나 쓰는 독립 익명 의견 커뮤니티. 개인정보 없이, 할 말은 하세요.",
+    description: "개인정보 없이 할 말은 하는 익명 커뮤니티",
     start_url: "/",
     display: "standalone",
     background_color: "#171717",

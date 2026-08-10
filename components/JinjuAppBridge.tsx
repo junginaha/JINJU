@@ -10,7 +10,7 @@ type JinjuAppBridgeProps = {
   initialTotal?: number;
 };
 
-const FEED_ACCESSIBLE_NAME = "진주.kr 전국 독립 익명 의견 게시판";
+const FEED_ACCESSIBLE_NAME = "진주 익명 의견 게시판";
 const COMPOSER_TITLE = "익명 의견 남기기";
 const COMPOSER_SUBTITLE = "안전하게 속마음을 들려주세요.";
 const BODY_PLACEHOLDER = "무슨 일이 있었는지 천천히 들려주세요.\n편한 마음으로 적으셔도 괜찮아요.";
@@ -43,7 +43,7 @@ const feedPagerCss = `
 }
 .feed-more-button:hover { color: #f2f2f2; transform: translateY(-1px); }
 .feed-more-button:active { opacity: .72; transform: translateY(1px); }
-.feed-more-button[aria-disabled="true"] { cursor: default; opacity: .62; transform: none; }
+.feed-more-button:disabled { cursor: default; opacity: .62; transform: none; }
 .feed-more-button:focus-visible { outline: 1px solid #777; outline-offset: 7px; border-radius: 6px; }
 .feed-more-label {
   color: transparent;
@@ -114,6 +114,12 @@ export default function JinjuAppBridge({ initialPosts, initialPostId = null, ini
       const heading = document.querySelector<HTMLElement>(".feed-heading");
       if (!heading) return false;
       document.querySelector<HTMLElement>(".chat-main#feed")?.setAttribute("aria-label", FEED_ACCESSIBLE_NAME);
+      const title = heading.querySelector<HTMLElement>("h1");
+      if (title) {
+        title.textContent = FEED_ACCESSIBLE_NAME;
+        title.hidden = true;
+        title.removeAttribute("style");
+      }
       const footer = document.querySelector<HTMLElement>(".sidebar-footer");
       if (footer) {
         const footerCopy = footer.querySelector<HTMLElement>("p");

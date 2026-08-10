@@ -274,9 +274,9 @@ export default function AdminReview() {
               </div>
               <label>본문<textarea value={post.content} maxLength={2000} rows={7} onChange={(event) => updatePostLocal(post.id, { content: event.target.value })} /></label>
               <div className="admin-reaction-fields admin-inline-reactions">
-                <label>공감돼요<input type="number" min="0" inputMode="numeric" value={post.heard} onChange={(event) => updatePostLocal(post.id, { heard: Math.max(0, Number(event.target.value)) })} /></label>
-                <label>다르게 생각해요<input type="number" min="0" inputMode="numeric" value={post.same} onChange={(event) => updatePostLocal(post.id, { same: Math.max(0, Number(event.target.value)) })} /></label>
-                <div className="admin-like-quick-actions"><button type="button" onClick={() => void saveReactions(post, post.heard + 1)}>공감 +1</button><button type="button" onClick={() => void saveReactions(post, post.heard + 5)}>+5</button><button type="button" onClick={() => void saveReactions(post, post.heard + 10)}>+10</button></div>
+                <label>좋아요<input type="number" min="0" inputMode="numeric" value={post.heard} onChange={(event) => updatePostLocal(post.id, { heard: Math.max(0, Number(event.target.value)) })} /></label>
+                <label>싫어요<input type="number" min="0" inputMode="numeric" value={post.same} onChange={(event) => updatePostLocal(post.id, { same: Math.max(0, Number(event.target.value)) })} /></label>
+                <div className="admin-like-quick-actions"><button type="button" onClick={() => void saveReactions(post, post.heard + 1)}>좋아요 +1</button><button type="button" onClick={() => void saveReactions(post, post.heard + 5)}>+5</button><button type="button" onClick={() => void saveReactions(post, post.heard + 10)}>+10</button></div>
                 <button type="button" disabled={busyId === `reaction:${post.id}`} onClick={() => void saveReactions(post)}>반응 저장</button>
               </div>
               <div className="admin-post-actions">

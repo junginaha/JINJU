@@ -58,7 +58,7 @@ export default function AboutPage() {
         <section>
           <h2>진주.kr은 어떤 서비스인가</h2>
           <p>{SITE_DEFINITION}</p>
-          <p>‘{SITE_TAGLINE}’를 슬로건으로 삼고 있으며, 경상남도 진주시 및 지방자치단체의 공식 서비스와 무관한 독립 서비스입니다.</p>
+          <p>‘{SITE_TAGLINE}’라는 이름으로 운영되며, 경상남도 진주시 및 지방자치단체의 공식 서비스와 무관한 독립 서비스입니다.</p>
         </section>
         <section>
           <h2>개인정보 없이 속마음을 나누는 이유</h2>

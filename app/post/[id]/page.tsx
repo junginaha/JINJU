@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import JinjuApp from "@/components/JinjuAppBridge";
-import { getPublicComments } from "@/lib/public-comments";
 import { getPublicPost, getPublicPosts, toClientPost } from "@/lib/public-posts";
 import {
   canonicalUrl,
@@ -26,7 +25,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     url: "/opengraph-image",
     width: 1200,
     height: 630,
-    alt: "진주.kr — 전국 누구나 쓰는 독립 익명 의견 커뮤니티",
+    alt: "진주.kr — 인간적으로, 할 말은 하세요",
   };
   return {
     title: post.title,
@@ -59,23 +58,8 @@ export default async function PostPage({ params }: PageProps) {
   const { id } = await params;
   const selected = await getPublicPost(id);
   if (!selected) notFound();
-  const [publicPosts, commentsResult] = await Promise.all([
-    getPublicPosts(),
-    getPublicComments(id),
-  ]);
-  const selectedIndex = publicPosts.findIndex((post) => post.id === selected.id);
-  const adjacentPosts = [publicPosts[selectedIndex - 1], publicPosts[selectedIndex + 1]].filter(Boolean);
-  const relatedCandidates = [
-    ...adjacentPosts,
-    ...publicPosts.filter((post) => post.id !== selected.id && post.category === selected.category),
-    ...publicPosts.filter((post) => post.id !== selected.id),
-  ];
-  const relatedPosts = [...new Map(relatedCandidates.map((post) => [post.id, post])).values()].slice(0, 29);
-  const initialComments = commentsResult.ok ? commentsResult.comments.slice(0, 10) : [];
-  const initialPosts = [
-    toClientPost(selected, initialComments),
-    ...relatedPosts.map((post) => toClientPost(post)),
-  ];
+  const recentPosts = (await getPublicPosts()).filter((post) => post.id !== selected.id).slice(0, 29);
+  const initialPosts = [selected, ...recentPosts].map(toClientPost);
   const postUrl = canonicalUrl(`/post/${encodeURIComponent(selected.id)}`);
   const discussionPost = {
     "@context": "https://schema.org",
@@ -96,18 +80,6 @@ export default async function PostPage({ params }: PageProps) {
     publisher: { "@id": SITE_ORGANIZATION_ID },
     isPartOf: { "@id": SITE_WEBSITE_ID },
     mainEntityOfPage: postUrl,
-    commentCount: selected.commentCount,
-    ...(initialComments.length ? {
-      comment: initialComments.map((comment) => ({
-        "@type": "Comment",
-        text: comment.body,
-        dateCreated: comment.createdAt,
-        author: {
-          "@type": "Person",
-          name: comment.displayName || "익명",
-        },
-      })),
-    } : {}),
   };
 
   return (

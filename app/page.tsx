@@ -1,5 +1,4 @@
 import JinjuApp from "@/components/JinjuAppBridge";
-import SiteIdentityJsonLd from "@/components/SiteIdentityJsonLd";
 import { getPublicPosts, toClientPost } from "@/lib/public-posts";
 
 export const revalidate = 30;
@@ -12,7 +11,7 @@ const fastEntryCss = `
   width: clamp(112px, 30vw, 156px);
   height: clamp(112px, 30vw, 156px);
   content: "";
-  background: url('/jinju-pearl-intro.webp') center / contain no-repeat;
+  background: url('/jinju-pearl-cutout.png') center / contain no-repeat;
   filter: drop-shadow(0 18px 34px #0000007a);
   opacity: 0;
   transform: translate(-50%, -50%) scale(.94);
@@ -23,7 +22,7 @@ const fastEntryCss = `
   top: calc(42% + 86px);
   left: 50%;
   width: min(86vw, 520px);
-  content: "진주.kr\\A 전국 누구나 쓰는 독립 익명 의견 커뮤니티\\A 개인정보 없이, 할 말은 하세요";
+  content: "인간적으로,\\A 할 말은 하세요!\\A 안전하고 개운하게 속마음을 털어놓으세요";
   color: #c9c5bd;
   font-size: clamp(13px, 3.8vw, 17px);
   line-height: 1.62;
@@ -53,11 +52,10 @@ const fastEntryCss = `
 
 export default async function Home() {
   const publicPosts = await getPublicPosts();
-  const initialPosts = publicPosts.slice(0, 30).map((post) => toClientPost(post));
+  const initialPosts = publicPosts.slice(0, 30).map(toClientPost);
 
   return (
     <>
-      <SiteIdentityJsonLd />
       <style dangerouslySetInnerHTML={{ __html: fastEntryCss }} />
       <JinjuApp initialPosts={initialPosts} initialTotal={publicPosts.length} />
     </>
