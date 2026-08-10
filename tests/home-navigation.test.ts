@@ -12,6 +12,20 @@ test("main and sidebar brand links always target the site root", () => {
   assert.doesNotMatch(appSource, /href="#feed"[^>]*aria-label="진주 홈"/);
 });
 
+test("mobile header stays centered without a duplicate write button", () => {
+  const mobileHeader = appSource.match(/<header className="mobile-chat-header">[\s\S]*?<\/header>/)?.[0] ?? "";
+
+  assert.ok(mobileHeader);
+  assert.match(mobileHeader, /className="mobile-menu-button"[\s\S]*?aria-label="게시판 메뉴 열기"/);
+  assert.match(mobileHeader, /href="\/" aria-label="진주\.kr 메인으로"/);
+  assert.doesNotMatch(mobileHeader, /mobile-write-link|>나의 의견<|openComposer/);
+  assert.match(appSource, /<button className="floating-write-button" type="button" onClick=\{openComposer\}><span aria-hidden="true">＋<\/span> 의견 쓰기<\/button>/);
+  assert.match(globalCss, /\.mobile-chat-header \{[^}]*grid-template-columns: 38px minmax\(0,1fr\) 38px;[^}]*min-height: 56px;/);
+  assert.match(globalCss, /\.mobile-chat-header > a:nth-of-type\(1\) \{[^}]*justify-self: center;/);
+  assert.match(globalCss, /\.floating-write-button \{[^}]*display: inline-flex;[^}]*min-height: 52px;/);
+  assert.doesNotMatch(globalCss, /\.mobile-write-link/);
+});
+
 test("detail and policy navigation expose a direct home link", () => {
   assert.match(appSource, /className="detail-home" href="\/"/);
   assert.match(appSource, />← 진주\.kr<\/a>/);
