@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   canonicalUrl,
   INDEXNOW_KEY,
+  isSearchIndexable,
+  SEARCH_INDEX_DELAY_MS,
   SITE_DEFINITION,
   SITE_DISCLAIMER,
   SITE_IDENTITY_DESCRIPTION,
@@ -20,10 +22,9 @@ test("canonical search URLs always use the single production host", () => {
 });
 
 test("the shared identity uses the fixed definition and distinguishes the independent service", () => {
-  assert.equal(SITE_DEFINITION, "진주(JINJU)는 개인정보 없이 할 말을 하는 익명 커뮤니티입니다.");
+  assert.equal(SITE_DEFINITION, "진주.kr은 개인정보 없이 할 말을 하는 독립 익명 의견 커뮤니티입니다.");
   assert.match(SITE_TITLE, new RegExp(SITE_NAME.replace(".", "\\.")));
-  assert.match(SITE_TITLE, /진실의 주둥이/);
-  assert.equal(SITE_DISCLAIMER, "본 서비스는 경상남도 진주시 및 지방자치단체의 공식 서비스와 무관한 독립 서비스입니다.");
+  assert.equal(SITE_DISCLAIMER, "경상남도 진주시 및 지방자치단체의 공식 서비스와 무관합니다.");
   assert.equal(SITE_IDENTITY_DESCRIPTION, `${SITE_DEFINITION} ${SITE_DISCLAIMER}`);
 });
 
@@ -88,4 +89,11 @@ test("IndexNow submissions deduplicate URLs and never block publishing", async (
     globalThis.fetch = originalFetch;
     console.warn = originalWarn;
   }
+});
+
+
+test("fresh discussions wait twelve hours before external indexing", () => {
+  const now = Date.parse("2026-08-10T00:00:00.000Z");
+  assert.equal(isSearchIndexable(new Date(now - SEARCH_INDEX_DELAY_MS + 1).toISOString(), now), false);
+  assert.equal(isSearchIndexable(new Date(now - SEARCH_INDEX_DELAY_MS).toISOString(), now), true);
 });

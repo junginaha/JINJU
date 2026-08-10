@@ -4,6 +4,7 @@ import JinjuApp from "@/components/JinjuAppBridge";
 import { getPublicPost, getPublicPosts, toClientPost } from "@/lib/public-posts";
 import {
   canonicalUrl,
+  isSearchIndexable,
   SITE_NAME,
   SITE_ORGANIZATION_ID,
   SITE_WEBSITE_ID,
@@ -19,6 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!post) return { title: "찾을 수 없는 의견", robots: { index: false, follow: false } };
   const path = `/post/${encodeURIComponent(post.id)}`;
   const description = post.content.replace(/\s+/g, " ").trim().slice(0, 150);
+  const searchIndexable = isSearchIndexable(post.createdAt);
   const image = {
     url: "/opengraph-image",
     width: 1200,
@@ -29,6 +31,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: post.title,
     description,
     keywords: [post.category, "익명 의견", "진주.kr"],
+    robots: { index: searchIndexable, follow: true },
     alternates: {
       canonical: path,
       languages: { "ko-KR": path },
@@ -55,9 +58,8 @@ export default async function PostPage({ params }: PageProps) {
   const { id } = await params;
   const selected = await getPublicPost(id);
   if (!selected) notFound();
-  const byId = new Map((await getPublicPosts()).map((post) => [post.id, post]));
-  byId.set(selected.id, selected);
-  const initialPosts = [...byId.values()].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).map(toClientPost);
+  const recentPosts = (await getPublicPosts()).filter((post) => post.id !== selected.id).slice(0, 29);
+  const initialPosts = [selected, ...recentPosts].map(toClientPost);
   const postUrl = canonicalUrl(`/post/${encodeURIComponent(selected.id)}`);
   const discussionPost = {
     "@context": "https://schema.org",
