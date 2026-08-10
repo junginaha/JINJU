@@ -454,6 +454,7 @@ test("August 9 news posts keep balanced six-comment debates and two-word names",
 });
 
 test("selected August 10 news posts keep balanced six-comment debates and two-word names", () => {
+  const immediatePublicationCutoff = Date.parse("2026-08-10T09:00:00+09:00");
   assert.equal(august10MorningPosts.length, 3);
   assert.equal(new Set(august10MorningPosts.map((post) => post.id)).size, 3);
   const allNames: string[] = [];
@@ -461,6 +462,7 @@ test("selected August 10 news posts keep balanced six-comment debates and two-wo
   for (const post of august10MorningPosts) {
     assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
     assert.ok(post.heard >= 20 && post.heard <= 33);
+    assert.ok(Date.parse(post.createdAt) <= immediatePublicationCutoff);
     const comments = august10MorningComments(post.id);
     assert.equal(comments.length, 6);
     assert.equal(comments.length, post.commentCount);
@@ -471,6 +473,7 @@ test("selected August 10 news posts keep balanced six-comment debates and two-wo
     for (const item of comments) {
       assert.equal(item.displayName.trim().split(/\s+/).length, 2);
       assert.ok(Date.parse(item.createdAt) > Date.parse(post.createdAt));
+      assert.ok(Date.parse(item.createdAt) <= immediatePublicationCutoff);
       assert.ok(!/[“”"]/u.test(item.body));
       assert.equal(
         (item.body.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || []).filter((part) => part.trim()).length,
