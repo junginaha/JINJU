@@ -43,11 +43,13 @@ jobs:
           patch_start = code.index("before = r'''  const filteredPosts")
           patch_end_marker = "jinju = jinju.replace(before, after, 1)"
           patch_end = code.index(patch_end_marker, patch_start) + len(patch_end_marker)
-          resilient = r'''filter_start = jinju.index("  const filteredPosts = useMemo(() => {")
-filter_end_marker = "  }, [posts, query, sort, topic]);"
-filter_end = jinju.index(filter_end_marker, filter_start) + len(filter_end_marker)
-load_more_hook = r''\n\n  const loadMorePosts=useCallback(()=>{\n    if(feedLoadingMore||!hasMorePosts)return;\n    void loadPosts(feedNextOffset,true);\n  },[feedLoadingMore,feedNextOffset,hasMorePosts,loadPosts]);''
-jinju = jinju[:filter_end] + load_more_hook + jinju[filter_end:]'''
+          resilient = (
+              'filter_start = jinju.index("  const filteredPosts = useMemo(() => {")\n'
+              'filter_end_marker = "  }, [posts, query, sort, topic]);"\n'
+              'filter_end = jinju.index(filter_end_marker, filter_start) + len(filter_end_marker)\n'
+              'load_more_hook = "\\n\\n  const loadMorePosts=useCallback(()=>{\\n    if(feedLoadingMore||!hasMorePosts)return;\\n    void loadPosts(feedNextOffset,true);\\n  },[feedLoadingMore,feedNextOffset,hasMorePosts,loadPosts]);"\n'
+              'jinju = jinju[:filter_end] + load_more_hook + jinju[filter_end:]'
+          )
           code = code[:patch_start] + resilient + code[patch_end:]
           exec(compile(code, "portfolio-hardening.py", "exec"))
           PY
