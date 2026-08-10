@@ -547,11 +547,10 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
   .chat-sidebar.mobile-open { position: fixed; z-index: 60; display: flex; width: min(82vw,300px); box-shadow: 18px 0 50px #0009; }
   .mobile-menu-scrim { position: fixed; z-index: 50; inset: 0; display: block; width: 100%; height: 100%; background: #0008; border: 0; }
   .chat-main { margin-left: 0; }
-  .mobile-chat-header { position: sticky; z-index: 30; top: 0; display: grid; grid-template-columns: 38px minmax(0,1fr) auto; min-height: 56px; align-items: center; column-gap: 6px; padding: 0 max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left)); background: #171717f5; border-bottom: 1px solid #2c2c2c; backdrop-filter: blur(12px); }
+  .mobile-chat-header { position: sticky; z-index: 30; top: 0; display: grid; grid-template-columns: 38px minmax(0,1fr) 38px; min-height: 56px; align-items: center; column-gap: 6px; padding: 0 max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left)); background: #171717f5; border-bottom: 1px solid #2c2c2c; backdrop-filter: blur(12px); }
   .mobile-menu-button { width: 34px; height: 34px; padding: 0; color: #bbb; font-size: 17px; background: transparent; border: 0; cursor: pointer; }
   .mobile-chat-header > a { display: flex; align-items: center; gap: 7px; font-size: 13px; }
-  .mobile-chat-header > a:nth-of-type(1) { max-width: 100%; justify-self: start; overflow: hidden; }
-  .mobile-write-link { min-height: 36px; justify-self: end; padding: 0 10px; color: #111; font-size: 10px; font-weight: 700; background: #f4f4f4; border: 0; border-radius: 999px; cursor: pointer; }
+  .mobile-chat-header > a:nth-of-type(1) { max-width: 100%; justify-self: center; overflow: hidden; }
   .mobile-chat-header a > span { display: flex; min-width: 0; align-items: baseline; gap: 6px; overflow: hidden; }
   .mobile-chat-header img { width: 32px; height: 32px; object-fit: contain; transform: scale(1.15); }
   .mobile-chat-header a small { min-width: 0; font-size: 10px; white-space: normal; line-height: 1.25; }
@@ -606,7 +605,6 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 
 @media (max-width: 390px) {
   .mobile-chat-header a small { display: none; }
-  .mobile-write-link { padding-inline: 8px; }
   .feed-shell { padding-right: max(12px,env(safe-area-inset-right)); padding-left: max(12px,env(safe-area-inset-left)); }
   .composer-actions { width: 100%; justify-content: flex-end; }
 }
