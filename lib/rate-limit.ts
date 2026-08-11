@@ -50,6 +50,10 @@ export function abuseHmacReady() {
   );
 }
 
+export async function signAbuseValue(value: string) {
+  return hmacSha256(await abuseSecret(), value);
+}
+
 async function abuseSecret() {
   const configured = process.env.ABUSE_HMAC_SECRET
     || process.env.RATE_LIMIT_SECRET;
@@ -64,7 +68,7 @@ async function abuseSecret() {
 
 export async function anonymousActorHash(request: Request, purpose = "visitor") {
   const userAgent = request.headers.get("user-agent") || "unknown";
-  return hmacSha256(await abuseSecret(), [purpose, clientKey(request), userAgent].join(":"));
+  return signAbuseValue([purpose, clientKey(request), userAgent].join(":"));
 }
 
 export function blockDurationMsForStrike(strikeCount: number, windowMs: number) {
