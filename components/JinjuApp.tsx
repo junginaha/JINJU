@@ -169,6 +169,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [submitStatus, setSubmitStatus] = useState("");
   const [submitBusy,setSubmitBusy]=useState(false);
   const [postTurnstileToken,setPostTurnstileToken]=useState("");
+  const [postTurnstileFallbackProof,setPostTurnstileFallbackProof]=useState("");
   const [postTurnstileRequired,setPostTurnstileRequired]=useState(false);
   const [postTurnstileReset,setPostTurnstileReset]=useState(0);
   const [reviewFeedback,setReviewFeedback]=useState<ReviewFeedback|null>(null);
@@ -701,7 +702,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     setReviewFeedback(null);
     setSubmitStatus("게시 전 우리를 지키는 표현을 확인하고 있어요.");
     try {
-      const reviewResponse = await fetch("/api/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, text: body, category, turnstileToken: postTurnstileToken }) });
+      const reviewResponse = await fetch("/api/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, text: body, category, turnstileToken: postTurnstileToken, turnstileFallbackProof: postTurnstileFallbackProof }) });
       const review = await reviewResponse.json() as ReviewFeedback & { error?: string };
       if (!reviewResponse.ok) { setSubmitStatus(review.error || "검수하지 못했습니다. 잠시 후 다시 시도해주세요."); return; }
       const finalTitle = title.trim() || review.suggestedTitle || "익명의 의견";
@@ -716,6 +717,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     } finally {
       setSubmitBusy(false);
       setPostTurnstileToken("");
+      setPostTurnstileFallbackProof("");
       setPostTurnstileReset((value)=>value+1);
     }
   }
@@ -857,7 +859,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
             <input ref={titleInputRef} className={`chat-title${activeVoiceField === "title" ? " voice-target" : ""}`} value={title} onFocus={() => prepareVoiceField("title")} onChange={(event) => updateTitle(event.target.value)} placeholder="비워두면 본문에서 제목을 추천합니다" aria-label="의견 제목" />
             <textarea ref={bodyInputRef} className={activeVoiceField === "body" ? "voice-target" : ""} value={body} onFocus={() => prepareVoiceField("body")} onChange={(event) => updateBody(event.target.value)} placeholder="편하게 적어주세요." aria-label="의견 본문" rows={10} />
             {voiceMessage && <p className="voice-message" role="status">{voiceMessage}</p>}
-            <TurnstileChallenge action="post" resetSignal={postTurnstileReset} onToken={setPostTurnstileToken} onRequiredChange={setPostTurnstileRequired} />
+            <TurnstileChallenge action="post" resetSignal={postTurnstileReset} onToken={setPostTurnstileToken} onRequiredChange={setPostTurnstileRequired} onFallbackProof={setPostTurnstileFallbackProof} />
             {submitStatus && <p className="composer-status" role="status">{submitStatus}</p>}
             <div className="composer-bottom"><span>제목 {title.length}/80 · 본문 {body.length}/2,000</span><div className="composer-actions">{voiceUndo && <button className="voice-text-button" type="button" onClick={undoVoice}>되돌리기</button>}<button className="voice-text-button" type="button" onClick={clearVoiceField}>지우기</button><button className={`voice-input-button${(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState!=="idle"?" listening":""}`} onClick={()=>void toggleVoice()} type="button" aria-pressed={(activeVoiceField==="title"||activeVoiceField==="body")&&voiceState==="recording"} aria-label={`${activeVoiceField === "title" ? "제목" : "본문"}에 음성 입력${voiceState==="transcribing"?" 다시 시작":""}`}><span className="mic-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5a3.5 3.5 0 0 0 3.5 3.5Z"/><path d="M5 10.5a7 7 0 0 0 14 0"/><path d="M12 17.5V21"/><path d="M9 21h6"/></svg></span></button><button className="submit-review-button" type="submit" disabled={submitBusy||(postTurnstileRequired&&!postTurnstileToken)}><span>{submitBusy?"확인 중…":"게시 전 확인"}</span><span className="send-arrow" aria-hidden="true">↑</span></button></div></div>
           </form>
