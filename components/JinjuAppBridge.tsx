@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { SITE_DEFINITION } from "@/lib/search-indexing";
 import JinjuApp, { type Post } from "./JinjuApp";
 
@@ -14,9 +14,40 @@ const FEED_ACCESSIBLE_NAME = "진주 익명 의견 게시판";
 const COMPOSER_TITLE = "익명 의견 남기기";
 const COMPOSER_SUBTITLE = "안전하게 속마음을 들려주세요.";
 const BODY_PLACEHOLDER = "무슨 일이 있었는지 천천히 들려주세요.\n편한 마음으로 적으셔도 괜찮아요.";
-const WRITE_BUTTON_LABELS = ["새 의견 쓰기", "나의 의견", "의견 쓰기", "의견 남기기"];
 
 const feedPagerCss = `
+.intro-bootstrap {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 43%, rgba(255,255,255,.075), transparent 30%),
+    #050505;
+}
+.intro-bootstrap::before {
+  content: "";
+  width: clamp(92px, 24vw, 156px);
+  aspect-ratio: 1;
+  background: url('/jinju-pearl-cutout.png') center / contain no-repeat;
+  filter: drop-shadow(0 18px 34px rgba(0,0,0,.32));
+}
+.intro-bootstrap::after {
+  content: "인간적으로,  할 말은 하세요!";
+  position: absolute;
+  top: calc(50% + clamp(78px, 21vw, 124px));
+  left: 50%;
+  width: min(88vw, 520px);
+  transform: translateX(-50%);
+  color: #f4f1eb;
+  font-size: clamp(18px, 4.8vw, 30px);
+  font-weight: 760;
+  line-height: 1.35;
+  letter-spacing: -.045em;
+  text-align: center;
+}
 .feed-pager-slot {
   display: flex;
   width: 100%;
@@ -97,8 +128,7 @@ const feedPagerCss = `
 /** Thin presentation compatibility boundary around the legacy JinjuApp monolith. */
 export default function JinjuAppBridge({ initialPosts, initialPostId = null, initialTotal }: JinjuAppBridgeProps) {
   useEffect(() => {
-    let active = true;
-    const frames = new Set<number>();
+    let applying = false;
 
     function ensureTermsLink(footer: HTMLElement) {
       if (footer.querySelector('a[href="/terms"]')) return;
@@ -112,26 +142,33 @@ export default function JinjuAppBridge({ initialPosts, initialPostId = null, ini
 
     function applyFeedPresentation() {
       const heading = document.querySelector<HTMLElement>(".feed-heading");
-      if (!heading) return false;
-      document.querySelector<HTMLElement>(".chat-main#feed")?.setAttribute("aria-label", FEED_ACCESSIBLE_NAME);
-      const title = heading.querySelector<HTMLElement>("h1");
-      if (title) {
-        title.textContent = FEED_ACCESSIBLE_NAME;
-        title.hidden = true;
-        title.removeAttribute("style");
+      if (heading) {
+        document.querySelector<HTMLElement>(".chat-main#feed")?.setAttribute("aria-label", FEED_ACCESSIBLE_NAME);
+        const title = heading.querySelector<HTMLElement>("h1");
+        if (title) {
+          title.textContent = FEED_ACCESSIBLE_NAME;
+          title.hidden = true;
+          title.removeAttribute("style");
+        }
       }
+
+      const privacy = document.querySelector<HTMLElement>("#search-privacy-note");
+      if (privacy) {
+        privacy.setAttribute("title", "이름·전화번호·주민번호·상세주소를 필수로 받지 않습니다. 자세히 보기");
+        privacy.setAttribute("aria-label", "개인정보 0% 안내. 이름·전화번호·주민번호·상세주소를 필수로 받지 않습니다. 자세히 보기");
+      }
+
       const footer = document.querySelector<HTMLElement>(".sidebar-footer");
       if (footer) {
         const footerCopy = footer.querySelector<HTMLElement>("p");
         if (footerCopy && footerCopy.textContent !== SITE_DEFINITION) footerCopy.textContent = SITE_DEFINITION;
         ensureTermsLink(footer);
       }
-      return true;
     }
 
     function applyComposerPresentation() {
       const intro = document.querySelector<HTMLElement>(".composer-intro");
-      if (!intro) return false;
+      if (!intro) return;
       const eyebrow = intro.querySelector<HTMLElement>(".eyebrow");
       if (eyebrow) eyebrow.hidden = true;
       const title = intro.querySelector<HTMLElement>("#write-title");
@@ -141,44 +178,28 @@ export default function JinjuAppBridge({ initialPosts, initialPostId = null, ini
       if (subtitle && subtitle.textContent !== COMPOSER_SUBTITLE) subtitle.textContent = COMPOSER_SUBTITLE;
       const textarea = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="의견 본문"]');
       if (textarea && textarea.placeholder !== BODY_PLACEHOLDER) textarea.placeholder = BODY_PLACEHOLDER;
-      return true;
     }
 
-    function schedule(action: () => boolean | void, retryOnce = false) {
-      const first = requestAnimationFrame(() => {
-        frames.delete(first);
-        if (!active) return;
-        const applied = action();
-        if (!retryOnce || applied !== false) return;
-        const second = requestAnimationFrame(() => {
-frames.delete(second);
-if (active) action();
-        });
-        frames.add(second);
-      });
-      frames.add(first);
+    function applyPresentation() {
+      if (applying) return;
+      applying = true;
+      try {
+        applyFeedPresentation();
+        applyComposerPresentation();
+      } finally {
+        applying = false;
+      }
     }
 
-    function handleClick(event: MouseEvent) {
-      const target = event.target instanceof Element ? event.target : null;
-      if (!target) return;
-      if (target.closest(".detail-home")) schedule(applyFeedPresentation, true);
-      const button = target.closest("button");
-      if (!button) return;
-      const label = button.textContent?.replace(/\s+/g, " ").trim() || "";
-      if (WRITE_BUTTON_LABELS.some((item) => label.includes(item))) schedule(applyComposerPresentation, true);
-    }
+    applyPresentation();
 
-    applyFeedPresentation();
-    applyComposerPresentation();
-    document.addEventListener("click", handleClick, true);
-    window.addEventListener("popstate", () => schedule(applyFeedPresentation, true));
+    const observer = new MutationObserver(() => applyPresentation());
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("popstate", applyPresentation);
 
     return () => {
-      active = false;
-      document.removeEventListener("click", handleClick, true);
-      frames.forEach((frame) => cancelAnimationFrame(frame));
-      frames.clear();
+      observer.disconnect();
+      window.removeEventListener("popstate", applyPresentation);
     };
   }, [initialPostId, initialPosts?.length]);
 
