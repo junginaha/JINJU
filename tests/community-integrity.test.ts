@@ -36,6 +36,10 @@ import {
   AUGUST10_TOP_COMMENT_POST_IDS,
   august10TopComments,
 } from "../lib/fresh-comments-20260810";
+import {
+  AUGUST12_TOP_COMMENT_POST_IDS,
+  august12TopComments,
+} from "../lib/fresh-comments-20260812";
 import { generateJinjuDisplayName } from "../lib/display-name";
 import { visibleBuiltInComments } from "../lib/public-posts";
 import {
@@ -551,6 +555,39 @@ test("the August 10 top ten receive four distinct helpful human comments each", 
     (comment.body.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || [])
       .filter((part) => part.trim()).length === 2));
   assert.equal(keepsSupplementalCommentsWithAutoSet("1m4m5c2q5x121a066u5v"), true);
+});
+
+test("the August 12 top ten receive five distinct engaging human comments each", () => {
+  const immediateVisibilityCutoff = Date.parse("2026-08-12T00:00:00+09:00");
+  assert.equal(AUGUST12_TOP_COMMENT_POST_IDS.length, 10);
+  assert.equal(new Set(AUGUST12_TOP_COMMENT_POST_IDS).size, 10);
+
+  const comments = AUGUST12_TOP_COMMENT_POST_IDS.flatMap((postId) => {
+    const additions = august12TopComments(postId);
+    assert.equal(additions.length, 5);
+    assert.deepEqual(
+      supplementalComments({
+        id: postId,
+        title: "검증용 제목",
+        content: "검증용 본문입니다.",
+        category: "사회",
+        createdAt: "2026-08-09T00:00:00.000Z",
+      }).filter((comment) => comment.id.startsWith("fresh-0812-top-")),
+      additions,
+    );
+    return additions;
+  });
+
+  assert.equal(comments.length, 50);
+  assert.equal(new Set(comments.map((comment) => comment.id)).size, 50);
+  assert.equal(new Set(comments.map((comment) => comment.body)).size, 50);
+  assert.equal(new Set(comments.map((comment) => comment.displayName)).size, 50);
+  assert.ok(comments.every((comment) => comment.displayName.trim().split(/\s+/).length === 2));
+  assert.ok(comments.every((comment) => !/[“”"]/u.test(comment.body)));
+  assert.ok(comments.every((comment) => Date.parse(comment.createdAt) <= immediateVisibilityCutoff));
+  assert.ok(comments.every((comment) =>
+    (comment.body.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || [])
+      .filter((part) => part.trim()).length === 2));
 });
 
 test("base comments are deduplicated against stored copies without dropping stored comments", () => {
