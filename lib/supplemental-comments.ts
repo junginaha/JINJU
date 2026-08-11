@@ -1,6 +1,7 @@
 import { august8FreshComments } from "./fresh-comments-20260808";
 import { august9FreshComments } from "./fresh-comments-20260809";
 import { august10TopComments } from "./fresh-comments-20260810";
+import { august12TopComments } from "./fresh-comments-20260812";
 
 export type CommentSourcePost = {
   id: string;
@@ -607,5 +608,6 @@ export function supplementalComments(post: CommentSourcePost): SupplementalComme
     ...august8FreshComments(post.id),
     ...august9FreshComments(post.id),
     ...august10TopComments(post.id),
+    ...august12TopComments(post.id),
   ];
 }
