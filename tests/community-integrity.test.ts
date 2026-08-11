@@ -18,6 +18,7 @@ import { august1EditorialComments, august1EditorialPosts } from "../lib/daily-ed
 import { august2EditorialComments, august2EditorialPosts } from "../lib/daily-editorial-20260802";
 import { august3EditorialComments, august3EditorialPosts } from "../lib/daily-editorial-20260803";
 import { august6EditorialComments, august6EditorialPosts } from "../lib/daily-editorial-20260806";
+import { august12EditorialComments, august12EditorialPosts } from "../lib/daily-editorial-20260812";
 import { august5MorningComments, august5MorningPosts } from "../lib/morning-editorial-20260805";
 import { august6MorningComments, august6MorningPosts } from "../lib/morning-editorial-20260806";
 import { august8MorningComments, august8MorningPosts } from "../lib/morning-editorial-20260808";
@@ -509,6 +510,37 @@ test("August 12 news posts keep balanced six-comment debates and two-sentence hu
       2,
     );
     const comments = august12MorningComments(post.id);
+    assert.equal(comments.length, 6);
+    assert.equal(comments.length, post.commentCount);
+    for (const item of comments) {
+      assert.equal(item.displayName.trim().split(/\s+/).length, 2);
+      assert.ok(Date.parse(item.createdAt) > Date.parse(post.createdAt));
+      assert.ok(!/[“”"]/u.test(item.body));
+      assert.equal(
+        (item.body.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || []).filter((part) => part.trim()).length,
+        2,
+      );
+      allNames.push(item.displayName);
+      allBodies.push(item.body);
+    }
+  }
+  assert.equal(new Set(allNames).size, 30);
+  assert.equal(new Set(allBodies).size, 30);
+});
+
+test("August 12 policy debates keep balanced six-comment discussions and distinct two-word names", () => {
+  assert.equal(august12EditorialPosts.length, 5);
+  assert.equal(new Set(august12EditorialPosts.map((post) => post.id)).size, 5);
+  const allNames: string[] = [];
+  const allBodies: string[] = [];
+  for (const post of august12EditorialPosts) {
+    assert.equal(String(post.displayName).trim().split(/\s+/).length, 2);
+    assert.ok(post.heard >= 20 && post.heard <= 33);
+    assert.equal(
+      (post.content.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || []).filter((part) => part.trim()).length,
+      2,
+    );
+    const comments = august12EditorialComments(post.id);
     assert.equal(comments.length, 6);
     assert.equal(comments.length, post.commentCount);
     for (const item of comments) {
