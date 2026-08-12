@@ -19,10 +19,12 @@
 img, svg, video, canvas { max-width: 100%; }
 :where(main, section, article, header, footer, nav, aside, div, form, label) { min-width: 0; }
 :where(h1, h2, h3, p, span, a, button, input, textarea, select) { overflow-wrap: anywhere; }
-html { width: 100%; max-width: 100%; scroll-behavior: smooth; overflow-x: clip; }
+html { width: 100%; max-width: 100%; min-height: 100%; scroll-behavior: smooth; background: var(--paper); overflow-x: clip; }
 body {
   width: 100%;
   max-width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   color: var(--ink);
   background: var(--paper);
@@ -167,7 +169,7 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
 .intro-temperature-pearl { width: 18px; height: 18px; object-fit: contain; filter: drop-shadow(0 5px 12px #ffffff38); }
 .intro-temperature-label { color: #ffffffe6; font-size: clamp(14px,1.65vw,16px); font-weight: 560; line-height: 1; letter-spacing: -.02em; animation: 1.8s ease-in-out infinite intro-temperature-label-shine; }
 
-.chat-app, .chat-main, .detail-page { width: 100%; max-width: 100%; min-height: 100vh; color: #f2f2f2; background: #0d0d0d; overflow-x: clip; }
+.chat-app, .chat-main, .detail-page { width: 100%; max-width: 100%; min-height: 100vh; min-height: 100dvh; color: #f2f2f2; background: #0d0d0d; overflow-x: clip; }
 .chat-sidebar {
   position: fixed;
   z-index: 20;
