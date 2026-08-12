@@ -16,38 +16,6 @@ const COMPOSER_SUBTITLE = "안전하게 속마음을 들려주세요.";
 const BODY_PLACEHOLDER = "무슨 일이 있었는지 천천히 들려주세요.\n편한 마음으로 적으셔도 괜찮아요.";
 
 const feedPagerCss = `
-.intro-bootstrap {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 43%, rgba(255,255,255,.075), transparent 30%),
-    #050505;
-}
-.intro-bootstrap::before {
-  content: "";
-  width: clamp(92px, 24vw, 156px);
-  aspect-ratio: 1;
-  background: url('/jinju-pearl-cutout.png') center / contain no-repeat;
-  filter: drop-shadow(0 18px 34px rgba(0,0,0,.32));
-}
-.intro-bootstrap::after {
-  content: "인간적으로,  할 말은 하세요!";
-  position: absolute;
-  top: calc(50% + clamp(78px, 21vw, 124px));
-  left: 50%;
-  width: min(88vw, 520px);
-  transform: translateX(-50%);
-  color: #f4f1eb;
-  font-size: clamp(18px, 4.8vw, 30px);
-  font-weight: 760;
-  line-height: 1.35;
-  letter-spacing: -.045em;
-  text-align: center;
-}
 .feed-pager-slot {
   display: flex;
   width: 100%;
