@@ -22,7 +22,7 @@
 }
 
 .intro-message {
-  min-height: 118px;
+  min-height: 72px;
   animation: .62s cubic-bezier(.16,1,.3,1) .7s forwards intro-message-pop;
 }
 
