@@ -144,7 +144,7 @@ function Pearl({ size = 44, className = "" }: { size?: number; className?: strin
 }
 
 export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null, initialTotal }: { initialPosts?: Post[]; initialPostId?: string | null; initialTotal?: number }) {
-  const [showIntro, setShowIntro] = useState(true);
+  const [showIntro, setShowIntro] = useState(false);
   const [introReady, setIntroReady] = useState(false);
   const [posts, setPosts] = useState(initialPosts);
   const [feedState, setFeedState] = useState<"loading" | "ready" | "error">(
@@ -820,7 +820,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
   return (
     <>
-      {!introReady ? <div className="intro-bootstrap" aria-hidden="true" /> : showIntro && <Intro onComplete={completeIntro} />}
+      {introReady && showIntro ? <Intro onComplete={completeIntro} /> : null}
       {feedbackPost && <FeedbackDialog postId={feedbackPost.id} postTitle={feedbackPost.title} onClose={() => setFeedbackPost(null)} />}
       {composerOpen && <section className="composer-screen" role="dialog" aria-modal="true" aria-labelledby="write-title">
         <header className="composer-screen-header">
