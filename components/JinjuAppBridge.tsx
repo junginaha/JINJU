@@ -114,7 +114,7 @@ export default function JinjuAppBridge({ initialPosts, initialPostId = null, ini
         document.querySelector<HTMLElement>(".chat-main#feed")?.setAttribute("aria-label", FEED_ACCESSIBLE_NAME);
         const title = heading.querySelector<HTMLElement>("h1");
         if (title) {
-          title.textContent = FEED_ACCESSIBLE_NAME;
+          if (title.textContent !== FEED_ACCESSIBLE_NAME) title.textContent = FEED_ACCESSIBLE_NAME;
           title.hidden = true;
           title.removeAttribute("style");
         }
