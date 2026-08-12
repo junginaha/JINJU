@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./production-hotfix.css";
+import "./bookgpt-tidy.css";
 import {
   SITE_DESCRIPTION,
   SITE_DISCLAIMER,
