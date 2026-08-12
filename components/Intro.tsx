@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const INTRO_STORAGE_KEY = "jinju-intro-seen-v1";
-const INTRO_DURATION = 2200;
+const INTRO_DURATION = 4000;
 const INTRO_FADE_DURATION = 260;
 
 export default function Intro({ onComplete }: { onComplete: () => void }) {
@@ -48,7 +48,6 @@ export default function Intro({ onComplete }: { onComplete: () => void }) {
     };
   }, [clearTimers, finish]);
 
-  const visible = { opacity: 1, transform: "none", animation: "none" } as const;
 
   return (
     <section
@@ -62,34 +61,31 @@ export default function Intro({ onComplete }: { onComplete: () => void }) {
 
       <div className="intro-stage">
         <div className="intro-logo-cluster">
-          <button className="intro-pearl-wrap" style={visible} onClick={finish} type="button" aria-label="진주 로고를 눌러 바로 들어가기">
+          <button className="intro-pearl-wrap" onClick={finish} type="button" aria-label="진주 로고를 눌러 바로 들어가기">
             <span className="intro-pearl-halo" aria-hidden="true" />
             <Image src="/jinju-pearl-cutout.png" alt="" width={156} height={156} priority />
           </button>
-          <div className="intro-skip-stack" style={visible}>
-            <button className="intro-skip-button" style={{ animation: "none" }} onClick={finish} type="button">
-              <span className="intro-skip-arrow" aria-hidden="true">↗</span>
-              바로 들어가기
+          <div className="intro-skip-stack">
+            <button className="intro-skip-button" onClick={finish} type="button" aria-label="인트로를 건너뛰고 바로 들어가기">
+              <svg className="intro-skip-arrow" viewBox="0 0 56 42" aria-hidden="true">
+                <path d="M50 35C37 35 25 28 12 12" />
+                <path d="M12 12L14 24M12 12L24 10" />
+              </svg>
             </button>
           </div>
         </div>
 
-        <div className="intro-message" style={{ ...visible, minHeight: 0 }}>
+        <div className="intro-message">
           <span>인간적으로,</span>
           <strong>할 말은 하세요!</strong>
-          <p style={{ margin: "11px 0 0", color: "#c9c5bd", fontSize: "clamp(13px, 1.8vw, 17px)", lineHeight: 1.55, letterSpacing: "-0.025em" }}>
-            안전하고 개운하게 속마음을 털어놓으세요
-          </p>
         </div>
 
-        <h1 className="intro-wordmark" style={{ ...visible, marginTop: 24 }} aria-label="진실의 주둥이">
-          <span className="intro-key intro-key-truth" style={{ animation: "none" }}>진</span>
+        <h1 className="intro-wordmark" aria-label="진실의 주둥이">
+          <span className="intro-key intro-key-truth">진</span>
           <span>실의&nbsp;</span>
-          <span className="intro-key intro-key-mouth" style={{ animation: "none" }}>주</span>
+          <span className="intro-key intro-key-mouth">주</span>
           <span>둥이</span>
         </h1>
-
-        <p className="intro-signature" style={{ ...visible, marginTop: 18 }}>JINJU · ANONYMOUS COMMUNITY</p>
       </div>
     </section>
   );
