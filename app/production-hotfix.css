@@ -1,13 +1,11 @@
 /* Production stability overrides: keep this file after globals.css. */
-.intro-bootstrap {
-  pointer-events: none;
-  animation: intro-bootstrap-safety 6s step-end forwards;
-}
-
 .jinju-intro {
   min-height: 100vh;
   min-height: 100dvh;
+  animation: intro-overlay-safety 4s step-end forwards;
 }
+
+.jinju-intro.is-closing { animation: none; }
 
 .intro-ambient-one,
 .intro-ambient-two {
@@ -95,9 +93,8 @@
   animation: .24s cubic-bezier(.16,1,.3,1) both share-feedback-in;
 }
 
-@keyframes intro-bootstrap-safety {
-  0%, 99% { opacity: 1; visibility: visible; }
-  100% { opacity: 0; visibility: hidden; }
+@keyframes intro-overlay-safety {
+  to { opacity: 0; visibility: hidden; pointer-events: none; }
 }
 
 @keyframes share-feedback-in {
