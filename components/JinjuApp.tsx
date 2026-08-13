@@ -587,19 +587,20 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       let finishRequested=false,finalizing=false,hadFallback=false;
       const chunkResults=new Map<number,VoiceChunkResult&{browserEnd:string}>(),chunkJobs:Promise<void>[]=[];
 
-      function applyTranscript(transcript:string,final=false){
+      function applyTranscript(transcript:string,commitState=false){
         if(sessionId!==voiceSessionRef.current||fieldRevisionRef.current[target]!==revision)return;
         const value=joinVoice(base,transcript,target);
-        if(!final){showLiveTranscript(target,transcript);return}
+        if(!commitState){showLiveTranscript(target,transcript);return}
         if(target==="title")setTitle(value);
         else if(target==="query")setQuery(value);
         else if(target==="comment"){const liveTarget=commentVoiceTargetRef.current;if(liveTarget&&liveTarget.postId===voiceCommentPostIdRef.current)liveTarget.apply(value)}
         else setBody(value);
       }
 
-      function refreshLiveTranscript(){const pending=transcriptSuffix(confirmedBrowserSnapshot,browserTranscriptRef.current);const visible=mergeTranscripts(mergedTranscript,pending);if(visible)applyTranscript(visible)}
+      function refreshLiveTranscript(commitState=false){const pending=transcriptSuffix(confirmedBrowserSnapshot,browserTranscriptRef.current);const visible=mergeTranscripts(mergedTranscript,pending);if(visible)applyTranscript(visible,commitState)}
 
       function commitReadyChunks(){
+        let committed=false;
         while(chunkResults.has(nextCommit)){
           const result=chunkResults.get(nextCommit)!;
           chunkResults.delete(nextCommit);
@@ -607,8 +608,9 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           confirmedBrowserSnapshot=result.browserEnd;
           if(!result.precise)hadFallback=true;
           nextCommit+=1;
+          committed=true;
         }
-        refreshLiveTranscript();
+        refreshLiveTranscript(committed);
         if(!finishRequested&&nextCommit>0)setVoiceMessage(`${nextCommit}개 구간을 정확히 확인했습니다 · 계속 말씀하세요.`);
       }
 
