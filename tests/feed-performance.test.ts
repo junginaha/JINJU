@@ -7,13 +7,12 @@ const pageSource = readFileSync(new URL("../app/page.tsx", import.meta.url), "ut
 const publicPostsSource = readFileSync(new URL("../lib/public-posts.ts", import.meta.url), "utf8");
 const postsRouteSource = readFileSync(new URL("../app/api/posts/route.ts", import.meta.url), "utf8");
 
-test("server-rendered home posts do not trigger an identical first client request", () => {
+test("server-rendered home posts are reconciled with the uncached public feed", () => {
   assert.match(pageSource, /publicPosts\.slice\(0, 30\)\.map\(toClientPost\)/);
   assert.match(pageSource, /initialTotal=\{publicPosts\.length\}/);
   assert.match(appSource, /initialPostId === null && initialTotal !== undefined \? "ready" : "loading"/);
-  assert.match(appSource, /skipInitialFeedRequestRef=useRef\(initialPostId===null&&initialTotal!==undefined\)/);
-  assert.match(appSource, /skipInitialFeedRequestRef\.current&&topic==="전체"&&sort==="latest"&&!query\.trim\(\)/);
-  assert.match(appSource, /skipInitialFeedRequestRef\.current=false;\s*setFeedState\("ready"\);\s*return;/);
+  assert.doesNotMatch(appSource, /skipInitialFeedRequestRef/);
+  assert.match(appSource, /if\(selectedPostId\)\{feedAbortRef\.current\?\.abort\(\);return\}\s*feedAbortRef\.current\?\.abort\(\);\s*const timer=window\.setTimeout\(\(\)=>void loadPosts\(0,false\),query\.trim\(\)\?220:0\)/);
 });
 
 test("superseded feed requests are aborted while normal feed controls stay intact", () => {
@@ -22,7 +21,7 @@ test("superseded feed requests are aborted while normal feed controls stay intac
   assert.match(appSource, /fetch\(`\/api\/posts\?\$\{params\.toString\(\)\}`,\{cache:"no-store",signal:controller\.signal\}\)/);
   assert.match(appSource, /if\(controller\.signal\.aborted\)return;/);
   assert.match(appSource, /useEffect\(\(\)=>\(\)=>feedAbortRef\.current\?\.abort\(\),\[\]\)/);
-  assert.match(appSource, /skipInitialFeedRequestRef\.current=false;\s*feedAbortRef\.current\?\.abort\(\);\s*const timer=window\.setTimeout/);
+  assert.match(appSource, /feedAbortRef\.current\?\.abort\(\);\s*const timer=window\.setTimeout/);
   assert.match(appSource, /void loadPosts\(feedNextOffset,true\)/);
   assert.match(appSource, /query\.trim\(\)\?220:0/);
 });

@@ -197,7 +197,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const bodyInputRef=useRef<HTMLTextAreaElement|null>(null);
   const feedRequestRef=useRef(0);
   const feedAbortRef=useRef<AbortController|null>(null);
-  const skipInitialFeedRequestRef=useRef(initialPostId===null&&initialTotal!==undefined);
 
   const loadPosts = useCallback(async (offset=0,append=false,override?:FeedQueryOverride) => {
     const requestId=++feedRequestRef.current;
@@ -245,12 +244,6 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
 
   useEffect(()=>{
   if(selectedPostId){feedAbortRef.current?.abort();return}
-  if(skipInitialFeedRequestRef.current&&topic==="전체"&&sort==="latest"&&!query.trim()){
-    skipInitialFeedRequestRef.current=false;
-    setFeedState("ready");
-    return;
-  }
-  skipInitialFeedRequestRef.current=false;
   feedAbortRef.current?.abort();
   const timer=window.setTimeout(()=>void loadPosts(0,false),query.trim()?220:0);
   return()=>window.clearTimeout(timer);
