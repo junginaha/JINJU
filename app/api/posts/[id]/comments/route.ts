@@ -8,7 +8,6 @@ import { generateUniqueJinjuDisplayName } from "../../../../../lib/display-name"
 import { reviewSubmission } from "../../../../../lib/ai-review";
 import { getPublicPost } from "../../../../../lib/public-posts";
 import { rateLimit } from "../../../../../lib/rate-limit";
-import { turnstileFailure, verifyTurnstile } from "../../../../../lib/turnstile";
 import {
   keepsSupplementalCommentsWithAutoSet,
   supplementalComments,
@@ -93,11 +92,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (HIDDEN_DUPLICATE_POST_IDS.has(postId)) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
   const publicPost = await getPublicPost(postId);
   if (!publicPost) return Response.json({ error: "게시물을 찾을 수 없습니다." }, { status: 404 });
-  const payload = await request.json() as { content?: string; turnstileToken?: string };
+  const payload = await request.json() as { content?: string };
   const content = payload.content?.trim() ?? "";
   if (content.length < 2 || content.length > 2000) return Response.json({ error: "댓글은 2~2,000자로 작성해주세요." }, { status: 400 });
-  const turnstile = await verifyTurnstile(request, payload.turnstileToken, "comment");
-  if (!turnstile.ok) return turnstileFailure(turnstile);
   await ensureSchema();
   const recentComments = await db()`
     SELECT content
