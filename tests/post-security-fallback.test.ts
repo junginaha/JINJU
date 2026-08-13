@@ -36,24 +36,37 @@ test("post fallback proof waits, expires, and stays bound to the same anonymous 
   }
 });
 
-test("desktop composer has a recoverable security path without weakening feedback reports", async () => {
-  const component = await import("node:fs/promises").then((fs) => fs.readFile("components/TurnstileChallenge.tsx", "utf8"));
+test("reviewed writing remains publishable when external challenge scripts fail", async () => {
   const app = await import("node:fs/promises").then((fs) => fs.readFile("components/JinjuApp.tsx", "utf8"));
   const reviewRoute = await import("node:fs/promises").then((fs) => fs.readFile("app/api/review/route.ts", "utf8"));
   const postRoute = await import("node:fs/promises").then((fs) => fs.readFile("app/api/posts/route.ts", "utf8"));
+  const commentsRoute = await import("node:fs/promises").then((fs) => fs.readFile("app/api/posts/[id]/comments/route.ts", "utf8"));
   const feedbackRoute = await import("node:fs/promises").then((fs) => fs.readFile("app/api/feedback/route.ts", "utf8"));
 
-  assert.match(component, /fetch\(FALLBACK_ENDPOINT/);
-  assert.match(component, /"timeout-callback"/);
-  assert.match(component, /"unsupported-callback"/);
-  assert.match(component, />다시 확인<\/button>/);
-  assert.match(app, /turnstileFallbackProof: postTurnstileFallbackProof/);
-  assert.match(reviewRoute, /verifyTurnstile\(request, payload\.turnstileToken, "post", payload\.turnstileFallbackProof\)/);
-  assert.ok(reviewRoute.indexOf("reviewSubmission(title, text, \"post\")") > reviewRoute.indexOf("verifyTurnstile(request"));
+  assert.doesNotMatch(app, /TurnstileChallenge action="post"/);
+  assert.doesNotMatch(app, /postTurnstileRequired/);
+  assert.match(app, /게시 전 검토 중입니다\. 문제가 있으면 정확히 알려드릴게요\./);
+  assert.match(app, /function reviewIssueSummary/);
+  assert.match(app, /reviewFeedback\.detectedIssues/);
+  assert.match(app, /commentReview\.detectedIssues/);
+
+  assert.match(reviewRoute, /rateLimit\(request, "review", 10, 60_000\)/);
+  assert.doesNotMatch(reviewRoute, /verifyTurnstile/);
+  assert.match(reviewRoute, /reviewSubmission\(title, text, "post"\)/);
+  assert.match(reviewRoute, /issueReviewToken/);
+
   assert.match(postRoute, /rateLimit\(request, "post", 6, 10 \* 60_000\)/);
+  assert.match(postRoute, /verifyReviewToken/);
+  assert.match(postRoute, /verifyTurnstile\(request, payload\.turnstileToken, "post"\)/);
   assert.match(postRoute, /assessPostQuality\(qualityTitle, content\)/);
   assert.match(postRoute, /hasPii\(`\$\{title\} \$\{content\}`\)/);
   assert.match(postRoute, /createDuplicatePostChecker\(\)/);
+
+  assert.doesNotMatch(commentsRoute, /verifyTurnstile/);
+  assert.match(commentsRoute, /rateLimit\(request, "comment", 12, 10 \* 60_000\)/);
+  assert.match(commentsRoute, /isDuplicateComment/);
+  assert.match(commentsRoute, /reviewSubmission\("", content, "comment"\)/);
+  assert.ok(commentsRoute.indexOf('reviewSubmission("", content, "comment")') < commentsRoute.indexOf("INSERT INTO comments"));
+
   assert.match(feedbackRoute, /verifyTurnstile\(request, payload\.turnstileToken, "feedback"\)/);
-  assert.doesNotMatch(feedbackRoute, /turnstileFallbackProof/);
 });
