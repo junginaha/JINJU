@@ -1087,7 +1087,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
     } catch (error) {
       if (error instanceof CommentReviewError) {
         setCommentReview(error.review);
-        setCommentStatus(reviewIssueSummary(error.review, "수정이 필요한 부분을 확인해주세요."));
+        setCommentStatus("");
       } else {
         setCommentStatus("");
         setCommentError(error instanceof Error ? error.message : "댓글을 등록할 수 없습니다.");
