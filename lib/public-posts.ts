@@ -17,10 +17,15 @@ import {
 } from "./comment-visibility";
 import type { Post } from "../components/JinjuApp";
 
+const PUBLIC_TITLE_REWRITES = new Map<string, string>([
+  ["jinju-daily-20260814-annotated-book-swap", "낯선 밑줄과 함께 읽는 밤"],
+]);
+
 function cleanRow(row: Record<string, unknown>): EditorialPost {
+  const id = String(row.id);
   return {
-    id: String(row.id),
-    title: String(row.title),
+    id,
+    title: PUBLIC_TITLE_REWRITES.get(id) ?? String(row.title),
     content: String(row.content),
     category: normalizePublicCategory(String(row.category)),
     displayName: String(row.display_name || "익명"),
