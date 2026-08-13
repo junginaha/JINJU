@@ -14,17 +14,19 @@ const review: SubmissionReview = {
   suggestedTitle: "안전한 제목",
 };
 
-test("review tickets use the existing abuse signing secret when a dedicated secret is absent", async () => {
-  const names = ["REVIEW_TOKEN_SECRET", "ADMIN_REVIEW_SECRET", "ABUSE_HMAC_SECRET", "OPENAI_API_KEY", "AI_API_KEY"] as const;
+test("review tickets use every supported abuse signing configuration", async () => {
+  const names = ["REVIEW_TOKEN_SECRET", "ADMIN_REVIEW_SECRET", "ABUSE_HMAC_SECRET", "RATE_LIMIT_SECRET", "TURNSTILE_SECRET_KEY", "OPENAI_API_KEY", "AI_API_KEY"] as const;
   const original = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  const ticket = { title: "안전한 제목", content: "서른 자 이상인 안전한 게시글 본문입니다. 오늘의 경험과 느낀 점을 함께 적었습니다.", category: "일상", review };
   try {
-    for (const name of names) delete process.env[name];
-    process.env.ABUSE_HMAC_SECRET = "review-ticket-test-secret";
-    const ticket = { title: "안전한 제목", content: "서른 자 이상인 안전한 게시글 본문입니다. 오늘의 경험과 느낀 점을 함께 적었습니다.", category: "일상", review };
-    const token = await issueReviewToken(ticket);
-    assert.ok(token);
-    assert.deepEqual(await verifyReviewToken(token, ticket.title, ticket.content, ticket.category), review);
-    assert.equal(await verifyReviewToken(token, ticket.title, ticket.content + "변경", ticket.category), null);
+    for (const activeName of ["ABUSE_HMAC_SECRET", "RATE_LIMIT_SECRET", "TURNSTILE_SECRET_KEY"] as const) {
+      for (const name of names) delete process.env[name];
+      process.env[activeName] = "review-ticket-test-secret-" + activeName;
+      const token = await issueReviewToken(ticket);
+      assert.ok(token, activeName + " should sign a ticket");
+      assert.deepEqual(await verifyReviewToken(token, ticket.title, ticket.content, ticket.category), review);
+      assert.equal(await verifyReviewToken(token, ticket.title, ticket.content + "변경", ticket.category), null);
+    }
   } finally {
     for (const name of names) {
       const value = original[name];
