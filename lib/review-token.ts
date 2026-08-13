@@ -9,7 +9,7 @@ type ReviewTicket = {
 };
 
 function secret() {
-  return process.env.REVIEW_TOKEN_SECRET || process.env.ADMIN_REVIEW_SECRET || process.env.OPENAI_API_KEY || process.env.AI_API_KEY || "";
+  return process.env.REVIEW_TOKEN_SECRET || process.env.ADMIN_REVIEW_SECRET || process.env.ABUSE_HMAC_SECRET || process.env.OPENAI_API_KEY || process.env.AI_API_KEY || "";
 }
 
 function toBase64Url(value: Uint8Array) {
