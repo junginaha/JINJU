@@ -20,7 +20,8 @@ type VoiceState="idle"|"listening"|"recording"|"transcribing";
 type ComposerVoiceField="title"|"body";
 type VoiceField=ComposerVoiceField|"query"|"comment";
 type VoiceSnapshot={field:ComposerVoiceField;title:string;body:string};
-type CommentVoiceTarget={postId:string;category:string;base:string;apply:(value:string)=>void};
+type CommentVoiceTarget={postId:string;title:string;category:string;base:string;apply:(value:string)=>void};
+type VoiceChunkResult={text:string;precise:boolean;error?:string};
 type DeleteKeys=Record<string,string>;
 declare global { interface Window { SpeechRecognition?:SpeechRecognitionConstructor; webkitSpeechRecognition?:SpeechRecognitionConstructor } }
 
@@ -74,11 +75,15 @@ export type Post = {
 
 const topics = ["전체", "일상", "관계", "직장", "돈", "사회", "제안", "질문"];
 const POST_DRAFT_KEY="jinju-post-draft-v1",COMMENT_DELETE_KEYS="jinju-owned-comments-v1";
-const MAX_RECORDING_MS=120_000,TRANSCRIPTION_TIMEOUT_MS=25_000,FEED_PAGE_SIZE=30;
+const MAX_RECORDING_MS=120_000,VOICE_CHUNK_MS=18_000,TRANSCRIPTION_TIMEOUT_MS=48_000,FEED_PAGE_SIZE=30;
 type FeedApiPost=Omit<Post,"date"|"comments">&{createdAt:string;commentCount?:number};
 type FeedApiResponse={posts?:FeedApiPost[];total?:number;siteTotal?:number;hasMore?:boolean;nextOffset?:number;error?:string};
 type FeedQueryOverride={topic?:string;query?:string;sort?:"latest"|"popular"};
 function normalizeFeedPosts(rows:FeedApiPost[]):Post[]{return rows.map(({createdAt,commentCount,...post})=>({...post,date:new Intl.DateTimeFormat("ko-KR",{year:"numeric",month:"numeric",day:"numeric"}).format(new Date(createdAt)),comments:Array.from({length:commentCount??0},(_,index)=>({id:`count-${index}`,body:"",createdAt:""}))}))}
+
+function transcriptSuffix(previous:string,current:string){const before=previous.trim(),now=current.trim();if(!before)return now;if(now.startsWith(before))return now.slice(before.length).trim();const beforeWords=before.split(/\s+/),nowWords=now.split(/\s+/);for(let size=Math.min(12,beforeWords.length,nowWords.length);size>0;size-=1){if(beforeWords.slice(-size).join(" ")===nowWords.slice(0,size).join(" "))return nowWords.slice(size).join(" ")}return now}
+function mergeTranscripts(left:string,right:string){const first=left.trim(),second=right.trim();if(!first)return second;if(!second)return first;const suffix=transcriptSuffix(first,second);return suffix?[first,suffix].join(first.endsWith("\n")?"":" ").replace(/[ \t]+/g," ").trim():first}
+function voiceHints(title:string,category:string,context:string){const quoted=[...`${title} ${context}`.matchAll(/[『《“\"]([^』》”\"]{2,40})[』》”\"]/g)].map((match)=>match[1]);const special=(`${title} ${category} ${context}`.match(/[A-Za-z][A-Za-z0-9._-]{1,}|\d+(?:[.,]\d+)?|[가-힣]{2,}/g)||[]).filter((term)=>term.length<=30);return [...new Set([category,...quoted,...special])].slice(0,30).join(", ")}
 
 function readKeys(storageKey:string):DeleteKeys{try{return JSON.parse(localStorage.getItem(storageKey)||"{}") as DeleteKeys}catch{return {}}}
 function saveKeys(storageKey:string,keys:DeleteKeys){try{localStorage.setItem(storageKey,JSON.stringify(keys))}catch{/* Private browsing can reject storage writes. */}}
@@ -186,7 +191,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const [voiceMessage,setVoiceMessage]=useState("");
   const [voiceUndo,setVoiceUndo]=useState<VoiceSnapshot|null>(null);
   const recognitionRef=useRef<SpeechRecognitionLike|null>(null),recorderRef=useRef<MediaRecorder|null>(null),streamRef=useRef<MediaStream|null>(null),chunksRef=useRef<Blob[]>([]),voiceFieldRef=useRef<VoiceField>("body"),voiceBaseRef=useRef(""),browserTranscriptRef=useRef("");
-  const speechSegmentsRef=useRef<Map<number,string>>(new Map()),speechPrefixRef=useRef(""),voiceSessionRef=useRef(0),voiceStartPendingRef=useRef(false),voiceAutoStopRef=useRef<ReturnType<typeof setTimeout>|null>(null),speechRestartRef=useRef<ReturnType<typeof setTimeout>|null>(null),transcriptionAbortRef=useRef<AbortController|null>(null),fieldRevisionRef=useRef({title:0,body:0,query:0,comment:0});
+  const speechSegmentsRef=useRef<Map<number,string>>(new Map()),speechPrefixRef=useRef(""),voiceSessionRef=useRef(0),voiceStartPendingRef=useRef(false),voiceAutoStopRef=useRef<ReturnType<typeof setTimeout>|null>(null),voiceChunkTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null),speechRestartRef=useRef<ReturnType<typeof setTimeout>|null>(null),transcriptionControllersRef=useRef<Set<AbortController>>(new Set()),voiceFinishRef=useRef<(()=>void)|null>(null),fieldRevisionRef=useRef({title:0,body:0,query:0,comment:0});
   const commentVoiceTargetRef=useRef<CommentVoiceTarget|null>(null),voiceCommentPostIdRef=useRef<string|null>(null);
   const titleInputRef=useRef<HTMLInputElement|null>(null);
   const bodyInputRef=useRef<HTMLTextAreaElement|null>(null);
@@ -274,7 +279,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     return()=>{cancelAnimationFrame(frame);document.body.style.overflow=previousOverflow};
   },[composerOpen]);
 
-  useEffect(()=>()=>{voiceSessionRef.current+=1;transcriptionAbortRef.current?.abort();if(voiceAutoStopRef.current)clearTimeout(voiceAutoStopRef.current);if(speechRestartRef.current)clearTimeout(speechRestartRef.current);try{recognitionRef.current?.abort()}catch{/* already stopped */}if(recorderRef.current){recorderRef.current.onstop=null;if(recorderRef.current.state!=="inactive")recorderRef.current.stop()}streamRef.current?.getTracks().forEach(track=>track.stop())},[]);
+  useEffect(()=>()=>{voiceSessionRef.current+=1;transcriptionControllersRef.current.forEach((controller)=>controller.abort());transcriptionControllersRef.current.clear();if(voiceAutoStopRef.current)clearTimeout(voiceAutoStopRef.current);if(voiceChunkTimerRef.current)clearTimeout(voiceChunkTimerRef.current);if(speechRestartRef.current)clearTimeout(speechRestartRef.current);try{recognitionRef.current?.abort()}catch{/* already stopped */}if(recorderRef.current){recorderRef.current.onstop=null;if(recorderRef.current.state!=="inactive")recorderRef.current.stop()}streamRef.current?.getTracks().forEach(track=>track.stop())},[]);
 
   useEffect(() => {
     let seen = false;
@@ -492,15 +497,16 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   function selectVoiceField(field:VoiceField){voiceFieldRef.current=field;setActiveVoiceField(field)}
   function joinVoice(base:string,addition:string,field:VoiceField){if(field==="title")return [base.trim(),addition.trim()].filter(Boolean).join(" ").replace(/\s+/g," ").slice(0,80);if(field==="query")return [base.trim(),addition.trim()].filter(Boolean).join(" ").replace(/\s+/g," ").slice(0,200);return [base.trimEnd(),addition.trim()].filter(Boolean).join(base.trim()?"\n":"").slice(0,2000)}
   function showLiveTranscript(target:VoiceField,text:string){const value=joinVoice(voiceBaseRef.current,text,target);if(target==="query"){setQuery(value);return}if(target==="comment"){const commentTarget=commentVoiceTargetRef.current;if(commentTarget&&commentTarget.postId===voiceCommentPostIdRef.current)commentTarget.apply(value);return}const input=target==="title"?titleInputRef.current:bodyInputRef.current;if(input)input.value=value}
-  function clearVoiceTimers(){if(voiceAutoStopRef.current){clearTimeout(voiceAutoStopRef.current);voiceAutoStopRef.current=null}if(speechRestartRef.current){clearTimeout(speechRestartRef.current);speechRestartRef.current=null}}
+  function clearVoiceTimers(){if(voiceAutoStopRef.current){clearTimeout(voiceAutoStopRef.current);voiceAutoStopRef.current=null}if(voiceChunkTimerRef.current){clearTimeout(voiceChunkTimerRef.current);voiceChunkTimerRef.current=null}if(speechRestartRef.current){clearTimeout(speechRestartRef.current);speechRestartRef.current=null}}
   function stopVoice(discard=false){
+    if(!discard&&voiceFinishRef.current){voiceFinishRef.current();return}
     clearVoiceTimers();
-    if(discard){voiceSessionRef.current+=1;transcriptionAbortRef.current?.abort()}
+    if(discard){voiceSessionRef.current+=1;transcriptionControllersRef.current.forEach((controller)=>controller.abort());transcriptionControllersRef.current.clear()}
     const recognition=recognitionRef.current;
     if(recognition){recognition.onend=null;recognition.onresult=null;recognition.onerror=null;try{discard?recognition.abort():recognition.stop()}catch{/* already stopped */}recognitionRef.current=null}
     const recorder=recorderRef.current;
     if(recorder&&recorder.state!=="inactive"){if(discard)recorder.onstop=null;recorder.stop()}
-    if(discard){streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;recorderRef.current=null;chunksRef.current=[];browserTranscriptRef.current="";speechSegmentsRef.current.clear();speechPrefixRef.current="";voiceCommentPostIdRef.current=null;setVoiceState("idle")}
+    if(discard){voiceFinishRef.current=null;streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;recorderRef.current=null;chunksRef.current=[];browserTranscriptRef.current="";speechSegmentsRef.current.clear();speechPrefixRef.current="";voiceCommentPostIdRef.current=null;setVoiceState("idle")}
   }
   function updateQuery(value:string){if(voiceFieldRef.current==="query"&&(voiceStartPendingRef.current||voiceState==="listening"||voiceState==="recording"))stopVoice(true);if(voiceFieldRef.current==="query")setVoiceMessage("");fieldRevisionRef.current.query+=1;setQuery(value)}
   function updateTitle(value:string){if(voiceState==="listening"||voiceState==="recording")stopVoice(true);fieldRevisionRef.current.title+=1;setVoiceUndo(null);setTitle(value.slice(0,80))}
@@ -510,39 +516,35 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   function completeCommentVoice(){if(voiceFieldRef.current==="comment")stopVoice(true);commentVoiceTargetRef.current=null;voiceCommentPostIdRef.current=null;fieldRevisionRef.current.comment+=1;if(voiceFieldRef.current==="comment"){selectVoiceField("body");setVoiceMessage("")}}
   function undoVoice(){if(!voiceUndo)return;stopVoice(true);setTitle(voiceUndo.title);setBody(voiceUndo.body);selectVoiceField(voiceUndo.field);setVoiceUndo(null);setVoiceMessage("직전 음성 입력을 되돌렸습니다.")}
   function clearVoiceField(){if(activeVoiceField!=="title"&&activeVoiceField!=="body")return;stopVoice(true);activeVoiceField==="title"?setTitle(""):setBody("");setVoiceUndo(null)}
-  async function transcribe(blob: Blob, target: VoiceField, browserText: string, base: string, sessionId:number, revision:number, targetCategory:string) {
-    setVoiceState("transcribing");
-    setVoiceMessage("내용은 입력됐습니다. 정확한 한국어로 한 번 더 확인 중…");
-    const controller=new AbortController();
-    transcriptionAbortRef.current?.abort();
-    transcriptionAbortRef.current=controller;
-    const timeout=setTimeout(()=>controller.abort(),TRANSCRIPTION_TIMEOUT_MS);
-    try {
-      const form = new FormData();
-      const filename = blob.type.includes("mp4") ? "jinju-voice.m4a" : "jinju-voice.webm";
-      form.append("audio", blob, filename);
-      form.append("field",target);
-      form.append("context",base.slice(-800));
-      form.append("category",target==="query"?"":targetCategory);
-      const response = await fetch("/api/transcribe", { method: "POST", body: form, signal:controller.signal });
-      const data = await response.json() as { text?: string; error?: string };
-      const transcript = response.ok && data.text ? data.text.trim() : browserText.trim();
-      if (!transcript) throw new Error(data.error || "음성을 글로 바꾸지 못했습니다. 마이크 권한을 확인해주세요.");
-      if(sessionId!==voiceSessionRef.current)return;
-      if(fieldRevisionRef.current[target]===revision){
-        if (target === "title") setTitle(joinVoice(base, transcript, target));
-        else if (target === "query") setQuery(joinVoice(base, transcript, target));
-        else if (target === "comment") {const commentTarget=commentVoiceTargetRef.current;if(commentTarget&&commentTarget.postId===voiceCommentPostIdRef.current)commentTarget.apply(joinVoice(base,transcript,target));}
-        else setBody(joinVoice(base, transcript, target));
-        setVoiceMessage(response.ok ? "음성 입력을 정확하게 다듬었습니다." : "기기에서 인식한 문장을 입력했습니다.");
-      }else setVoiceMessage("수정하신 내용을 그대로 유지했습니다.");
-    } catch (error) {
-      if(sessionId===voiceSessionRef.current)setVoiceMessage(error instanceof DOMException&&error.name==="AbortError"?"빠른 입력 결과를 유지했습니다. 계속 수정하거나 다시 말할 수 있어요.":error instanceof Error ? error.message : "음성 입력을 사용할 수 없습니다.");
-    } finally {
-      clearTimeout(timeout);
-      if(transcriptionAbortRef.current===controller)transcriptionAbortRef.current=null;
-      if(sessionId===voiceSessionRef.current){chunksRef.current=[];browserTranscriptRef.current="";speechSegmentsRef.current.clear();speechPrefixRef.current="";voiceCommentPostIdRef.current=null;setVoiceState("idle")}
+  async function transcribeVoiceChunk(blob:Blob,target:VoiceField,quickText:string,context:string,targetCategory:string,targetTitle:string,chunkIndex:number,sessionId:number):Promise<VoiceChunkResult>{
+    let lastError="정밀 음성 확인에 실패했습니다.";
+    for(let attempt=0;attempt<2;attempt+=1){
+      if(sessionId!==voiceSessionRef.current)return {text:quickText.trim(),precise:false,error:"취소됨"};
+      const controller=new AbortController();
+      transcriptionControllersRef.current.add(controller);
+      const timeout=setTimeout(()=>controller.abort(),TRANSCRIPTION_TIMEOUT_MS);
+      try{
+        const form=new FormData();
+        const extension=blob.type.includes("mp4")?"m4a":"webm";
+        form.append("audio",blob,`jinju-voice-${chunkIndex+1}.${extension}`);
+        form.append("field",target);
+        form.append("context",context.slice(-1000));
+        form.append("category",target==="query"?"":targetCategory);
+        form.append("title",targetTitle.slice(0,120));
+        form.append("hints",voiceHints(targetTitle,targetCategory,context));
+        form.append("chunkIndex",String(chunkIndex));
+        const response=await fetch("/api/transcribe",{method:"POST",body:form,signal:controller.signal});
+        const data=await response.json().catch(()=>({})) as {text?:string;error?:string;precise?:boolean};
+        if(response.ok&&data.text?.trim())return {text:data.text.trim(),precise:data.precise!==false};
+        lastError=data.error||lastError;
+        if(attempt===0&&[408,429,502,503,504].includes(response.status)){await new Promise((resolve)=>setTimeout(resolve,400));continue}
+        break;
+      }catch(error){
+        lastError=error instanceof DOMException&&error.name==="AbortError"?"정밀 음성 확인 시간이 초과됐습니다.":"정밀 음성 확인 연결이 끊겼습니다.";
+        if(attempt===0&&sessionId===voiceSessionRef.current){await new Promise((resolve)=>setTimeout(resolve,400));continue}
+      }finally{clearTimeout(timeout);transcriptionControllersRef.current.delete(controller)}
     }
+    return {text:quickText.trim(),precise:false,error:lastError};
   }
 
   async function startRecording(authorizedStream?:MediaStream) {
@@ -559,7 +561,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     try {
       sessionId=voiceSessionRef.current+1;
       voiceSessionRef.current=sessionId;
-      transcriptionAbortRef.current?.abort();
+      transcriptionControllersRef.current.forEach((controller)=>controller.abort());
+      transcriptionControllersRef.current.clear();
       clearVoiceTimers();
       const target = voiceFieldRef.current;
       if(target==="title"||target==="body")setVoiceUndo({ field: target, title, body });
@@ -568,9 +571,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       openedStream=stream;
       if(sessionId!==voiceSessionRef.current){stream.getTracks().forEach(track=>track.stop());voiceStartPendingRef.current=false;return}
       const mime = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((type) => MediaRecorder.isTypeSupported(type));
-      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 128000 }) : new MediaRecorder(stream);
       streamRef.current = stream;
-      recorderRef.current = recorder;
       chunksRef.current = [];
       browserTranscriptRef.current = "";
       speechSegmentsRef.current.clear();
@@ -578,9 +579,94 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       const commentTarget=target==="comment"?commentVoiceTargetRef.current:null;
       const base=target==="title"?title:target==="query"?query:target==="comment"?commentTarget?.base||"":body;
       const targetCategory=target==="comment"?commentTarget?.category||"":category;
+      const targetTitle=target==="comment"?commentTarget?.title||"":title;
       voiceCommentPostIdRef.current=target==="comment"?commentTarget?.postId||null:null;
       const revision=fieldRevisionRef.current[target];
       voiceBaseRef.current=base;
+      let chunkIndex=0,previousBrowserSnapshot="",confirmedBrowserSnapshot="",mergedTranscript="",nextCommit=0;
+      let finishRequested=false,finalizing=false,hadFallback=false;
+      const chunkResults=new Map<number,VoiceChunkResult&{browserEnd:string}>(),chunkJobs:Promise<void>[]=[];
+
+      function applyTranscript(transcript:string,final=false){
+        if(sessionId!==voiceSessionRef.current||fieldRevisionRef.current[target]!==revision)return;
+        const value=joinVoice(base,transcript,target);
+        if(!final){showLiveTranscript(target,transcript);return}
+        if(target==="title")setTitle(value);
+        else if(target==="query")setQuery(value);
+        else if(target==="comment"){const liveTarget=commentVoiceTargetRef.current;if(liveTarget&&liveTarget.postId===voiceCommentPostIdRef.current)liveTarget.apply(value)}
+        else setBody(value);
+      }
+
+      function refreshLiveTranscript(){const pending=transcriptSuffix(confirmedBrowserSnapshot,browserTranscriptRef.current);const visible=mergeTranscripts(mergedTranscript,pending);if(visible)applyTranscript(visible)}
+
+      function commitReadyChunks(){
+        while(chunkResults.has(nextCommit)){
+          const result=chunkResults.get(nextCommit)!;
+          chunkResults.delete(nextCommit);
+          if(result.text)mergedTranscript=mergeTranscripts(mergedTranscript,result.text);
+          confirmedBrowserSnapshot=result.browserEnd;
+          if(!result.precise)hadFallback=true;
+          nextCommit+=1;
+        }
+        refreshLiveTranscript();
+        if(!finishRequested&&nextCommit>0)setVoiceMessage(`${nextCommit}개 구간을 정확히 확인했습니다 · 계속 말씀하세요.`);
+      }
+
+      function queueChunk(blob:Blob,browserBefore:string,browserEnd:string,index:number){
+        const quickText=transcriptSuffix(browserBefore,browserEnd);
+        const chunkContext=mergeTranscripts(base,browserBefore).slice(-1000);
+        const job=transcribeVoiceChunk(blob,target,quickText,chunkContext,targetCategory,targetTitle,index,sessionId).then((result)=>{if(sessionId!==voiceSessionRef.current)return;chunkResults.set(index,{...result,browserEnd});commitReadyChunks()});
+        chunkJobs.push(job);
+      }
+
+      async function finalizeRecording(){
+        if(finalizing)return;
+        finalizing=true;
+        clearVoiceTimers();
+        setVoiceState("transcribing");
+        setVoiceMessage("말씀하신 내용은 입력됐습니다. 남은 구간을 정확히 확인 중…");
+        await Promise.allSettled(chunkJobs);
+        if(sessionId!==voiceSessionRef.current)return;
+        const finalTranscript=mergedTranscript||browserTranscriptRef.current.trim();
+        if(fieldRevisionRef.current[target]===revision&&finalTranscript){applyTranscript(finalTranscript,true);setVoiceMessage(hadFallback?"일부 구간은 기기 인식문을 사용했습니다. 문장을 한 번 확인해주세요.":"모든 구간의 정밀 음성 확인을 완료했습니다.")}
+        else if(fieldRevisionRef.current[target]!==revision)setVoiceMessage("직접 수정하신 내용을 그대로 유지했습니다.");
+        else setVoiceMessage("음성이 충분히 들리지 않았습니다. 마이크 가까이에서 다시 말씀해주세요.");
+        const liveRecognition=recognitionRef.current;
+        if(liveRecognition){liveRecognition.onend=null;liveRecognition.onresult=null;liveRecognition.onerror=null;try{liveRecognition.stop()}catch{/* already stopped */}}
+        recognitionRef.current=null;
+        stream.getTracks().forEach((track)=>track.stop());
+        streamRef.current=null;recorderRef.current=null;voiceFinishRef.current=null;chunksRef.current=[];browserTranscriptRef.current="";speechSegmentsRef.current.clear();speechPrefixRef.current="";voiceCommentPostIdRef.current=null;setVoiceState("idle");
+      }
+
+      function beginChunk(){
+        if(sessionId!==voiceSessionRef.current||finishRequested)return;
+        const segmentChunks:Blob[]=[];
+        chunksRef.current=segmentChunks;
+        const recorder=mime?new MediaRecorder(stream,{mimeType:mime,audioBitsPerSecond:128000}):new MediaRecorder(stream);
+        recorderRef.current=recorder;
+        recorder.ondataavailable=(event)=>{if(event.data.size>0)segmentChunks.push(event.data)};
+        recorder.onerror=()=>{setVoiceMessage("녹음 중 오류가 발생했습니다. 주소창의 마이크 권한을 확인해주세요.");stopVoice(true)};
+        recorder.onstop=()=>{
+          if(voiceChunkTimerRef.current){clearTimeout(voiceChunkTimerRef.current);voiceChunkTimerRef.current=null}
+          if(sessionId!==voiceSessionRef.current)return;
+          const blob=new Blob(segmentChunks,{type:recorder.mimeType||"audio/webm"});
+          const browserBefore=previousBrowserSnapshot,browserEnd=browserTranscriptRef.current.trim();
+          previousBrowserSnapshot=browserEnd;
+          if(blob.size>=100){const index=chunkIndex;chunkIndex+=1;queueChunk(blob,browserBefore,browserEnd,index)}
+          if(finishRequested)void finalizeRecording();else beginChunk();
+        };
+        recorder.start(1000);
+        voiceChunkTimerRef.current=setTimeout(()=>{if(sessionId===voiceSessionRef.current&&!finishRequested&&recorder.state==="recording")recorder.stop()},VOICE_CHUNK_MS);
+      }
+
+      voiceFinishRef.current=()=>{
+        if(finishRequested)return;
+        finishRequested=true;
+        if(voiceAutoStopRef.current){clearTimeout(voiceAutoStopRef.current);voiceAutoStopRef.current=null}
+        if(voiceChunkTimerRef.current){clearTimeout(voiceChunkTimerRef.current);voiceChunkTimerRef.current=null}
+        const activeRecorder=recorderRef.current;
+        if(activeRecorder&&activeRecorder.state==="recording")activeRecorder.stop();else void finalizeRecording();
+      };
 
       const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (Recognition) {
@@ -594,7 +680,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           for(let index=event.resultIndex;index<event.results.length;index+=1)speechSegmentsRef.current.set(index,event.results[index][0]?.transcript?.trim()||"");
           const current=[...speechSegmentsRef.current.entries()].sort((a,b)=>a[0]-b[0]).map(([,text])=>text).filter(Boolean).join(" ");
           browserTranscriptRef.current=[speechPrefixRef.current,current].filter(Boolean).join(" ").trim();
-          showLiveTranscript(target,browserTranscriptRef.current);
+          refreshLiveTranscript();
         };
         recognition.onerror = (event) => {
           if(event.error==="not-allowed"||event.error==="service-not-allowed")setVoiceMessage("기기 음성인식은 제한됐지만 녹음은 계속됩니다. 완료 후 정확하게 변환합니다.");
@@ -609,34 +695,11 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
         try { recognition.start(); } catch { recognitionRef.current = null; }
       }
 
-      recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
-      recorder.onerror = () => {
-        setVoiceMessage("녹음 중 오류가 발생했습니다. 주소창의 마이크 권한을 확인해주세요.");
-        stopVoice(true);
-      };
-      recorder.onstop = () => {
-        clearVoiceTimers();
-        const liveRecognition=recognitionRef.current;
-        if(liveRecognition){liveRecognition.onend=null;try{liveRecognition.stop()}catch{/* already stopped */}}
-        recognitionRef.current=null;
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        stream.getTracks().forEach((track) => track.stop());
-        streamRef.current=null;
-        recorderRef.current=null;
-        if (blob.size < 100) {
-          setVoiceState("idle");
-          setVoiceMessage("녹음된 음성이 없습니다. 다시 눌러 말씀해주세요.");
-          return;
-        }
-        const quickText=browserTranscriptRef.current.trim();
-        if(quickText){if(target==="title")setTitle(joinVoice(base,quickText,target));else if(target==="query")setQuery(joinVoice(base,quickText,target));else if(target==="comment"){const liveTarget=commentVoiceTargetRef.current;if(liveTarget&&liveTarget.postId===voiceCommentPostIdRef.current)liveTarget.apply(joinVoice(base,quickText,target))}else setBody(joinVoice(base,quickText,target))}
-        void transcribe(blob, target, quickText, base, sessionId, revision, targetCategory);
-      };
-      recorder.start(1000);
       voiceStartPendingRef.current=false;
-      voiceAutoStopRef.current=setTimeout(()=>{if(sessionId===voiceSessionRef.current&&recorder.state==="recording"){setVoiceMessage("2분 녹음을 마쳐 정확한 문장으로 바꾸고 있습니다…");recorder.stop()}},MAX_RECORDING_MS);
+      beginChunk();
+      voiceAutoStopRef.current=setTimeout(()=>{if(sessionId===voiceSessionRef.current){setVoiceMessage("2분 녹음을 마쳐 남은 문장을 확인하고 있습니다…");voiceFinishRef.current?.()}},MAX_RECORDING_MS);
       setVoiceState("recording");
-      setVoiceMessage(`${target === "title" ? "제목" : target === "query" ? "검색어" : target === "comment" ? "댓글" : "본문"} 녹음 중 · 한 번 더 누르면 완료됩니다.`);
+      setVoiceMessage(`${target === "title" ? "제목" : target === "query" ? "검색어" : target === "comment" ? "댓글" : "본문"} 녹음 중 · 18초마다 정확히 확인합니다.`);
     } catch (error) {
       voiceStartPendingRef.current=false;
       openedStream?.getTracks().forEach(track=>track.stop());
@@ -650,8 +713,8 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   async function toggleVoice(target:VoiceField=voiceFieldRef.current) {
     if(voiceStartPendingRef.current)return;
     const sameTarget=voiceFieldRef.current===target;
-    if (sameTarget&&voiceState === "recording") { recorderRef.current?.stop(); return; }
-    if (sameTarget&&voiceState === "transcribing") {transcriptionAbortRef.current?.abort();setVoiceState("idle");selectVoiceField(target);await startRecording();return;}
+    if (sameTarget&&voiceState === "recording") { voiceFinishRef.current?.(); return; }
+    if (sameTarget&&voiceState === "transcribing") {stopVoice(true);selectVoiceField(target);await startRecording();return;}
     if (sameTarget&&voiceState === "listening") { stopVoice(); return; }
     if(voiceState!=="idle")stopVoice(true);
     selectVoiceField(target);
@@ -878,7 +941,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
           commentVoicePending={voiceStartPendingRef.current}
           commentVoiceState={voiceState}
           commentVoiceMessage={activeVoiceField==="comment"?voiceMessage:""}
-          onToggleCommentVoice={(base,apply)=>toggleCommentVoice({postId:selectedPost.id,category:selectedPost.category,base,apply})}
+          onToggleCommentVoice={(base,apply)=>toggleCommentVoice({postId:selectedPost.id,title:selectedPost.title,category:selectedPost.category,base,apply})}
           onCommentVoiceEdit={updateCommentVoice}
           onCommentVoiceSubmitted={completeCommentVoice}
           canDeleteComment={(commentId)=>Boolean(commentDeleteKeys[String(commentId)])}
