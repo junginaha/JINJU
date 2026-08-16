@@ -4,7 +4,7 @@ import type { CSSProperties, PointerEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 const STIFFNESS=210,DAMPING=11;
 const resist=(v:number)=>v<0?-Math.min(.1,Math.abs(v)/(1+Math.abs(v)*8)):v>1?1+Math.min(.1,(v-1)/(1+(v-1)*8)):v;
-export default function PostTemperature({likes,dislikes,interactive=false}:{likes:number;dislikes:number;interactive?:boolean}){
+export default function PostTemperature({likes,dislikes,interactive=true}:{likes:number;dislikes:number;interactive?:boolean}){
  const total=likes+dislikes,baseHome=total?dislikes/total:.5; const [aggregateHome,setAggregateHome]=useState<number|null>(null),home=aggregateHome??baseHome; const [position,setPosition]=useState(home); const trackRef=useRef<HTMLDivElement>(null),frameRef=useRef<number|null>(null),positionRef=useRef(home),velocityRef=useRef(0),postIdRef=useRef<string|null>(null),dragRef=useRef({active:false,lastX:home,lastTime:0,startX:home});
  const style={"--temperature-position":`${Math.max(-.1,Math.min(1.1,position))*100}%`,"--temperature-home":`${home*100}%`} as CSSProperties;
  useEffect(()=>()=>{if(frameRef.current)cancelAnimationFrame(frameRef.current)},[]);
