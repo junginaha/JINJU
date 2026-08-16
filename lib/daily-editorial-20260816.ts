@@ -26,7 +26,7 @@ export const august16EditorialPosts: EditorialPost[] = [
     createdAt: "2026-08-16T09:45:00+09:00",
     updatedAt: "2026-08-16T09:45:00+09:00",
     heard: 32,
-    same: 23,
+    same: 122,
     support: 0,
     commentCount: 7,
   },
