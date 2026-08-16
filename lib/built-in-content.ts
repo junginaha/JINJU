@@ -28,6 +28,7 @@ import { august15MorningComments, august15MorningPosts } from "./morning-editori
 import { createDuplicatePostChecker } from "./dedup";
 import { editorialComments, editorialPosts, type EditorialComment, type EditorialPost } from "./editorial";
 import { launchEditorialComments, launchEditorialPosts } from "./launch-editorial";
+import { topFeedHumorComments } from "./top-feed-humor-20260816";
 
 function normalizePost(post: EditorialPost): EditorialPost {
   return {
@@ -116,6 +117,7 @@ export function builtInComments(id: string): EditorialComment[] {
     ...dailyEditorialComments(id),
     ...launchEditorialComments(id),
     ...editorialComments(id),
+    ...topFeedHumorComments(id, postById.get(id)?.createdAt),
   ]) merged.set(String(comment.id), comment);
   return [...merged.values()].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
 }
