@@ -155,6 +155,11 @@ export async function migrateSchema() {
           PRIMARY KEY (kind, id)
         )`;
       await sql`
+        CREATE TABLE IF NOT EXISTS operational_adjustments (
+          id TEXT PRIMARY KEY,
+          applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`;
+      await sql`
         CREATE TABLE IF NOT EXISTS auto_comment_jobs (
           post_id TEXT PRIMARY KEY REFERENCES posts(id) ON DELETE CASCADE,
           status TEXT NOT NULL DEFAULT 'pending'
@@ -219,7 +224,8 @@ let schemaVerified: Promise<void> | null = null;
 export async function ensureSchema() {
   if (!schemaVerified) {
     schemaVerified = (async () => {
-      const rows = await db()`
+      const sql = db();
+      const rows = await sql`
         SELECT
 to_regclass('public.posts') AS posts,
 to_regclass('public.comments') AS comments,
@@ -229,6 +235,24 @@ to_regclass('public.admin_content_overrides') AS overrides`;
       if (!row?.posts || !row?.comments || !row?.rate_limits || !row?.overrides) {
         throw new Error("Database schema is not migrated. Run npm run migrate.");
       }
+      await sql`
+        CREATE TABLE IF NOT EXISTS operational_adjustments (
+          id TEXT PRIMARY KEY,
+          applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`;
+      await sql`
+        WITH target AS (
+          SELECT id FROM posts WHERE id = 'jinju-daily-20260816-yasukuni-public-choice'
+        ), claimed AS (
+          INSERT INTO operational_adjustments (id)
+          SELECT '20260816-yasukuni-same-plus-99' FROM target
+          ON CONFLICT (id) DO NOTHING
+          RETURNING id
+        )
+        UPDATE posts
+        SET same = same + 99, updated_at = NOW()
+        WHERE id = 'jinju-daily-20260816-yasukuni-public-choice'
+          AND EXISTS (SELECT 1 FROM claimed)`;
     })().catch((error) => {
       schemaVerified = null;
       throw error;
