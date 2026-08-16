@@ -16,7 +16,7 @@ import { notifySearchIndexes } from "../../../../lib/search-indexing";
 export const dynamic = "force-dynamic";
 
 const CATEGORIES = ["일상", "관계", "직장", "돈", "사회", "제안", "질문"];
-const POST_ACTIONS = ["update", "approve", "reject", "hide", "delete", "restore", "set-reactions", "increment-reactions"] as const;
+const POST_ACTIONS = ["update", "approve", "reject", "hide", "delete", "restore", "set-reactions"] as const;
 const COMMENT_ACTIONS = ["create", "update", "hide", "delete", "restore"] as const;
 
 async function requireAdmin(request: Request) {
@@ -220,25 +220,6 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "댓글과 처리 방식을 확인해주세요." }, { status: 400 });
   }
   await ensureSchema();
-
-  if (payload.entity === "post" && payload.action === "increment-reactions") {
-    const heardDelta = Number(payload.heard ?? 0);
-    const sameDelta = Number(payload.same ?? 0);
-    if (!Number.isSafeInteger(heardDelta) || !Number.isSafeInteger(sameDelta) || heardDelta < 0 || sameDelta < 0) {
-      return Response.json({ error: "추가할 반응 수는 0 이상의 정수로 입력해주세요." }, { status: 400 });
-    }
-    if (!await storeEditorialPost(id)) return Response.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
-    const rows = await db()`
-      UPDATE posts
-      SET heard = heard + ${heardDelta}, same = same + ${sameDelta}, updated_at = NOW()
-      WHERE id = ${id}
-      RETURNING heard, same`;
-    return Response.json({
-      ok: true,
-      heard: Number(rows[0].heard),
-      same: Number(rows[0].same),
-    }, { headers: { "cache-control": "no-store" } });
-  }
 
   if (payload.entity === "post" && payload.action === "set-reactions") {
     const heard = Number(payload.heard);
