@@ -58,7 +58,7 @@ export function editorialDiversityIssues(
     const stances = comments.map(commentStance);
     const agreeCount = stances.filter((stance) => stance === "agree").length;
     const cautionCount = stances.filter((stance) => stance === "caution").length;
-    if (comments.length < 6 || comments.length > 10) issues.push(`${post.id}: 댓글은 6~10개여야 합니다.`);
+    if (comments.length < 6 || comments.length > 15) issues.push(`${post.id}: 댓글은 6~15개여야 합니다.`);
     if (Math.abs(agreeCount - cautionCount) > 1) issues.push(`${post.id}: 찬반 댓글 수 차이는 한 개 이하여야 합니다.`);
     if (stances.some((stance) => stance === null)) issues.push(`${post.id}: 댓글 관점 표식이 빠졌습니다.`);
     if (comments.some((_, index) => index >= 2
