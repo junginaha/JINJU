@@ -47,7 +47,11 @@ import {
   AUGUST12_TOP_COMMENT_POST_IDS,
   august12TopComments,
 } from "../lib/fresh-comments-20260812";
-import { generateJinjuDisplayName } from "../lib/display-name";
+import {
+  deterministicJinjuDisplayName,
+  generateJinjuDisplayName,
+  refinedJinjuDisplayName,
+} from "../lib/display-name";
 import { visibleBuiltInComments } from "../lib/public-posts";
 import {
   keepsSupplementalCommentsWithAutoSet,
@@ -243,6 +247,18 @@ test("future post and automatic comment names use exactly two words", () => {
   }
   const names = Array.from({ length: 11 }, (_, index) => autoCommentDisplayName("same-post", index));
   assert.equal(new Set(names).size, names.length);
+});
+
+test("new anonymous names avoid awkward mood-person combinations", () => {
+  const banned = /웃음난|기분좋은|빌리|지현|휴지통|종이컵|국자|도마|두부|만두/;
+  for (let index = 0; index < 256; index += 1) {
+    assert.doesNotMatch(generateJinjuDisplayName(), banned);
+    assert.doesNotMatch(deterministicJinjuDisplayName("refined-name", index), banned);
+  }
+  const refined = refinedJinjuDisplayName("웃음난 지현", "legacy-post");
+  assert.notEqual(refined, "웃음난 지현");
+  assert.equal(refined.trim().split(/\s+/).length, 2);
+  assert.equal(refinedJinjuDisplayName("고요한 여백", "already-refined"), "고요한 여백");
 });
 
 test("July 30 posts use two-word names and 20-33 likes", () => {

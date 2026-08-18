@@ -4,7 +4,7 @@ import { normalizeCommentTimes } from "../../../../../lib/comment-time";
 import { isDuplicateComment } from "../../../../../lib/comment-dedup";
 import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../../lib/db";
 import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
-import { generateUniqueJinjuDisplayName } from "../../../../../lib/display-name";
+import { generateUniqueJinjuDisplayName, refinedJinjuDisplayName } from "../../../../../lib/display-name";
 import { reviewSubmission } from "../../../../../lib/ai-review";
 import { getPublicPost } from "../../../../../lib/public-posts";
 import { rateLimit } from "../../../../../lib/rate-limit";
@@ -22,7 +22,8 @@ export const dynamic = "force-dynamic";
 
 type PublicComment = { id: string; body: string; displayName: string; createdAt: string };
 function publicComment(comment: PublicComment): PublicComment {
-  return { id: String(comment.id), body: String(comment.body), displayName: String(comment.displayName || "익명"), createdAt: String(comment.createdAt) };
+  const id = String(comment.id);
+  return { id, body: String(comment.body), displayName: refinedJinjuDisplayName(String(comment.displayName || "익명"), id), createdAt: String(comment.createdAt) };
 }
 
 async function safeContentOverrides(): Promise<Map<string, ContentOverride>> {

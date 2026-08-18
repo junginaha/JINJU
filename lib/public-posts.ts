@@ -5,6 +5,7 @@ import { visibleCommentsAt } from "./comment-time";
 import { db, databaseEnabled, ensureSchema } from "./db";
 import { applyPostOverride, contentOverrides, hiddenCommentCounts, type ContentOverride } from "./content-overrides";
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
+import { refinedJinjuDisplayName } from "./display-name";
 import type { EditorialPost } from "./editorial";
 import {
   keepsSupplementalCommentsWithAutoSet,
@@ -28,7 +29,7 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
     title: PUBLIC_TITLE_REWRITES.get(id) ?? String(row.title),
     content: String(row.content),
     category: normalizePublicCategory(String(row.category)),
-    displayName: String(row.display_name || "익명"),
+    displayName: refinedJinjuDisplayName(String(row.display_name || "익명"), id),
     createdAt: new Date(String(row.created_at)).toISOString(),
     updatedAt: new Date(String(row.updated_at || row.created_at)).toISOString(),
     heard: Number(row.heard),
