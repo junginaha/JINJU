@@ -7,6 +7,7 @@ import {
 } from "../lib/comment-visibility";
 import {
   autoCommentDisplayName,
+  autoCommentStorageSchedule,
   generateAutoCommentBodies,
   validatedAutoCommentBodies,
 } from "../lib/auto-comments";
@@ -86,6 +87,16 @@ test("new posts start with three immediate comments and grow to around ten", () 
 test("new posts naturally vary between nine, ten, and eleven automatic comments", () => {
   const targets = new Set(Array.from({ length: 200 }, (_, index) => newPostAutoCommentTarget(`post-${index}`)));
   assert.deepEqual([...targets].sort((a, b) => a - b), [9, 10, 11]);
+});
+
+test("a recovered comment job restarts with three visible comments instead of dumping missed delays", () => {
+  const now = Date.parse("2026-08-18T09:00:00.000Z");
+  const schedule = autoCommentStorageSchedule({
+    id: "recovered-post",
+    createdAt: "2026-08-18T07:30:00.000Z",
+  }, now);
+  assert.ok(schedule.slice(0, 3).every((createdAt) => Date.parse(createdAt) <= now));
+  assert.ok(schedule.slice(3).every((createdAt) => Date.parse(createdAt) > now));
 });
 
 test("automatic comments must be a complete unique set", () => {
