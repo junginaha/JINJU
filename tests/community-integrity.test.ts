@@ -178,6 +178,20 @@ test("a reviewed topic fallback remains complete and natural without the AI serv
   }
 });
 
+test("a serious family-boundary post has a complete no-humor fallback", async () => {
+  const post = {
+    id: "family-boundary-recovery",
+    title: "부모님과 인연을 끊고 싶어요",
+    content: "부모님의 폭력 때문에 늘 주눅이 들었고 식사 약속에도 나오지 않은 채 연락을 받지 않았습니다.",
+    category: "일상",
+    createdAt: new Date().toISOString(),
+  };
+  const bodies = await generateAutoCommentBodies(post);
+  assert.equal(bodies.length, newPostAutoCommentTarget(post.id));
+  assert.ok(bodies.every((body) => !/ㅋㅋ|ㅎㅎ|농담|우스/u.test(body)));
+  assert.ok(bodies.some((body) => /연락 횟수|만나는 장소|머무는 시간/u.test(body)));
+});
+
 test("feed and detail use the same visibility boundary for scheduled comments", () => {
   const post = august6EditorialPosts.find((item) => item.id === "jinju-seed-20260806-ev-charger-overnight");
   assert.ok(post);
