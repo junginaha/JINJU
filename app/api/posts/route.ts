@@ -1,6 +1,10 @@
 import * as Sentry from "@sentry/nextjs";
 import { after } from "next/server";
-import { enqueueAutoCommentJob, processAutoCommentJob } from "../../../lib/auto-comment-jobs";
+import {
+  enqueueAutoCommentJob,
+  processAutoCommentJob,
+  processDueAutoCommentJobs,
+} from "../../../lib/auto-comment-jobs";
 import { newPostInitialLikes } from "../../../lib/community-settings";
 import { canAutoPublish, reviewSubmission } from "../../../lib/ai-review";
 import { builtInPosts } from "../../../lib/built-in-content";
@@ -28,6 +32,16 @@ async function verifyPublicDatabase() {
       EXISTS(SELECT 1 FROM posts LIMIT 1) AS posts_readable,
       EXISTS(SELECT 1 FROM comments LIMIT 1) AS comments_readable,
       EXISTS(SELECT 1 FROM admin_content_overrides LIMIT 1) AS overrides_readable`;
+}
+
+function continueDueAutoCommentWork() {
+  after(async () => {
+    try {
+      await processDueAutoCommentJobs(3);
+    } catch (error) {
+      Sentry.captureException(error, { tags: { area: "public-feed", service: "automatic-comments" } });
+    }
+  });
 }
 
 export async function GET(request: Request) {
@@ -58,6 +72,7 @@ export async function GET(request: Request) {
   const publicPostsPromise = getPublicPosts();
   try {
     await verifyPublicDatabase();
+    continueDueAutoCommentWork();
   } catch (error) {
     Sentry.captureException(error, { tags: { area: "public-feed", service: "database" } });
     console.error("[posts] public database unavailable", error);
