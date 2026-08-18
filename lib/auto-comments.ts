@@ -16,6 +16,16 @@ export type AutoCommentPost = {
 
 export const autoCommentSchedule = newPostCommentSchedule;
 
+export function autoCommentStorageSchedule(
+  post: Pick<AutoCommentPost, "id" | "createdAt">,
+  now = Date.now(),
+) {
+  const parsed = Date.parse(post.createdAt);
+  const postTime = Number.isFinite(parsed) ? parsed : now;
+  const scheduleStart = new Date(Math.max(postTime, now - 3_000)).toISOString();
+  return autoCommentSchedule(scheduleStart, post.id);
+}
+
 export function autoCommentDisplayName(postId: string, index: number) {
   return deterministicJinjuDisplayName(`auto-comment:${postId}`, index);
 }
@@ -245,7 +255,7 @@ export function validatedAutoCommentBodies(bodies: string[], targetCount = AUTO_
 export async function storeAutoComments(post: AutoCommentPost, bodies: string[]) {
   const sql = db();
   const targetCount = newPostAutoCommentTarget(post.id);
-  const schedule = autoCommentSchedule(post.createdAt, post.id);
+  const schedule = autoCommentStorageSchedule(post);
   const normalizedBodies = validatedAutoCommentBodies(bodies, targetCount);
   if (schedule.length !== targetCount) {
     throw new Error(`Automatic comment schedule must contain exactly ${targetCount} entries.`);
