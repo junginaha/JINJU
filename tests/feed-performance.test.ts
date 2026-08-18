@@ -6,6 +6,7 @@ const appSource = readFileSync(new URL("../components/JinjuApp.tsx", import.meta
 const pageSource = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
 const publicPostsSource = readFileSync(new URL("../lib/public-posts.ts", import.meta.url), "utf8");
 const postsRouteSource = readFileSync(new URL("../app/api/posts/route.ts", import.meta.url), "utf8");
+const dbSource = readFileSync(new URL("../lib/db.ts", import.meta.url), "utf8");
 
 test("server-rendered home posts are reconciled with the uncached public feed", () => {
   assert.match(pageSource, /publicPosts\.slice\(0, 30\)\.map\(toClientPost\)/);
@@ -34,4 +35,12 @@ test("independent public-feed database reads start together without changing fal
   assert.match(postsRouteSource, /await verifyPublicDatabase\(\)/);
   assert.match(postsRouteSource, /fallbackPosts = await publicPostsPromise\.catch\(\(\) => \[\]\)/);
   assert.match(postsRouteSource, /selectPage\(await publicPostsPromise\)/);
+});
+
+test("the public feed resumes missed automatic-comment work without blocking its response", () => {
+  assert.match(postsRouteSource, /after\(async \(\) => \{/);
+  assert.match(postsRouteSource, /await processDueAutoCommentJobs\(3\)/);
+  assert.match(postsRouteSource, /continueDueAutoCommentWork\(\)/);
+  assert.match(dbSource, /20260818-retry-recent-failed-auto-comments/);
+  assert.match(dbSource, /post\.created_at >= NOW\(\) - INTERVAL '2 hours'/);
 });
