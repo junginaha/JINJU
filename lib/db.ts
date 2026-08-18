@@ -253,6 +253,34 @@ to_regclass('public.admin_content_overrides') AS overrides`;
         SET same = same + 99, updated_at = NOW()
         WHERE id = 'jinju-daily-20260816-yasukuni-public-choice'
           AND EXISTS (SELECT 1 FROM claimed)`;
+      await sql`
+        WITH retryable AS (
+          SELECT job.post_id
+          FROM auto_comment_jobs AS job
+          JOIN posts AS post ON post.id = job.post_id
+          WHERE job.status = 'failed'
+            AND post.status = 'approved'
+            AND post.visibility = 'public'
+            AND post.created_at >= NOW() - INTERVAL '2 hours'
+            AND NOT EXISTS (
+              SELECT 1 FROM comments AS comment
+              WHERE comment.post_id = job.post_id
+                AND comment.id LIKE 'jinju-auto-%'
+            )
+          ORDER BY post.created_at DESC
+          LIMIT 5
+        ), claimed AS (
+          INSERT INTO operational_adjustments (id)
+          SELECT '20260818-retry-recent-failed-auto-comments'
+          WHERE EXISTS (SELECT 1 FROM retryable)
+          ON CONFLICT (id) DO NOTHING
+          RETURNING id
+        )
+        UPDATE auto_comment_jobs AS job
+        SET status = 'pending', attempt_count = 0, next_attempt_at = NOW(),
+            last_error = '', failed_at = NULL, updated_at = NOW()
+        WHERE job.post_id IN (SELECT post_id FROM retryable)
+          AND EXISTS (SELECT 1 FROM claimed)`;
     })().catch((error) => {
       schemaVerified = null;
       throw error;
