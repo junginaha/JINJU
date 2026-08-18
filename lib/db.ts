@@ -285,7 +285,7 @@ to_regclass('public.admin_content_overrides') AS overrides`;
           LIMIT 5
         ), claimed AS (
           INSERT INTO operational_adjustments (id)
-          SELECT '20260818-retry-recent-user-auto-comments'
+          SELECT '20260818-retry-recent-user-auto-comments-v2'
           WHERE EXISTS (SELECT 1 FROM retryable)
           ON CONFLICT (id) DO NOTHING
           RETURNING id
