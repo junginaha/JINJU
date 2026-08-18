@@ -254,14 +254,28 @@ to_regclass('public.admin_content_overrides') AS overrides`;
         WHERE id = 'jinju-daily-20260816-yasukuni-public-choice'
           AND EXISTS (SELECT 1 FROM claimed)`;
       await sql`
+        DELETE FROM auto_comment_jobs AS job
+        WHERE job.post_id LIKE 'jinju-daily-20260818-%'
+          AND job.created_at >= TIMESTAMPTZ '2026-08-18T08:20:00Z'
+          AND NOT EXISTS (
+            SELECT 1 FROM comments AS comment
+            WHERE comment.post_id = job.post_id
+              AND comment.id LIKE 'jinju-auto-%'
+          )`;
+      await sql`
         WITH retryable AS (
           SELECT post.id AS post_id
           FROM posts AS post
           LEFT JOIN auto_comment_jobs AS job ON job.post_id = post.id
           WHERE post.status = 'approved'
             AND post.visibility = 'public'
-            AND post.created_at >= NOW() - INTERVAL '2 hours'
-            AND (job.post_id IS NULL OR job.status = 'failed')
+            AND post.id NOT LIKE 'jinju-%'
+            AND post.created_at >= NOW() - INTERVAL '6 hours'
+            AND (
+              job.post_id IS NULL
+              OR job.status IN ('failed', 'completed')
+              OR (job.status = 'running' AND job.updated_at <= NOW() - INTERVAL '15 minutes')
+            )
             AND NOT EXISTS (
               SELECT 1 FROM comments AS comment
               WHERE comment.post_id = post.id
@@ -271,7 +285,7 @@ to_regclass('public.admin_content_overrides') AS overrides`;
           LIMIT 5
         ), claimed AS (
           INSERT INTO operational_adjustments (id)
-          SELECT '20260818-retry-recent-failed-auto-comments'
+          SELECT '20260818-retry-recent-user-auto-comments'
           WHERE EXISTS (SELECT 1 FROM retryable)
           ON CONFLICT (id) DO NOTHING
           RETURNING id
