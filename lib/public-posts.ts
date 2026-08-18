@@ -58,7 +58,7 @@ function withVisibleCommentCount(post: EditorialPost, autoCommentCount = 0, stor
     ? visibleBuiltInComments(post, now)
     : keepsSupplementalCommentsWithAutoSet(post.id)
       ? visibleCommentsAt(supplemental, now)
-      : hasCompleteAutoCommentSet(autoCommentCount)
+      : hasCompleteAutoCommentSet(autoCommentCount, post.id)
         ? []
         : visibleCommentsAt(supplemental, now);
   const builtInCount = visibleBaseCommentCount(baseComments, storedBodies);
