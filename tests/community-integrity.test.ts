@@ -10,7 +10,12 @@ import {
   generateAutoCommentBodies,
   validatedAutoCommentBodies,
 } from "../lib/auto-comments";
-import { AUTO_COMMENT_TOTAL, newPostCommentSchedule, newPostInitialLikes } from "../lib/community-settings";
+import {
+  NEW_POST_COMMUNITY_DEFAULTS,
+  newPostAutoCommentTarget,
+  newPostCommentSchedule,
+  newPostInitialLikes,
+} from "../lib/community-settings";
 import { normalizeCommentTimes, visibleCommentsAt } from "../lib/comment-time";
 import { applyCommentOverrides, PUBLIC_COMMENT_REWRITES } from "../lib/content-overrides";
 import { july30EditorialComments, july30EditorialPosts } from "../lib/daily-editorial-20260730";
@@ -55,35 +60,54 @@ import {
   runAutoCommentAttempts,
 } from "../lib/auto-comment-jobs";
 
-test("new posts receive the complete immediate and hourly comment schedule", () => {
+test("new posts start with three immediate comments and grow to around ten", () => {
   const start = "2026-07-29T00:00:00.000Z";
-  const schedule = newPostCommentSchedule(start);
-  assert.equal(schedule.length, AUTO_COMMENT_TOTAL);
+  const postId = "new-community-post";
+  const schedule = newPostCommentSchedule(start, postId);
+  assert.equal(schedule.length, newPostAutoCommentTarget(postId));
+  assert.ok(schedule.length >= NEW_POST_COMMUNITY_DEFAULTS.autoCommentMin);
+  assert.ok(schedule.length <= NEW_POST_COMMUNITY_DEFAULTS.autoCommentMax);
   assert.deepEqual(schedule.slice(0, 3), [
     "2026-07-29T00:00:00.000Z",
     "2026-07-29T00:00:01.000Z",
     "2026-07-29T00:00:02.000Z",
   ]);
-  assert.equal(schedule.at(-1), "2026-07-29T12:00:00.000Z");
+  assert.ok(schedule.slice(3).every((createdAt, index, followups) => (
+    Date.parse(createdAt) > Date.parse(index ? followups[index - 1] : schedule[2])
+  )));
+  assert.ok(Date.parse(schedule[3]) - Date.parse(start) >= 6 * 60_000);
+  assert.ok(Date.parse(schedule.at(-1) || "") - Date.parse(start) <= 13 * 60 * 60_000);
+});
+
+test("new posts naturally vary between nine, ten, and eleven automatic comments", () => {
+  const targets = new Set(Array.from({ length: 200 }, (_, index) => newPostAutoCommentTarget(`post-${index}`)));
+  assert.deepEqual([...targets].sort((a, b) => a - b), [9, 10, 11]);
 });
 
 test("automatic comments must be a complete unique set", () => {
+  const targetCount = newPostAutoCommentTarget("complete-comment-set");
   const bodies = Array.from(
-    { length: AUTO_COMMENT_TOTAL },
+    { length: targetCount },
     (_, index) => `충전 자리 ${index + 1}의 이용 기준을 구체적으로 짚었습니다. 야간 유예시간도 함께 정하면 좋겠습니다.`,
   );
-  assert.equal(validatedAutoCommentBodies(bodies).length, AUTO_COMMENT_TOTAL);
-  assert.throws(() => validatedAutoCommentBodies(bodies.slice(1)));
-  assert.throws(() => validatedAutoCommentBodies([...bodies.slice(0, -1), bodies[0]]));
+  bodies[0] = "충전 완료 뒤에는 자리를 비워주세요.";
+  bodies[1] = "완충 알림 뒤 야간에는 두세 시간 유예하고, 아침부터 점유요금을 붙이면 현실과 회전율을 함께 챙길 수 있습니다. 단지별 충전기 수와 대기 순번도 앱에서 보여주면 주민끼리 눈치게임을 덜 하겠네요.";
+  assert.equal(validatedAutoCommentBodies(bodies, targetCount).length, targetCount);
+  assert.throws(() => validatedAutoCommentBodies(bodies.slice(1), targetCount));
+  assert.throws(() => validatedAutoCommentBodies([...bodies.slice(0, -1), bodies[0]], targetCount));
   assert.throws(() => validatedAutoCommentBodies([
     "“첫 번째 직접 인용”은 기준을 선명하게 보여줍니다. 다른 사정도 함께 살펴야 합니다.",
     "“두 번째 직접 인용”은 논점을 분명하게 보여줍니다. 반대 이유도 차분히 들어야 합니다.",
     ...bodies.slice(2),
-  ]));
+  ], targetCount));
   assert.throws(() => validatedAutoCommentBodies([
-    "충전이 끝난 차는 바로 옮겨야 한다고 생각합니다.",
+    "짧음",
     ...bodies.slice(1),
-  ]));
+  ], targetCount));
+  assert.equal(validatedAutoCommentBodies([
+    "충전 자리의 약속은 간단할수록 좋습니다.",
+    ...bodies.slice(1),
+  ], targetCount).length, targetCount);
 });
 
 test("unknown posts fail closed instead of publishing generic fallback comments", async () => {
@@ -123,9 +147,13 @@ test("a reviewed topic fallback remains complete and natural without the AI serv
       category: "질문",
       createdAt: "2026-08-06T14:10:00+09:00",
     });
-    assert.equal(comments.length, AUTO_COMMENT_TOTAL);
-    assert.equal(new Set(comments).size, AUTO_COMMENT_TOTAL);
-    assert.ok(comments.every((body) => (body.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || []).filter((part) => part.trim()).length === 2));
+    const targetCount = newPostAutoCommentTarget("reviewed-beauty-topic");
+    assert.equal(comments.length, targetCount);
+    assert.equal(new Set(comments).size, targetCount);
+    assert.ok(comments.every((body) => {
+      const sentences = (body.match(/[^.!?。！？]+(?:[.!?。！？]+|$)/g) || []).filter((part) => part.trim()).length;
+      return sentences >= 1 && sentences <= 3;
+    }));
     assert.ok(comments.filter((body) => /[“”"]/u.test(body)).length <= 1);
   } finally {
     if (openAiKey === undefined) delete process.env.OPENAI_API_KEY;
@@ -213,6 +241,8 @@ test("future post and automatic comment names use exactly two words", () => {
     assert.equal(generateJinjuDisplayName().trim().split(/\s+/).length, 2);
     assert.equal(autoCommentDisplayName(`post-${index}`, index).trim().split(/\s+/).length, 2);
   }
+  const names = Array.from({ length: 11 }, (_, index) => autoCommentDisplayName("same-post", index));
+  assert.equal(new Set(names).size, names.length);
 });
 
 test("July 30 posts use two-word names and 20-33 likes", () => {
@@ -346,8 +376,10 @@ test("August 8 morning posts use two-word names, 20-33 likes, and four complete 
 });
 
 test("a partial automatic set never hides supplemental comments", () => {
-  assert.equal(hasCompleteAutoCommentSet(AUTO_COMMENT_TOTAL - 1), false);
-  assert.equal(hasCompleteAutoCommentSet(AUTO_COMMENT_TOTAL), true);
+  const postId = "partial-comment-set";
+  const targetCount = newPostAutoCommentTarget(postId);
+  assert.equal(hasCompleteAutoCommentSet(targetCount - 1, postId), false);
+  assert.equal(hasCompleteAutoCommentSet(targetCount, postId), true);
 });
 
 test("the latest post keeps its natural comments and selected top posts receive two more", () => {

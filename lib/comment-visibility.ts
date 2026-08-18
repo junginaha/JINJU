@@ -1,4 +1,4 @@
-import { AUTO_COMMENT_TOTAL } from "./community-settings";
+import { newPostAutoCommentTarget } from "./community-settings";
 
 export type CommentWithBody = { body: string };
 
@@ -6,8 +6,8 @@ export function normalizedCommentBody(body: string) {
   return body.trim().replace(/\s+/g, " ");
 }
 
-export function hasCompleteAutoCommentSet(autoCommentCount: number) {
-  return autoCommentCount >= AUTO_COMMENT_TOTAL;
+export function hasCompleteAutoCommentSet(autoCommentCount: number, postId = "") {
+  return autoCommentCount >= newPostAutoCommentTarget(postId);
 }
 
 export function mergeBaseCommentsByBody<T extends CommentWithBody>(...sources: T[][]): T[] {
