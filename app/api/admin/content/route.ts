@@ -115,6 +115,7 @@ export async function GET(request: Request) {
           (storedComments.get(id) || []).filter(
             (comment) => String(comment.id).startsWith("jinju-auto-") && String(comment.status) === "approved",
           ).length,
+          id,
         )
       )
         ? supplementalComments({ id, title, content: body, category, createdAt })
