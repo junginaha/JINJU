@@ -4,6 +4,7 @@ import {
   newPostAutoCommentTarget,
   newPostCommentSchedule,
 } from "./community-settings";
+import { deterministicJinjuDisplayName } from "./display-name";
 
 export type AutoCommentPost = {
   id: string;
@@ -15,32 +16,8 @@ export type AutoCommentPost = {
 
 export const autoCommentSchedule = newPostCommentSchedule;
 
-const ADJECTIVES = [
-  "열린", "비스듬한", "명랑한", "귀기울인", "햇빛난", "사려깊은", "다정한", "또렷한",
-  "차분한", "여유로운", "느긋한", "편안한", "새벽의", "담백한", "웃음난", "꼼꼼한",
-  "포근한", "산뜻한", "엉뚱한", "단단한", "반짝인", "수줍은", "기분좋은", "생각많은",
-];
-
-const NOUNS = [
-  "대문", "연필깎이", "찻잔", "여백", "골목", "책갈피", "라디오", "손잡이",
-  "우체통", "신호등", "창문", "구두끈", "메모지", "종이배", "가로등", "정류장",
-  "수달", "민들레", "몽돌", "참새", "구름", "도토리", "파도", "모닥불",
-];
-
-function hashNumber(value: string) {
-  let result = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    result ^= value.charCodeAt(index);
-    result = Math.imul(result, 16777619);
-  }
-  return result >>> 0;
-}
-
 export function autoCommentDisplayName(postId: string, index: number) {
-  const pairCount = ADJECTIVES.length * NOUNS.length;
-  const start = hashNumber(`${postId}:comment-name`) % pairCount;
-  const pairIndex = (start + index * 37) % pairCount;
-  return `${ADJECTIVES[pairIndex % ADJECTIVES.length]} ${NOUNS[Math.floor(pairIndex / ADJECTIVES.length) % NOUNS.length]}`;
+  return deterministicJinjuDisplayName(`auto-comment:${postId}`, index);
 }
 
 const CATEGORY_COMMENTS: Record<string, [string, string]> = {
