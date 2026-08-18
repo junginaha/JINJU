@@ -255,16 +255,16 @@ to_regclass('public.admin_content_overrides') AS overrides`;
           AND EXISTS (SELECT 1 FROM claimed)`;
       await sql`
         WITH retryable AS (
-          SELECT job.post_id
-          FROM auto_comment_jobs AS job
-          JOIN posts AS post ON post.id = job.post_id
-          WHERE job.status = 'failed'
-            AND post.status = 'approved'
+          SELECT post.id AS post_id
+          FROM posts AS post
+          LEFT JOIN auto_comment_jobs AS job ON job.post_id = post.id
+          WHERE post.status = 'approved'
             AND post.visibility = 'public'
             AND post.created_at >= NOW() - INTERVAL '2 hours'
+            AND (job.post_id IS NULL OR job.status = 'failed')
             AND NOT EXISTS (
               SELECT 1 FROM comments AS comment
-              WHERE comment.post_id = job.post_id
+              WHERE comment.post_id = post.id
                 AND comment.id LIKE 'jinju-auto-%'
             )
           ORDER BY post.created_at DESC
@@ -276,11 +276,16 @@ to_regclass('public.admin_content_overrides') AS overrides`;
           ON CONFLICT (id) DO NOTHING
           RETURNING id
         )
-        UPDATE auto_comment_jobs AS job
+        INSERT INTO auto_comment_jobs (
+          post_id, status, attempt_count, max_attempts, next_attempt_at,
+          last_error, updated_at, failed_at
+        )
+        SELECT post_id, 'pending', 0, 3, NOW(), '', NOW(), NULL
+        FROM retryable
+        WHERE EXISTS (SELECT 1 FROM claimed)
+        ON CONFLICT (post_id) DO UPDATE
         SET status = 'pending', attempt_count = 0, next_attempt_at = NOW(),
-            last_error = '', failed_at = NULL, updated_at = NOW()
-        WHERE job.post_id IN (SELECT post_id FROM retryable)
-          AND EXISTS (SELECT 1 FROM claimed)`;
+            last_error = '', failed_at = NULL, updated_at = NOW()`;
     })().catch((error) => {
       schemaVerified = null;
       throw error;
