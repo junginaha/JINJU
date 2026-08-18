@@ -43,4 +43,5 @@ test("the public feed resumes missed automatic-comment work without blocking its
   assert.match(postsRouteSource, /continueDueAutoCommentWork\(\)/);
   assert.match(dbSource, /20260818-retry-recent-failed-auto-comments/);
   assert.match(dbSource, /post\.created_at >= NOW\(\) - INTERVAL '2 hours'/);
+  assert.match(dbSource, /job\.post_id IS NULL OR job\.status = 'failed'/);
 });
