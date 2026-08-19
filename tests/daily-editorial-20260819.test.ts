@@ -38,6 +38,21 @@ test("8월 19일 글은 문장·이름·반응·제목 논조 규칙을 지킨�
   assert.deepEqual(editorialDiversityIssues(august19EditorialPosts, august19EditorialComments), []);
 });
 
+test("8월 19일 공개 문장은 한국 게시글처럼 숫자를 자연스럽게 표기한다", () => {
+  const publicText = august19EditorialPosts.flatMap((post) => [
+    post.title,
+    post.content,
+    ...august19EditorialComments(post.id).map((comment) => comment.body),
+  ]).join("\n");
+  const awkwardWrittenNumbers = /마흔다섯|열아홉|이십 분|삼십 분|오천 원|십 년|십이 분|여덟 분|사십 분|여섯 분|십 분|여섯 달/u;
+  const callPost = august19EditorialPosts.find((post) => post.id === "jinju-daily-20260819-long-short-call");
+
+  assert.ok(callPost);
+  assert.equal(callPost.title, "잠깐 통화하자더니 45분째입니다");
+  assert.match(callPost.content, /45분/u);
+  assert.doesNotMatch(publicText, awkwardWrittenNumbers);
+});
+
 test("8월 19일 댓글은 10~13개로 달리하고 시차·고급 두 단어 이름을 지킨다", () => {
   const counts = august19EditorialPosts.map((post) => august19EditorialComments(post.id).length);
   const comments = august19EditorialPosts.flatMap((post) => august19EditorialComments(post.id));
