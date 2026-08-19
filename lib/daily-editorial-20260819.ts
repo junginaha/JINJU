@@ -231,7 +231,7 @@ const POST_SEEDS: readonly PostSeed[] = [
   },
   {
     id: "jinju-daily-20260819-laundromat-clothes",
-    title: "세탁기 끝난 남의 옷, 손대지 맙시다",
+    title: "세탁 끝난 지 20분, 남의 옷 앞에서 고민했습니다",
     content: "코인세탁방에서 세탁이 끝난 지 20분이 지났는데도 주인이 오지 않아 안의 옷을 바구니에 옮겨도 될지 망설였습니다. 기다리는 사람과 옷 주인 모두 덜 불편하도록 매장에 공통 규칙과 빈 바구니가 있었으면 합니다.",
     category: "일상",
     displayName: "세탁 이웃",
