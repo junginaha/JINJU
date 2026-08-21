@@ -39,7 +39,7 @@ test("8월 21일 글은 두 문장·두 단어 이름·반응·제목 논조 규
 
 test("8월 21일 제목과 본문은 같은 장면을 가리킨다", () => {
   const anchors = [
-    ["missile-dialogue", /미사일 열여 발/u, /탄도미사일 10여 발/u],
+    ["missile-dialogue", /미사일 여러 발/u, /탄도미사일 10여 발/u],
     ["office-microwave-fish", /전자레인지|생선회의/u, /고등어|방향제/u],
     ["ott-after-breakup", /OTT 프로필/u, /계정|추천 목록/u],
     ["rental-picture-hook", /액자|사진 여섯 장/u, /액자|벽 전체 사진/u],
