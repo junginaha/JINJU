@@ -36,6 +36,7 @@ test("8월 22일 글은 두 문장·두 단어 이름·반응·제목 논조 규
   assert.ok(new Set(forms).size >= 4);
   assert.deepEqual(editorialDiversityIssues(august22EditorialPosts, august22EditorialComments), []);
   assert.ok(august22EditorialPosts.every((post) => !/열여|사십오 분|45분/u.test(`${post.title} ${post.content}`)));
+  assert.ok(august22EditorialPosts.every((post) => !/장바구니.{0,12}세워/u.test(post.content)));
 });
 
 test("8월 22일 제목과 본문은 같은 장면을 가리킨다", () => {
@@ -49,7 +50,7 @@ test("8월 22일 제목과 본문은 같은 장면을 가리킨다", () => {
     ["paper-notebook", /종이 노트|와이파이/u, /노트를 펴자|할 일 목록/u],
     ["piano-859", /피아노|8시 59분/u, /아랫집|연습 시간/u],
     ["bookclub-ending", /결말|북클럽/u, /소설|결말/u],
-    ["cart-mystery", /장바구니|주인/u, /마트|지갑/u],
+    ["cart-mystery", /지갑|아이스크림/u, /지갑|장바구니/u],
     ["date-slides", /소개팅 후기|발표자료/u, /장점·단점|발표자료/u],
     ["patient-voice", /진료실|엄마/u, /의사가|환자/u],
     ["encore-last-train", /앙코르|막차/u, /공연|막차/u],
