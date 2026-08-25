@@ -19,7 +19,7 @@ const REVISED_POST_IDS = [
   "jinju-daily-20260820-lock-screen-medical-id",
 ] as const;
 
-const BAD_KOREAN = /써보면 합니다|해보면 합니다|방법 같습니다|용서해야 한다와|떠나야 한다가|습관이 남았으면|후기를 남겨보려고|묻고 싶어졌습니다|장바구니.{0,12}세워/u;
+const BAD_KOREAN = /써보면 합니다|해보면 합니다|방법 같습니다|용서해야 한다와|떠나야 한다가|습관이 남았으면|후기를 남겨보려고|묻고 싶어졌습니다|장바구니.{0,12}세워|큰 공장의 감산|답하는 날짜/u;
 
 test("공개 게시글에는 확인된 번역체와 어법 오류가 남지 않는다", () => {
   const publicPosts = builtInPosts.flatMap((post) => {
