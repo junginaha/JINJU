@@ -36,7 +36,7 @@ test("8월 23일 글은 자연스러운 두 문장과 다양한 제목 논조를
   assert.ok(new Set(forms).size >= 4);
   assert.deepEqual(editorialDiversityIssues(august23EditorialPosts, august23EditorialComments), []);
 
-  const forbidden = /써보면 합니다|방법 같습니다|용서해야 한다와|떠나야 한다가|습관이 남았으면|후기를 남겨보려고|묻고 싶어졌습니다|장바구니.{0,12}세워|열여|사십오 분|45분/u;
+  const forbidden = /써보면 합니다|방법 같습니다|용서해야 한다와|떠나야 한다가|습관이 남았으면|후기를 남겨보려고|묻고 싶어졌습니다|장바구니.{0,12}세워|큰 공장의 감산|답하는 날짜|열여|사십오 분|45분/u;
   for (const post of august23EditorialPosts) {
     assert.doesNotMatch(`${post.title} ${post.content}`, forbidden);
     for (const comment of august23EditorialComments(post.id)) assert.doesNotMatch(comment.body, forbidden);
