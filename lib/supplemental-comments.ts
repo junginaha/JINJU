@@ -2,6 +2,7 @@ import { august8FreshComments } from "./fresh-comments-20260808";
 import { august9FreshComments } from "./fresh-comments-20260809";
 import { august10TopComments } from "./fresh-comments-20260810";
 import { august12TopComments } from "./fresh-comments-20260812";
+import { LOW_COMMENT_TARGET_IDS, lowCommentAdditions } from "./low-comment-additions-20260826";
 
 export type CommentSourcePost = {
   id: string;
@@ -573,6 +574,7 @@ const COMMENT_MINUTE_OVERRIDES: Record<string, number[]> = {
 const PERSISTENT_SUPPLEMENTAL_COMMENT_POST_IDS = new Set([
   "303t1k08482d6n4q5x4b",
   "1m4m5c2q5x121a066u5v",
+  ...LOW_COMMENT_TARGET_IDS,
 ]);
 
 export function keepsSupplementalCommentsWithAutoSet(postId: string) {
@@ -605,6 +607,7 @@ export function supplementalComments(post: CommentSourcePost): SupplementalComme
   }));
   return [
     ...existing,
+    ...lowCommentAdditions(post.id, post.createdAt),
     ...august8FreshComments(post.id),
     ...august9FreshComments(post.id),
     ...august10TopComments(post.id),
