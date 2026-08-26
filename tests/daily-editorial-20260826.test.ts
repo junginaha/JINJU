@@ -21,11 +21,11 @@ function sentenceCount(value: string) {
   return withoutDecimals.match(/[^.!?。！？]+[.!?。！？]+/gu)?.length ?? 0;
 }
 
-test("8월 26일은 후보 20개에서 비중복 콘텐츠 10편을 선별한다", () => {
-  assert.equal(august26EditorialCandidateAudit.length, 20);
-  assert.equal(august26EditorialCandidateAudit.filter((item) => item[1]).length, 10);
-  assert.equal(august26EditorialPosts.length, 10);
-  assert.ok(august26EditorialResearchSources.length >= 3);
+test("8월 26일은 후보 25개에서 비중복 콘텐츠 15편을 선별한다", () => {
+  assert.equal(august26EditorialCandidateAudit.length, 25);
+  assert.equal(august26EditorialCandidateAudit.filter((item) => item[1]).length, 15);
+  assert.equal(august26EditorialPosts.length, 15);
+  assert.ok(august26EditorialResearchSources.length >= 8);
 });
 
 test("8월 26일 글은 자연스러운 2~4문장과 다양한 제목 논조를 지킨다", () => {
@@ -53,7 +53,13 @@ test("8월 26일 제목과 본문은 같은 장면을 가리킨다", () => {
     ["elevator-child-smile", /엘리베이터|아이/u, /유모차|웃었/u],
     ["friends-saving-fine", /저축 모임|벌금/u, /여행비|벌금/u],
     ["medicine-bag-icons", /약 봉투|해와 달/u, /약 봉투|스티커/u],
+    ["heat-and-shower", /폭염특보|소나기/u, /폭염특보|천둥/u],
+    ["consumer-sentiment", /소비자심리|104.5/u, /104.5|2.3포인트/u],
+    ["kimkoo-cultural-week", /나의 소원|2026년/u, /김구 선생|광화문/u],
+    ["public-ai-consulting", /24시간 AI 상담/u, /복지·안전·세금|사람 상담원/u],
+    ["funeral-standard-terms", /화환|표준약관/u, /유족 소유|사전에 협의/u],
   ] as const;
+  assert.equal(anchors.length, august26EditorialPosts.length);
   for (const [idPart, titlePattern, bodyPattern] of anchors) {
     const post = august26EditorialPosts.find((candidate) => candidate.id.endsWith(idPart));
     assert.ok(post);
@@ -65,10 +71,20 @@ test("8월 26일 제목과 본문은 같은 장면을 가리킨다", () => {
 test("8월 26일 댓글은 9~12개로 달리하고 게시 뒤 순차 공개된다", () => {
   const counts = august26EditorialPosts.map((post) => august26EditorialComments(post.id).length);
   const comments = august26EditorialPosts.flatMap((post) => august26EditorialComments(post.id));
-  assert.deepEqual([...counts].sort((a, b) => a - b), [9, 9, 9, 10, 10, 10, 11, 11, 12, 12]);
+  assert.deepEqual(
+    [...counts].sort((a, b) => a - b),
+    [9, 9, 9, 9, 10, 10, 10, 10, 10, 11, 11, 11, 12, 12, 12],
+  );
   assert.ok(comments.every((comment) => wordCount(comment.displayName) === 2));
   assert.equal(new Set(comments.map((comment) => comment.displayName)).size, comments.length);
   assert.equal(new Set(comments.map((comment) => comment.body)).size, comments.length);
+
+  const oldPosts = builtInPosts.filter((post) => !post.id.startsWith("jinju-daily-20260826-"));
+  const oldPostNames = new Set(oldPosts.map((post) => String(post.displayName)));
+  const oldCommentNames = new Set(oldPosts.flatMap((post) => builtInComments(post.id).map((comment) => comment.displayName)));
+  assert.ok(august26EditorialPosts.every((post) => !oldPostNames.has(String(post.displayName))));
+  assert.ok(comments.every((comment) => !oldCommentNames.has(comment.displayName)));
+
   for (const post of august26EditorialPosts) {
     const commentsForPost = august26EditorialComments(post.id);
     const firstThree = commentsForPost.slice(0, 3).map((comment) => (Date.parse(comment.createdAt) - Date.parse(post.createdAt)) / 60_000);
