@@ -173,6 +173,35 @@ export async function migrateSchema() {
           completed_at TIMESTAMPTZ,
           failed_at TIMESTAMPTZ
         )`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS social_publications (
+          post_id TEXT NOT NULL,
+          platform TEXT NOT NULL CHECK (platform IN ('instagram', 'threads', 'naver_cafe', 'youtube')),
+          status TEXT NOT NULL DEFAULT 'running'
+            CHECK (status IN ('running', 'published', 'failed', 'unknown')),
+          attempt_count INTEGER NOT NULL DEFAULT 1,
+          remote_id TEXT NOT NULL DEFAULT '',
+          public_url TEXT NOT NULL DEFAULT '',
+          last_error TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          published_at TIMESTAMPTZ,
+          PRIMARY KEY (post_id, platform)
+        )`;
+      await sql`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'social_publications_platform_check'
+              AND conrelid = 'social_publications'::regclass
+              AND pg_get_constraintdef(oid) NOT LIKE '%youtube%'
+          ) THEN
+            ALTER TABLE social_publications DROP CONSTRAINT social_publications_platform_check;
+            ALTER TABLE social_publications ADD CONSTRAINT social_publications_platform_check
+              CHECK (platform IN ('instagram', 'threads', 'naver_cafe', 'youtube'));
+          END IF;
+        END $$`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_issues TEXT NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT '익명'`;
       await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS review_explanation TEXT NOT NULL DEFAULT ''`;
@@ -186,6 +215,7 @@ export async function migrateSchema() {
       await sql`CREATE INDEX IF NOT EXISTS temperature_samples_post_day_idx ON temperature_samples(post_id, recorded_on DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS admin_content_overrides_post_idx ON admin_content_overrides(post_id, kind)`;
       await sql`CREATE INDEX IF NOT EXISTS auto_comment_jobs_due_idx ON auto_comment_jobs(status, next_attempt_at, updated_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS social_publications_status_idx ON social_publications(status, updated_at DESC)`;
       await sql`CREATE INDEX IF NOT EXISTS admin_sessions_expiry_idx ON admin_sessions(expires_at)`;
       await sql`CREATE INDEX IF NOT EXISTS rate_limits_expiry_idx ON rate_limits(expires_at)`;
       await sql`CREATE INDEX IF NOT EXISTS abuse_restrictions_expiry_idx ON abuse_restrictions(expires_at)`;
@@ -240,6 +270,36 @@ to_regclass('public.admin_content_overrides') AS overrides`;
           id TEXT PRIMARY KEY,
           applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS social_publications (
+          post_id TEXT NOT NULL,
+          platform TEXT NOT NULL CHECK (platform IN ('instagram', 'threads', 'naver_cafe', 'youtube')),
+          status TEXT NOT NULL DEFAULT 'running'
+            CHECK (status IN ('running', 'published', 'failed', 'unknown')),
+          attempt_count INTEGER NOT NULL DEFAULT 1,
+          remote_id TEXT NOT NULL DEFAULT '',
+          public_url TEXT NOT NULL DEFAULT '',
+          last_error TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          published_at TIMESTAMPTZ,
+          PRIMARY KEY (post_id, platform)
+        )`;
+      await sql`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'social_publications_platform_check'
+              AND conrelid = 'social_publications'::regclass
+              AND pg_get_constraintdef(oid) NOT LIKE '%youtube%'
+          ) THEN
+            ALTER TABLE social_publications DROP CONSTRAINT social_publications_platform_check;
+            ALTER TABLE social_publications ADD CONSTRAINT social_publications_platform_check
+              CHECK (platform IN ('instagram', 'threads', 'naver_cafe', 'youtube'));
+          END IF;
+        END $$`;
+      await sql`CREATE INDEX IF NOT EXISTS social_publications_status_idx ON social_publications(status, updated_at DESC)`;
       await sql`
         WITH target AS (
           SELECT id FROM posts WHERE id = 'jinju-daily-20260816-yasukuni-public-choice'

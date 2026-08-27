@@ -52,3 +52,19 @@ Vercel 프로젝트에서 **Storage → Create Database → Neon**을 선택해 
 ## 게시 전 AI 검수와 운영자 승인
 
 Vercel 환경 변수에 `OPENAI_API_KEY`, `OPENAI_REVIEW_MODEL`, `ADMIN_REVIEW_SECRET`, `REVIEW_TOKEN_SECRET`을 등록합니다. 검수에서 문제가 없는 글은 바로 공개되고, 수정 권고를 받은 글을 사용자가 그대로 제출하면 `pending` 상태로 저장됩니다. 운영자는 `/admin`에서 `ADMIN_REVIEW_SECRET`을 입력해 승인 또는 반려할 수 있습니다. 개인정보가 포함된 글은 승인 대기로도 저장하지 않습니다.
+
+## 실제 홍보 자동 게시
+
+GitHub Actions가 한국시간 매일 09:30, 14:30, 20:30에 `/api/social/publish`를 호출합니다. 호출은 GitHub OIDC 서명을 검증하므로 별도 호출 비밀번호를 저장하지 않습니다.
+
+- 최근 48시간 글 중 개인정보와 고위험 표현이 없고 반응이 좋은 글 한 편만 고릅니다.
+- Instagram, Threads, 네이버 카페 가운데 공식 게시 토큰이 등록된 채널에만 게시합니다.
+- YouTube는 9:16 카드와 한국어 AI 음성을 생성해 Shorts MP4를 만든 뒤 공식 업로드 API로 공개 게시합니다. 설명문에는 AI 음성 사용 사실을 표시합니다.
+- `social_publications` 표에서 채널별 결과와 공개 주소를 기록해 같은 글이 중복 게시되지 않게 합니다.
+- 게시 응답이 끊겨 성공 여부가 불확실하면 `unknown`으로 기록하고 자동 재시도를 멈춥니다.
+- Instagram 공유 이미지는 `/api/social/card/[id]`에서 게시글별 4:5 이미지로 생성합니다.
+- YouTube 세로 카드는 `/api/social/youtube/card/[id]`에서 1080×1920으로 생성합니다.
+
+운영 환경의 비공개 Vercel 변수에 `.env.example`의 채널별 값을 등록한 뒤 `SOCIAL_PUBLISH_ENABLED=true`로 켭니다. 토큰은 저장소나 `NEXT_PUBLIC_` 변수에 넣지 않습니다.
+
+YouTube를 켤 때는 Vercel에 `YOUTUBE_PUBLISH_ENABLED=true`, `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE`를 등록하고 GitHub Actions 비밀값에 `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`을 등록합니다. YouTube OAuth 동의 범위는 영상 업로드 권한으로 제한합니다.
