@@ -1,0 +1,166 @@
+name: 진주 실제 홍보 게시
+
+on:
+  schedule:
+    - cron: "30 0,5,11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: jinju-social-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 저장소 받기
+        uses: actions/checkout@v4
+
+      - name: 실제 채널 게시 실행
+        id: direct_publish
+        continue-on-error: true
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const token = await core.getIDToken('jinju-social-publisher');
+            const response = await fetch('https://xn--o55b9n.kr/api/social/publish', {
+              method: 'POST',
+              headers: {
+                authorization: `Bearer ${token}`,
+                'content-type': 'application/json',
+              },
+            });
+            const body = await response.text();
+            core.info(body);
+            try {
+              const result = JSON.parse(body);
+              core.setOutput('post_id', result.postId || '');
+            } catch {}
+            if (!response.ok) core.setFailed(`Social publishing failed (${response.status})`);
+
+      - name: YouTube Shorts 작업 선점
+        id: youtube_claim
+        if: always()
+        uses: actions/github-script@v8
+        env:
+          PREFERRED_POST_ID: ${{ steps.direct_publish.outputs.post_id }}
+        with:
+          script: |
+            const fs = require('fs');
+            const token = await core.getIDToken('jinju-social-publisher');
+            const response = await fetch('https://xn--o55b9n.kr/api/social/youtube/claim', {
+              method: 'POST',
+              headers: {
+                authorization: `Bearer ${token}`,
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify({ postId: process.env.PREFERRED_POST_ID || '' }),
+            });
+            const result = await response.json();
+            core.info(JSON.stringify({ status: result.status, postId: result.job?.postId || '' }));
+            if (!response.ok) {
+              core.setFailed(`YouTube claim failed (${response.status})`);
+              return;
+            }
+            const claimed = result.status === 'claimed' && result.job;
+            core.setOutput('claimed', claimed ? 'true' : 'false');
+            core.setOutput('post_id', claimed ? result.job.postId : '');
+            if (claimed) fs.writeFileSync('.social-youtube-job.json', JSON.stringify(result.job));
+
+      - name: 세로 카드와 AI 음성 받기
+        id: youtube_assets
+        if: steps.youtube_claim.outputs.claimed == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const job = JSON.parse(fs.readFileSync('.social-youtube-job.json', 'utf8'));
+            const token = await core.getIDToken('jinju-social-publisher');
+            const [imageResponse, audioResponse] = await Promise.all([
+              fetch(job.imageUrl),
+              fetch('https://xn--o55b9n.kr/api/social/youtube/audio', {
+                method: 'POST',
+                headers: {
+                  authorization: `Bearer ${token}`,
+                  'content-type': 'application/json',
+                },
+                body: JSON.stringify({ postId: job.postId }),
+              }),
+            ]);
+            if (!imageResponse.ok) throw new Error(`YouTube card failed (${imageResponse.status})`);
+            if (!audioResponse.ok) throw new Error(`YouTube audio failed (${audioResponse.status})`);
+            fs.writeFileSync('.social-youtube-card.png', Buffer.from(await imageResponse.arrayBuffer()));
+            fs.writeFileSync('.social-youtube-speech.mp3', Buffer.from(await audioResponse.arrayBuffer()));
+
+      - name: 9대16 쇼츠 영상 만들기
+        id: youtube_video
+        if: steps.youtube_assets.outcome == 'success'
+        shell: bash
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -hide_banner -loglevel error -y \
+            -loop 1 -framerate 30 -i .social-youtube-card.png \
+            -i .social-youtube-speech.mp3 \
+            -vf "scale=1080:1920,zoompan=z='min(zoom+0.00035,1.045)':d=1:s=1080x1920:fps=30,format=yuv420p" \
+            -c:v libx264 -preset medium -tune stillimage \
+            -c:a aac -b:a 192k -shortest -movflags +faststart \
+            .social-youtube-short.mp4
+
+      - name: YouTube에 공개 업로드
+        id: youtube_upload
+        if: steps.youtube_video.outcome == 'success'
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: node .github/scripts/upload-youtube.mjs
+
+      - name: YouTube 게시 결과 기록
+        if: always() && steps.youtube_claim.outputs.claimed == 'true'
+        uses: actions/github-script@v8
+        env:
+          POST_ID: ${{ steps.youtube_claim.outputs.post_id }}
+          ASSET_OUTCOME: ${{ steps.youtube_assets.outcome }}
+          VIDEO_OUTCOME: ${{ steps.youtube_video.outcome }}
+          UPLOAD_OUTCOME: ${{ steps.youtube_upload.outcome }}
+          UPLOAD_PHASE: ${{ steps.youtube_upload.outputs.phase }}
+          VIDEO_ID: ${{ steps.youtube_upload.outputs.video_id }}
+        with:
+          script: |
+            const published = process.env.UPLOAD_OUTCOME === 'success' && process.env.VIDEO_ID;
+            const failedBeforeUpload = process.env.ASSET_OUTCOME !== 'success'
+              || process.env.VIDEO_OUTCOME !== 'success'
+              || process.env.UPLOAD_PHASE === 'prepare'
+              || !process.env.UPLOAD_OUTCOME;
+            const status = published ? 'published' : failedBeforeUpload ? 'failed' : 'unknown';
+            const error = published ? '' : [
+              `assets:${process.env.ASSET_OUTCOME || 'skipped'}`,
+              `video:${process.env.VIDEO_OUTCOME || 'skipped'}`,
+              `upload:${process.env.UPLOAD_OUTCOME || 'skipped'}`,
+              `phase:${process.env.UPLOAD_PHASE || 'none'}`,
+            ].join(' ');
+            const token = await core.getIDToken('jinju-social-publisher');
+            const response = await fetch('https://xn--o55b9n.kr/api/social/youtube/complete', {
+              method: 'POST',
+              headers: {
+                authorization: `Bearer ${token}`,
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify({
+                postId: process.env.POST_ID,
+                status,
+                remoteId: process.env.VIDEO_ID || '',
+                error,
+              }),
+            });
+            const body = await response.text();
+            core.info(body);
+            if (!response.ok) core.setFailed(`YouTube completion failed (${response.status})`);

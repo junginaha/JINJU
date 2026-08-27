@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { db, databaseEnabled } from "@/lib/db";
 import { abuseHmacReady } from "@/lib/rate-limit";
+import { configuredSocialPlatforms } from "@/lib/social-providers";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,6 +19,13 @@ export async function GET() {
   };
   const protectionReady = abuseProtection.hmac && abuseProtection.turnstile;
   const maintenanceCron = Boolean(process.env.CRON_SECRET?.trim());
+  const socialPublishing = {
+    enabled: process.env.SOCIAL_PUBLISH_ENABLED === "true",
+    configuredPlatforms: [
+      ...configuredSocialPlatforms(),
+      ...(process.env.YOUTUBE_PUBLISH_ENABLED === "true" ? ["youtube"] : []),
+    ],
+  };
 
   if (!databaseEnabled()) {
     const error = new Error("DATABASE_URL is not configured");
@@ -29,6 +37,7 @@ export async function GET() {
       database: "disabled",
       abuseProtection,
       maintenanceCron,
+      socialPublishing,
       checkedAt,
     }, { status: 503, headers });
   }
@@ -62,6 +71,7 @@ export async function GET() {
       database: "connected",
       abuseProtection,
       maintenanceCron,
+      socialPublishing,
       publicPostCount: Number(row?.public_post_count || 0),
       publicCommentCount: Number(row?.public_comment_count || 0),
       latestPostAt: row?.latest_post_at ? new Date(String(row.latest_post_at)).toISOString() : null,
@@ -76,6 +86,7 @@ export async function GET() {
       database: "unavailable",
       abuseProtection,
       maintenanceCron,
+      socialPublishing,
       checkedAt,
     }, { status: 503, headers });
   }
