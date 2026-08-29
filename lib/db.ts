@@ -314,6 +314,27 @@ to_regclass('public.admin_content_overrides') AS overrides`;
         WHERE id = 'jinju-daily-20260816-yasukuni-public-choice'
           AND EXISTS (SELECT 1 FROM claimed)`;
       await sql`
+        WITH target AS (
+          SELECT id
+          FROM posts
+          WHERE id = '0d2g4n22713u3q710x4w'
+            AND content ~ '^편지글[[:space:]]+제목:[[:space:]]*행복을 미루지 말라고, 떠난 친구가 말했다[[:space:]]+지현아\\.[[:space:]]*'
+        ), claimed AS (
+          INSERT INTO operational_adjustments (id)
+          SELECT '20260829-remove-letter-preface-0d2g4n22713u3q710x4w'
+          FROM target
+          ON CONFLICT (id) DO NOTHING
+          RETURNING id
+        )
+        UPDATE posts
+        SET content = REGEXP_REPLACE(
+          content,
+          '^편지글[[:space:]]+제목:[[:space:]]*행복을 미루지 말라고, 떠난 친구가 말했다[[:space:]]+지현아\\.[[:space:]]*',
+          ''
+        )
+        WHERE id = '0d2g4n22713u3q710x4w'
+          AND EXISTS (SELECT 1 FROM claimed)`;
+      await sql`
         DELETE FROM auto_comment_jobs AS job
         WHERE job.post_id LIKE 'jinju-daily-20260818-%'
           AND job.created_at >= TIMESTAMPTZ '2026-08-18T08:20:00Z'
