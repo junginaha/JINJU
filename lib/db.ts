@@ -335,6 +335,23 @@ to_regclass('public.admin_content_overrides') AS overrides`;
         WHERE id = '0d2g4n22713u3q710x4w'
           AND EXISTS (SELECT 1 FROM claimed)`;
       await sql`
+        WITH target AS (
+          SELECT id
+          FROM posts
+          WHERE id = '0d2g4n22713u3q710x4w'
+            AND content ~ '지현아\\.'
+        ), claimed AS (
+          INSERT INTO operational_adjustments (id)
+          SELECT '20260830-remove-jihyun-name-0d2g4n22713u3q710x4w'
+          FROM target
+          ON CONFLICT (id) DO NOTHING
+          RETURNING id
+        )
+        UPDATE posts
+        SET content = REGEXP_REPLACE(content, '지현아\\.[[:space:]]*', '', 'g')
+        WHERE id = '0d2g4n22713u3q710x4w'
+          AND EXISTS (SELECT 1 FROM claimed)`;
+      await sql`
         DELETE FROM auto_comment_jobs AS job
         WHERE job.post_id LIKE 'jinju-daily-20260818-%'
           AND job.created_at >= TIMESTAMPTZ '2026-08-18T08:20:00Z'
