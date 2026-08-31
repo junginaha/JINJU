@@ -25,6 +25,10 @@ export const PUBLIC_POST_REWRITES = new Map<string, PublicPostRewrite>([
   ["jinju-daily-20260820-lock-screen-medical-id", { title: "잠금화면에서도 보이는 비상연락처, 미리 설정해둘걸", content: "아버지가 길에서 쓰러졌다는 연락을 받고 병원에 갔지만, 잠긴 휴대전화 때문에 복용약과 보호자 연락처를 바로 확인할 수 없었습니다. 이번 일을 겪고 가족과 상의해 잠금화면 비상정보에는 알레르기·복용약·긴급 연락처만 남겨두기로 했습니다." }],
 ]);
 
+export const PUBLIC_HIDDEN_POST_IDS = new Set<string>([
+  "jinju-daily-20260830-squeaky-video-meeting-chair",
+]);
+
 export const PUBLIC_COMMENT_REWRITES = new Map<string, { from: string; to: string }>([
   ["daily-0822-9-1-caution", { from: "먼저 원작 결말을 충분히 읽고 작가가 남긴 단서와 내가 바꾼 이유를 구분해서 말하면 토론이 깊어집니다.", to: "저는 원작 결말을 지키자는 쪽이었는데, 왜 바꾸고 싶은지 장면 하나를 근거로 듣고 나니 마음이 흔들렸어요. 책 토론이 사람 토론으로 넘어가는 순간이 있더라고요." }],
   ["daily-0822-9-2-agree", { from: "민감한 경험이 드러날 수 있으니 발표하지 않고 넘어갈 선택권도 모임 시작 전에 알려주세요.", to: "결말을 고른 이유가 자기 상처와 닿을 수도 있어요. 오늘은 말하지 않겠다는 선택도 자연스럽게 받아주는 모임이면 좋겠습니다." }],
@@ -384,6 +388,7 @@ export async function contentOverrides() {
 }
 
 export function applyPostOverride<T extends { id: string; title: string; content: string; category: string }>(post: T, overrides: Map<string, ContentOverride>) {
+  if (PUBLIC_HIDDEN_POST_IDS.has(post.id)) return null;
   const rewrite = PUBLIC_POST_REWRITES.get(post.id);
   const rewritten = rewrite ? {
     ...post,
