@@ -49,6 +49,7 @@ import {
   counterfeitReportingComments,
   counterfeitReportingPost,
 } from "./topical-editorial-20260820-counterfeit";
+import { husbandHiddenDebtPost } from "./topical-editorial-20260902-husband-hidden-debt";
 
 function normalizePost(post: EditorialPost): EditorialPost {
   return {
@@ -70,6 +71,7 @@ function chooseUniquePosts(posts: EditorialPost[]) {
 }
 
 export const builtInPosts = chooseUniquePosts([
+  husbandHiddenDebtPost,
   ...september2EditorialPosts,
   ...september1EditorialPosts,
   ...august31EditorialPosts,
