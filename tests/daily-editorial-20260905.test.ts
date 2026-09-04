@@ -25,6 +25,9 @@ test("9월 5일은 후보 20개에서 비중복 콘텐츠 10편을 선별한다"
   assert.equal(september5EditorialCandidateAudit.filter((item) => item[1]).length, 10);
   assert.equal(september5EditorialPosts.length, 10);
   assert.ok(september5EditorialResearchSources.length >= 5);
+  assert.ok(september5EditorialResearchSources.every((source) => source.startsWith("https://")));
+  assert.ok(september5EditorialResearchSources.some((source) => source.includes("mcst.go.kr")));
+  assert.ok(september5EditorialResearchSources.some((source) => source.includes("yna.co.kr")));
 
   const categories = september5EditorialPosts.map((post) => post.category);
   assert.ok(categories.includes("시사"));
