@@ -10,6 +10,7 @@ import {
 } from "../lib/daily-editorial-20260907";
 import { createDuplicatePostChecker } from "../lib/dedup";
 import { editorialDiversityIssues, editorialTitleForm } from "../lib/editorial-diversity";
+import { september7ExtraComments } from "../lib/extra-comments-20260907";
 
 function wordCount(value: string) {
   return value.trim().split(/\s+/u).filter(Boolean).length;
@@ -118,7 +119,7 @@ test("9월 7일 콘텐츠는 기존 피드와 겹치지 않고 공개 경로에 
   for (const post of september7EditorialPosts) {
     assert.ok(!oldPosts.some((oldPost) => duplicatePost(post, oldPost)), post.title);
     assert.ok(builtInPosts.some((candidate) => candidate.id === post.id));
-    assert.equal(builtInComments(post.id).length, post.commentCount);
+    assert.equal(builtInComments(post.id).length, post.commentCount + september7ExtraComments(post.id).length);
   }
 });
 

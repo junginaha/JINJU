@@ -50,6 +50,7 @@ import { createDuplicatePostChecker } from "./dedup";
 import { editorialComments, editorialPosts, type EditorialComment, type EditorialPost } from "./editorial";
 import { launchEditorialComments, launchEditorialPosts } from "./launch-editorial";
 import { topFeedHumorComments } from "./top-feed-humor-20260816";
+import { september7ExtraComments } from "./extra-comments-20260907";
 import {
   counterfeitReportingComments,
   counterfeitReportingPost,
@@ -138,6 +139,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...september7ExtraComments(id),
     ...september7EditorialComments(id),
     ...september6EditorialComments(id),
     ...september5EditorialComments(id),
