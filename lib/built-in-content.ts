@@ -41,6 +41,7 @@ import { september7EditorialComments, september7EditorialPosts } from "./daily-e
 import { september8EditorialComments, september8EditorialPosts } from "./daily-editorial-20260908";
 import { september9EditorialComments, september9EditorialPosts } from "./daily-editorial-20260909";
 import { september10EditorialComments, september10EditorialPosts } from "./daily-editorial-20260910";
+import { september11EditorialComments, september11EditorialPosts } from "./daily-editorial-20260911";
 import { august5MorningComments, august5MorningPosts } from "./morning-editorial-20260805";
 import { august6MorningComments, august6MorningPosts } from "./morning-editorial-20260806";
 import { august8MorningComments, august8MorningPosts } from "./morning-editorial-20260808";
@@ -85,6 +86,7 @@ export const builtInPosts = chooseUniquePosts([
   ...september8EditorialPosts,
   ...september9EditorialPosts,
   ...september10EditorialPosts,
+  ...september11EditorialPosts,
   ...september6EditorialPosts,
   ...september5EditorialPosts,
   ...september4EditorialPosts,
@@ -150,6 +152,7 @@ export function builtInComments(id: string): EditorialComment[] {
     ...september8EditorialComments(id),
     ...september9EditorialComments(id),
     ...september10EditorialComments(id),
+    ...september11EditorialComments(id),
     ...september6EditorialComments(id),
     ...september5EditorialComments(id),
     ...september4EditorialComments(id),
