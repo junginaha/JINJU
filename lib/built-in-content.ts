@@ -45,6 +45,7 @@ import { september11EditorialComments, september11EditorialPosts } from "./daily
 import { september12EditorialComments, september12EditorialPosts } from "./daily-editorial-20260912";
 import { september13EditorialComments, september13EditorialPosts } from "./daily-editorial-20260913";
 import { september14EditorialComments, september14EditorialPosts } from "./daily-editorial-20260914";
+import { september15EditorialComments, september15EditorialPosts } from "./daily-editorial-20260915";
 import { august5MorningComments, august5MorningPosts } from "./morning-editorial-20260805";
 import { august6MorningComments, august6MorningPosts } from "./morning-editorial-20260806";
 import { august8MorningComments, august8MorningPosts } from "./morning-editorial-20260808";
@@ -85,6 +86,7 @@ function chooseUniquePosts(posts: EditorialPost[]) {
 
 export const builtInPosts = chooseUniquePosts([
   husbandHiddenDebtPost,
+  ...september15EditorialPosts,
   ...september14EditorialPosts,
   ...september13EditorialPosts,
   ...september7EditorialPosts,
@@ -153,6 +155,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...september15EditorialComments(id),
     ...september7ExtraComments(id),
     ...september7EditorialComments(id),
     ...september8EditorialComments(id),
