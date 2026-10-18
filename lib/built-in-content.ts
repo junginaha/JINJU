@@ -1,3 +1,4 @@
+import { october19EditorialPosts, october19EditorialComments } from "./daily-editorial-20261019";
 import { october18EditorialPosts, october18EditorialComments } from "./daily-editorial-20261018";
 import { october4EditorialComments, october4EditorialPosts } from "./daily-editorial-20261004";
 import { bookclubEditorialComments, bookclubEditorialPosts } from "./bookclub-editorial-20260730";
@@ -94,6 +95,7 @@ function chooseUniquePosts(posts: EditorialPost[]) {
 
 export const builtInPosts = chooseUniquePosts([
   husbandHiddenDebtPost,
+  ...october19EditorialPosts,
   ...october18EditorialPosts,
   ...october4EditorialPosts,
   ...september28EditorialPosts,
@@ -171,6 +173,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...october19EditorialComments(id),
     ...october18EditorialComments(id),
     ...october4EditorialComments(id),
     ...september28EditorialComments(id),
