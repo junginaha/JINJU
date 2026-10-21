@@ -1,3 +1,4 @@
+import { october22OperatorReplies } from "../lib/daily-editorial-20261022";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { builtInComments, builtInPosts } from "../lib/built-in-content";
@@ -141,7 +142,7 @@ test("9월 27일 피드 연결은 새 글과 공개 시점의 댓글만 더한�
   for (const post of posts) {
     assert.ok(!old.some((existing) => duplicate(post, existing)), post.title);
     assert.equal(builtInPosts.filter((existing) => existing.id === post.id).length, 1);
-    assert.deepEqual(builtInComments(post.id), commentsFor(post.id));
+    assert.deepEqual(builtInComments(post.id), [...commentsFor(post.id), ...october22OperatorReplies(post.id)].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)));
     assert.equal(post.commentCount, commentsFor(post.id).length);
     assert.equal(normalizeCommentTimes(post.createdAt, commentsFor(post.id), Date.parse(post.createdAt)).length, 0);
     assert.ok(!Object.keys(post).some((key) => /Research|sources|evidence|Candidates|semanticReview/u.test(key)));
