@@ -1,0 +1,58 @@
+# 앱인토스 미니앱(jinju) 번들 자동 빌드·업로드
+# - 화면 코드(components, 스타일, 운영 페이지, toss 폴더)가 main에 바뀌거나 수동 실행 시 jinju.ait를 만든다.
+#   글·댓글은 진주.kr 서버에서 실시간으로 가져오므로 콘텐츠 변경으로는 실행하지 않는다.
+# - 만든 파일은 이 실행의 Artifacts에서 받을 수 있다.
+# - 저장소 Secrets에 AIT_API_KEY가 있으면 앱인토스 콘솔에 업로드까지 한다.
+#   검토 요청과 출시는 콘솔에서 사람이 누른다(자동으로 하지 않는다).
+name: toss-bundle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "components/**"
+      - "app/globals.css"
+      - "app/production-hotfix.css"
+      - "app/about/page.tsx"
+      - "app/beta/page.tsx"
+      - "app/principles/page.tsx"
+      - "app/safety/page.tsx"
+      - "app/privacy/page.tsx"
+      - "app/terms/page.tsx"
+      - "app/report-status/page.tsx"
+      - "public/jinju-pearl-cutout.png"
+      - "toss/**"
+      - ".github/workflows/toss-bundle.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: toss-bundle
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AIT_API_KEY: ${{ secrets.AIT_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install site dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build bundle
+        working-directory: toss
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jinju-ait
+          path: toss/jinju.ait
+          retention-days: 30
+      - name: Upload to Apps in Toss console
+        if: ${{ env.AIT_API_KEY != '' }}
+        working-directory: toss
+        run: npx ait deploy --api-key "$AIT_API_KEY" --location jinju.ait -m "자동 업로드 $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') · ${GITHUB_SHA::7}"
