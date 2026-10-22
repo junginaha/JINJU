@@ -1,3 +1,4 @@
+import { october23OperatorReplies } from "../lib/daily-editorial-20261023";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { builtInPosts, builtInComments } from '../lib/built-in-content';
@@ -20,7 +21,7 @@ test('October22 operator articles retain zero engagement and have no synthetic c
     assert.equal(published.commentCount,0);
     assert.equal(published.displayName,'진주 운영팀');
     assert.equal(published.createdAt,release);
-    assert.deepEqual(builtInComments(p.id),[]);
+    assert.deepEqual(builtInComments(p.id),october23OperatorReplies(p.id));
     assert.deepEqual(supplementalComments(p),[]);
     for(const old of builtInPosts.filter(x=>!posts.some(n=>n.id===x.id))){
       assert.equal(duplicate(p,old),false,`${p.title} / ${old.title}`);
