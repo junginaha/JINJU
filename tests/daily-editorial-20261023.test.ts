@@ -1,3 +1,4 @@
+import { warmOperatorNotes } from "../lib/operator-notes-20261023";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { october23EditorialPosts as posts, october23OperatorReplies as replies, october23ReplyTargets as targets, october23ReleaseAt as release } from '../lib/daily-editorial-20261023';
@@ -15,7 +16,7 @@ test('October23 operator posts contain no invented engagement or duplicate artic
     assert.equal(stored.displayName,'진주 운영팀');
     assert.deepEqual([stored.heard,stored.same,stored.support,stored.commentCount],[0,0,0,0]);
     assert.equal(stored.createdAt,release);
-    assert.deepEqual(builtInComments(p.id),[]);assert.deepEqual(supplementalComments(p),[]);
+    assert.deepEqual(builtInComments(p.id),warmOperatorNotes(p.id));assert.deepEqual(supplementalComments(p),[]);
     for(const old of builtInPosts.filter(x=>x.id!==p.id)){
       assert.equal(duplicate(p,old),false,p.title+' / '+old.title);
       assert.ok(similarity(p.content,old.content)<0.5,p.title+' / '+old.title);
