@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { getPublicPosts } from "@/lib/public-posts";
 import { canonicalUrl, isSearchIndexable } from "@/lib/search-indexing";
 
+import { archivePageCount, archivePath, archivePosts } from "@/lib/post-archive";
+
 export const dynamic = "force-dynamic";
 
 const officialPages = [
@@ -26,6 +28,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 1,
     },
+    ...Array.from({ length: archivePageCount(archivePosts(posts).length) }, (_, index) => ({
+      url: canonicalUrl(archivePath(index + 1)),
+      changeFrequency: "daily" as const,
+      priority: 0.7,
+    })),
     ...officialPages.map(({ path, priority }) => ({
       url: canonicalUrl(path),
       changeFrequency: "monthly" as const,

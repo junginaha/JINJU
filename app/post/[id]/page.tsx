@@ -73,7 +73,12 @@ export default async function PostPage({ params }: PageProps) {
     datePublished: selected.createdAt,
     dateModified: selected.updatedAt || selected.createdAt,
     inLanguage: "ko-KR",
-    author: {
+    author: selected.id.startsWith("jinju-editorial-20261022-") ? {
+      "@type": "Organization",
+      "@id": SITE_ORGANIZATION_ID,
+      name: "진주 운영팀",
+      url: canonicalUrl("/about"),
+    } : {
       "@type": "Person",
       name: selected.displayName?.trim() || "익명",
     },
