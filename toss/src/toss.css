@@ -1,0 +1,2 @@
+/* Toss mini app only: keep text size stable and remove double-tap zoom delay. */
+html.in-toss { -webkit-text-size-adjust: 100%; touch-action: manipulation; }

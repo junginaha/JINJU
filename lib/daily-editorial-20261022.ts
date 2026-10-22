@@ -24,7 +24,7 @@ export const october22Candidates = [
 ] as const;
 
 // Current release batch; no historical publication dates or fabricated engagement.
-export const october22ReleaseAt = "2026-10-22T06:20:00+09:00";
+export const october22ReleaseAt = "2026-10-22T18:15:00+09:00";
 const articles = [
   {
     "slug": "handoff-to-tomorrow",

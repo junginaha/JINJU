@@ -59,6 +59,16 @@ export async function verifyTurnstile(
     return { ok: true, required: false };
   }
 
+  // 앱인토스 미니앱: Turnstile 위젯(iframe)을 쓸 수 없어 같은 서명 증명을 접두어 토큰으로 받는다.
+  const TOSS_FALLBACK_PREFIX = "jinju-fallback.";
+  if (
+    (expectedAction === "post" || expectedAction === "feedback")
+    && responseToken.startsWith(TOSS_FALLBACK_PREFIX)
+    && await verifyPostSecurityFallback(request, responseToken.slice(TOSS_FALLBACK_PREFIX.length))
+  ) {
+    return { ok: true, required: false };
+  }
+
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
   const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
   if (!siteKey || !secret) {
