@@ -1,3 +1,4 @@
+import { october23EditorialPosts, october23OperatorPostIds, october23OperatorReplies } from "./daily-editorial-20261023";
 import { october22EditorialPosts, october22OperatorPostIds, october22OperatorReplies } from "./daily-editorial-20261022";
 import { october21EditorialPosts, october21EditorialComments } from "./daily-editorial-20261021";
 import { october19EditorialPosts, october19EditorialComments } from "./daily-editorial-20261019";
@@ -80,7 +81,7 @@ function normalizePost(post: EditorialPost): EditorialPost {
   return {
     ...post,
     category: normalizePublicCategory(post.category),
-    heard: october22OperatorPostIds.has(post.id) ? post.heard : Math.max(10, post.heard),
+    heard: (october22OperatorPostIds.has(post.id) || october23OperatorPostIds.has(post.id)) ? post.heard : Math.max(10, post.heard),
   };
 }
 
@@ -96,6 +97,7 @@ function chooseUniquePosts(posts: EditorialPost[]) {
 }
 
 export const builtInPosts = chooseUniquePosts([
+  ...october23EditorialPosts,
   ...october22EditorialPosts,
   husbandHiddenDebtPost,
   ...october21EditorialPosts,
@@ -177,6 +179,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...october23OperatorReplies(id),
     ...october22OperatorReplies(id),
     ...october21EditorialComments(id),
     ...october19EditorialComments(id),
