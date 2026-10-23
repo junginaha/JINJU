@@ -27,6 +27,12 @@ fs.mkdirSync(path.join(OUT, "assets"), { recursive: true });
 // Toss-only source patches, applied in memory. Each must match or the build stops.
 const PATCHES = {
   "components/JinjuApp.tsx": [
+    // Toss owns app branding and back navigation; retain only content actions.
+    ["            <header className=\"mobile-chat-header\">\n              <button className=\"mobile-menu-button\" onClick={() => setMobileMenuOpen(true)} aria-label=\"게시판 메뉴 열기\">☰</button>\n              <a href=\"/\" aria-label=\"진주.kr 메인으로\"><Pearl size={36} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>\n            </header>", ""],
+    ["      <a href=\"/\" className=\"sidebar-brand\" aria-label=\"진주.kr 메인으로\"><Pearl size={44} /><span><strong>진주</strong><small>할 말은 하세요!</small></span></a>", ""],
+    ["      <header className=\"detail-header\"><a className=\"detail-home\" href=\"/\" aria-label=\"진주.kr 메인으로 돌아가기\">← 진주.kr</a><a href=\"#comment\">댓글 쓰기</a></header>", "      <div className=\"toss-comment-entry\"><a href=\"#comment\">댓글 쓰기</a></div>"],
+    ["<div><h1>새로운 의견</h1></div>", "<div className=\"toss-feed-title\"><button className=\"mobile-menu-button toss-board-menu\" type=\"button\" onClick={() => setMobileMenuOpen(true)} aria-label=\"게시판 메뉴 열기\">☰</button><h1>새로운 의견</h1></div>"],
+
     // Share with a Toss deep link.
     [
       "  async function share(post: Post) {\n",
@@ -41,6 +47,9 @@ const PATCHES = {
       "    window.history.pushState({}, \"\", \"/\");\n    setSelectedPostId(null);",
       "    if (window.history.state && window.history.state.jinjuPost) window.history.back(); else window.history.replaceState({}, \"\", \"/index.html\");\n    setSelectedPostId(null);",
     ],
+  ],
+  "components/PolicyPage.tsx": [
+    ["<a href=\"/\" aria-label=\"진주.kr 메인으로\">← 진주.kr</a>", ""],
   ],
 };
 
