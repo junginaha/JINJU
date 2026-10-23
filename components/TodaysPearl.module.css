@@ -12,3 +12,12 @@
 .bottom strong { flex:none; color:#e4e7e5; font-size:12px; font-weight:600; white-space:nowrap; }
 @media(hover:hover) { .link:hover h2,.link:hover .bottom strong { color:#b8dadd; } }
 @media(max-width:600px) { .card { margin-bottom:20px; border-radius:16px; } .link { padding:19px 17px; } .bottom { gap:12px; } .bottom > span { font-size:11px; } }
+
+/* Mobile/WebView defensive typography: preserve readable Korean word boundaries. */
+@media (max-width: 600px) {
+  .card { max-width: 100%; }
+  .link { min-width: 0; }
+  .link h2 { font-size: clamp(17px, 4.5vw, 20px); line-height: 1.45; word-break: keep-all; overflow-wrap: break-word; }
+  .excerpt { font-size: 14px; line-height: 1.65; word-break: keep-all; overflow-wrap: break-word; }
+  .bottom > span { word-break: keep-all; overflow-wrap: break-word; }
+}
