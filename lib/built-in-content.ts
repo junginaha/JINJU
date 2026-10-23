@@ -84,7 +84,7 @@ function normalizePost(post: EditorialPost): EditorialPost {
   return {
     ...post,
     category: normalizePublicCategory(post.category),
-    displayName: post.displayName ? refinedJinjuDisplayName(post.displayName, post.id) : post.displayName,
+    displayName: post.displayName === "진주 운영팀" ? refinedJinjuDisplayName(post.displayName, post.id) : post.displayName,
     heard: (post.id === warmNewsPost.id || october22OperatorPostIds.has(post.id) || october23OperatorPostIds.has(post.id)) ? post.heard : Math.max(10, post.heard),
   };
 }
