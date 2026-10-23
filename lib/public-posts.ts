@@ -27,7 +27,9 @@ function cleanRow(row: Record<string, unknown>): EditorialPost {
   return {
     id,
     title: PUBLIC_TITLE_REWRITES.get(id) ?? String(row.title),
-    content: String(row.content),
+    content: id === "jinju-editorial-20261023-starry-night-sky"
+      ? String(row.content).replace("운영팀이 흥미롭게 읽은 지점은", "흥미로운 지점은")
+      : String(row.content),
     category: normalizePublicCategory(String(row.category)),
     displayName: refinedJinjuDisplayName(String(row.display_name || "익명"), id),
     createdAt: new Date(String(row.created_at)).toISOString(),
