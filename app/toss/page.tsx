@@ -16,7 +16,7 @@ export default function TossJinjuPage() {
     return () => controller.abort();
   }, []);
   return <main style={{maxWidth:600,margin:"0 auto",padding:"24px 18px",minHeight:"100vh",background:"#fffaf5",color:"#292724",fontFamily:"system-ui,sans-serif"}}>
-    <header style={{paddingBottom:20,borderBottom:"1px solid #e9e0d7"}}><p style={{fontSize:13,color:"#786a5e"}}>진주 · 오늘의 이야기</p><h1 style={{fontSize:28,fontWeight:750,marginTop:8}}>마음에 남는 한 문장</h1><p style={{marginTop:8,color:"#756d66",fontSize:14}}>서로 다른 생각을 편안하게 읽는 시간</p></header>
+    <section aria-label="서비스 소개" style={{paddingBottom:20,borderBottom:"1px solid #e9e0d7"}}><h1 style={{fontSize:24,fontWeight:750,marginTop:0}}>마음에 남는 한 문장</h1><p style={{marginTop:8,color:"#756d66",fontSize:14}}>서로 다른 생각을 편안하게 읽는 시간</p></section>
     {loading && <p role="status" style={{paddingTop:24}}>이야기를 불러오는 중입니다.</p>}
     {error && <p role="alert" style={{paddingTop:24}}>{error}</p>}
     {!loading && !error && posts.length === 0 && <p style={{paddingTop:24}}>아직 표시할 이야기가 없습니다.</p>}
