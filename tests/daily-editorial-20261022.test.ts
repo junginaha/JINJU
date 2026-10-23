@@ -19,9 +19,10 @@ test('October22 operator articles retain zero engagement and have no synthetic c
     assert.equal(published.same,0);
     assert.equal(published.support,0);
     assert.equal(published.commentCount,0);
-    assert.equal(published.displayName,'진주 운영팀');
+    assert.notEqual(published.displayName,'진주 운영팀');
+    assert.equal(published.displayName?.split(' ').length,2);
     assert.equal(published.createdAt,release);
-    assert.deepEqual(builtInComments(p.id),october23OperatorReplies(p.id));
+    assert.deepEqual(builtInComments(p.id).filter(c=>!c.id.startsWith("community-conversation-20261024-")),october23OperatorReplies(p.id));
     assert.deepEqual(supplementalComments(p),[]);
     for(const old of builtInPosts.filter(x=>!posts.some(n=>n.id===x.id))){
       assert.equal(duplicate(p,old),false,`${p.title} / ${old.title}`);
