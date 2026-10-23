@@ -1,2 +1,6 @@
 /* Toss mini app only: keep text size stable and remove double-tap zoom delay. */
 html.in-toss { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
+/* 앱인토스 검수: 토스 내비게이션 바의 뒤로가기와 중복되는 미니앱 자체 뒤로가기 링크를 토스 번들에서만 숨김 (웹사이트는 그대로) */
+.in-toss .detail-header .detail-home,
+.in-toss .policy-page > header > a[href="/"] { display: none !important; }
+.in-toss .detail-header { justify-content: flex-end; }
