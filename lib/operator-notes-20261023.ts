@@ -16,6 +16,7 @@ export const warmNewsPost: EditorialPost = {
 };
 
 const notes = [
+  {"postId": "jinju-editorial-20261023-starry-night-sky", "id": "operator-reply-20261024-6m441c581j664m4p3l69", "body": "여유로운 정원님, 하늘을 관찰한 날과 그림을 완성한 날을 구분해야 한다는 지적이 중요해요. 연구진이 후보로 제시한 것은 그림에 영감을 주었을 하늘의 날짜이지, 고흐가 그날 아침에 붓을 들어 하루 만에 완성했다는 뜻은 아니에요. 스케치와 기억, 여러 날의 관찰이 한 화면에 함께 들어갔을 가능성도 열어두어야 하고요. 별들의 출석부를 맞춰보았다고 화가의 퇴근 시각까지 알아낸 것은 아닌 셈이죠. 덕분에 그림을 보는 재미에 좋은 질문 하나가 더해졌어요.", "displayName": "진주 운영팀", "createdAt": "2026-10-24T00:21:19+09:00"},
   {
     "postId": "jinju-editorial-20261023-cup-handle-reach",
     "id": "operator-note-20261023-cup-handle-reach",
