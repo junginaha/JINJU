@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Intro from "./Intro";
+import TodaysPearl from "./TodaysPearl";
+import type { TodaysPearl as DailyPick } from "../lib/todays-pearl";
 import PostTemperature from "./PostTemperature";
 import FeedbackDialog from "./FeedbackDialog";
 import { formatCommentTime } from "../lib/comment-time";
@@ -155,7 +157,7 @@ function Pearl({ size = 44, className = "" }: { size?: number; className?: strin
   return <Image className={className} src="/jinju-pearl-cutout.png" alt="" width={size} height={size} priority />;
 }
 
-export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null, initialTotal }: { initialPosts?: Post[]; initialPostId?: string | null; initialTotal?: number }) {
+export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null, initialTotal, initialPearl }: { initialPosts?: Post[]; initialPostId?: string | null; initialTotal?: number; initialPearl?: DailyPick | null }) {
   const [showIntro, setShowIntro] = useState(false);
   const [introReady, setIntroReady] = useState(false);
   const [posts, setPosts] = useState(initialPosts);
@@ -962,6 +964,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
             </header>
 
             <div className="feed-shell">
+              <TodaysPearl initialPearl={initialPearl} />
               <header className="feed-heading">
                 <div><h1>새로운 의견</h1></div>
                 <span>{feedTotal}개의 공개 의견</span>
@@ -1159,7 +1162,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
 
   return (
     <main className="detail-page">
-      <header className="detail-header"><a className="detail-home" href="/" onClick={(event) => { event.preventDefault(); onBack(); }}>← 진주.kr</a><a href="#comment">댓글 쓰기</a></header>
+      <header className="detail-header"><a className="detail-home" href="/" aria-label="진주.kr 메인으로 돌아가기">← 진주.kr</a><a href="#comment">댓글 쓰기</a></header>
       <div className="detail-shell">
         <article className="detail-post">
           <div className="post-meta"><span>{post.category}{post.displayName ? ` · ${post.displayName}` : ""}</span><time>{post.date}</time></div>

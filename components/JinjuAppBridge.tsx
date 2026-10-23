@@ -1,4 +1,5 @@
 "use client";
+import type { TodaysPearl } from "../lib/todays-pearl";
 
 import { useEffect } from "react";
 import { SITE_DEFINITION } from "@/lib/search-indexing";
@@ -8,6 +9,7 @@ type JinjuAppBridgeProps = {
   initialPosts?: Post[];
   initialPostId?: string | null;
   initialTotal?: number;
+  initialPearl?: TodaysPearl | null;
 };
 
 const FEED_ACCESSIBLE_NAME = "진주 익명 의견 게시판";
@@ -94,7 +96,7 @@ const feedPagerCss = `
 `;
 
 /** Thin presentation compatibility boundary around the legacy JinjuApp monolith. */
-export default function JinjuAppBridge({ initialPosts, initialPostId = null, initialTotal }: JinjuAppBridgeProps) {
+export default function JinjuAppBridge({ initialPosts, initialPostId = null, initialTotal, initialPearl }: JinjuAppBridgeProps) {
   useEffect(() => {
     let applying = false;
 
@@ -174,7 +176,7 @@ export default function JinjuAppBridge({ initialPosts, initialPostId = null, ini
   return (
     <>
       <style>{feedPagerCss}</style>
-      <JinjuApp initialPosts={initialPosts ?? []} initialPostId={initialPostId} initialTotal={initialTotal} />
+      <JinjuApp initialPosts={initialPosts ?? []} initialPostId={initialPostId} initialTotal={initialTotal} initialPearl={initialPearl} />
     </>
   );
 }
