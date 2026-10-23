@@ -139,7 +139,7 @@ export function october22OperatorReplies(postId: string): EditorialComment[] {
   return replies.filter(reply => reply.postId === postId).map((reply, index) => ({
     id: `operator-reply-20261022-${reply.parentCommentId}`,
     displayName: "진주 운영팀",
-    body: `${reply.recipient}님께 드리는 운영팀 답글이에요. ${reply.body}`,
+    body: `${reply.recipient}님, ${reply.body}`,
     createdAt: new Date(Date.parse(october22ReleaseAt) + index).toISOString(),
   }));
 }
