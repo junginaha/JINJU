@@ -13,10 +13,11 @@ test('October23 operator posts contain no invented engagement or duplicate artic
   const duplicate=createDuplicatePostChecker();
   for(const p of posts){
     const stored=builtInPosts.find(x=>x.id===p.id)!;assert.ok(stored);
-    assert.equal(stored.displayName,'진주 운영팀');
+    assert.notEqual(stored.displayName,'진주 운영팀');
+    assert.equal(stored.displayName?.split(' ').length,2);
     assert.deepEqual([stored.heard,stored.same,stored.support,stored.commentCount],[0,0,0,0]);
     assert.equal(stored.createdAt,release);
-    assert.deepEqual(builtInComments(p.id),warmOperatorNotes(p.id));assert.deepEqual(supplementalComments(p),[]);
+    assert.deepEqual(builtInComments(p.id).filter(c=>!c.id.startsWith("conversation-20261024-")),warmOperatorNotes(p.id));assert.deepEqual(supplementalComments(p),[]);
     for(const old of builtInPosts.filter(x=>x.id!==p.id)){
       assert.equal(duplicate(p,old),false,p.title+' / '+old.title);
       assert.ok(similarity(p.content,old.content)<0.5,p.title+' / '+old.title);

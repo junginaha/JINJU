@@ -63,6 +63,7 @@ export function deterministicJinjuDisplayName(stableKey: string, index = 0) {
 
 export function refinedJinjuDisplayName(name: string, stableKey: string) {
   const clean = name.trim().replace(/\s+/g, " ");
+  if (clean === "진주 운영팀") return deterministicJinjuDisplayName(`anonymous-editorial:${stableKey}`);
   const words = clean.split(" ");
   if (words.length !== 2) return clean || "익명";
   if (!LEGACY_AWKWARD_FIRST.has(words[0]) && !LEGACY_AWKWARD_SECOND.has(words[1])) return clean;

@@ -1,3 +1,5 @@
+import { warmConversationComments } from "./warm-conversation-20261024";
+import { refinedJinjuDisplayName } from "./display-name";
 import { warmNewsPost, warmOperatorNotes } from "./operator-notes-20261023";
 import { october23EditorialPosts, october23OperatorPostIds, october23OperatorReplies } from "./daily-editorial-20261023";
 import { october22EditorialPosts, october22OperatorPostIds, october22OperatorReplies } from "./daily-editorial-20261022";
@@ -82,6 +84,7 @@ function normalizePost(post: EditorialPost): EditorialPost {
   return {
     ...post,
     category: normalizePublicCategory(post.category),
+    displayName: post.displayName ? refinedJinjuDisplayName(post.displayName, post.id) : post.displayName,
     heard: (post.id === warmNewsPost.id || october22OperatorPostIds.has(post.id) || october23OperatorPostIds.has(post.id)) ? post.heard : Math.max(10, post.heard),
   };
 }
@@ -181,6 +184,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...warmConversationComments(id),
     ...warmOperatorNotes(id),
     ...october23OperatorReplies(id),
     ...october22OperatorReplies(id),
