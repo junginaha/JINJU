@@ -85,6 +85,10 @@ await build({
   logLevel: "warning",
 });
 
+// CSS modules imported by client components are emitted beside app.js.
+// Every generated HTML page must load this file or the daily card loses its layout.
+if (!fs.existsSync(path.join(OUT, "assets/app.css"))) throw new Error("Missing bundled component CSS");
+
 // Styles: the site's own CSS (Tailwind + globals + hotfix), unchanged.
 execFileSync(path.join(ROOT, "node_modules/.bin/tailwindcss"), ["-c", "tailwind.config.ts", "-i", "app/globals.css", "-o", path.join(OUT, "assets/site.css"), "--minify"], { cwd: ROOT, stdio: "inherit" });
 fs.appendFileSync(path.join(OUT, "assets/site.css"), "\n" + fs.readFileSync(path.join(ROOT, "app/production-hotfix.css"), "utf8"));
@@ -102,6 +106,7 @@ for (const [name, title] of Object.entries(PAGES)) {
 <title>${title}</title>
 <link rel="icon" href="/jinju-pearl-cutout.png">
 <link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/app.css">
 <link rel="stylesheet" href="/assets/toss.css">
 </head>
 <body>
