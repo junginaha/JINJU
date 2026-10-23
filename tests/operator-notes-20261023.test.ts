@@ -9,7 +9,7 @@ import { hasPii, reviewText } from '../lib/safety';
 test('Operator supplements have explicit attribution, context and zero fabricated reactions',()=>{
   const targets=[...october23EditorialPosts,post];
   const all=targets.flatMap(p=>{
-    const comments=notes(p.id);assert.equal(comments.length,1);
+    const comments=notes(p.id);assert.equal(comments.length,p.id === post.id ? 2 : 1);
     assert.equal(comments[0].displayName,'진주 운영팀');assert.doesNotMatch(comments[0].body,/운영팀|AI가|덧붙임/);
     assert.ok(comments[0].body.length>=180);
     assert.ok(Date.parse(comments[0].createdAt)>=Date.parse(p.createdAt));
@@ -17,7 +17,7 @@ test('Operator supplements have explicit attribution, context and zero fabricate
     assert.equal(hasPii(comments[0].body),false);assert.equal(reviewText(comments[0].body).riskLevel,'low');
     return comments;
   });
-  assert.equal(new Set(all.map(c=>c.id)).size,10);assert.equal(new Set(all.map(c=>c.body)).size,10);
+  assert.equal(new Set(all.map(c=>c.id)).size,11);assert.equal(new Set(all.map(c=>c.body)).size,11);
   assert.deepEqual(notes('unrelated-post'),[]);
   assert.deepEqual([post.heard,post.same,post.support,post.commentCount],[0,0,0,0]);
   assert.equal(builtInPosts.find(p=>p.id===post.id)?.heard,0);
