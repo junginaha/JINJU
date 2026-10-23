@@ -40,7 +40,7 @@ test('Operator replies target seven existing comments and appear only at the cur
     const reply=comments.find(c=>c.id===`operator-reply-20261022-${target.commentId}`);
     assert.ok(reply);
     assert.equal(reply.displayName,'진주 운영팀');
-    assert.ok(reply.body.includes('운영팀 답글'));
+    assert.doesNotMatch(reply.body,/운영팀 답글|AI가/);
     assert.ok(reply.body.length>=150);
     assert.ok(Date.parse(reply.createdAt)>Date.parse(target.createdAt));
     assert.equal(builtInComments(target.postId).filter(c=>c.id===reply.id).length,1);

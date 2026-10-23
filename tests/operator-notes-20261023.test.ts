@@ -10,7 +10,7 @@ test('Operator supplements have explicit attribution, context and zero fabricate
   const targets=[...october23EditorialPosts,post];
   const all=targets.flatMap(p=>{
     const comments=notes(p.id);assert.equal(comments.length,1);
-    assert.equal(comments[0].displayName,'진주 운영팀');assert.match(comments[0].body,/운영팀/);
+    assert.equal(comments[0].displayName,'진주 운영팀');assert.doesNotMatch(comments[0].body,/운영팀|AI가|덧붙임/);
     assert.ok(comments[0].body.length>=180);
     assert.ok(Date.parse(comments[0].createdAt)>=Date.parse(p.createdAt));
     assert.equal(builtInComments(p.id).filter(c=>c.id===comments[0].id).length,1);

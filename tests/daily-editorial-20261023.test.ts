@@ -28,7 +28,7 @@ test('October23 replies are attributed to the operator and target only the two n
   for(const t of targets){
     const cs=replies(t.postId);assert.equal(cs.length,1);
     assert.equal(cs[0].id,`operator-reply-20261023-${t.commentId}`);
-    assert.equal(cs[0].displayName,'진주 운영팀');assert.match(cs[0].body,/운영팀 답글/);
+    assert.equal(cs[0].displayName,'진주 운영팀');assert.doesNotMatch(cs[0].body,/운영팀 답글|AI가/);
     assert.ok(cs[0].body.length>180);assert.ok(Date.parse(release)>Date.parse(t.createdAt));
     assert.equal(visibleCommentsAt(cs,Date.parse(release)-1).length,0);
     assert.equal(visibleCommentsAt(cs,Date.parse(release)).length,1);
