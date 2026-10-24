@@ -1,6 +1,7 @@
 import { communityConversationComments } from "./community-conversations-20261024";
 import { warmConversationComments } from "./warm-conversation-20261024";
 import { readerComments20261024For } from "./reader-comments-20261024";
+import { guideComments20261024For } from "./guide-comments-20261024";
 import { refinedJinjuDisplayName } from "./display-name";
 import { warmNewsPost, warmOperatorNotes } from "./operator-notes-20261023";
 import { october23EditorialPosts, october23OperatorPostIds, october23OperatorReplies } from "./daily-editorial-20261023";
@@ -189,6 +190,7 @@ export function builtInComments(id: string): EditorialComment[] {
     ...communityConversationComments(id),
     ...warmConversationComments(id),
     ...readerComments20261024For(id),
+    ...guideComments20261024For(id),
     ...warmOperatorNotes(id),
     ...october23OperatorReplies(id),
     ...october22OperatorReplies(id),

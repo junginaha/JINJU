@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { october23EditorialPosts as posts, october23OperatorReplies as replies, october23ReplyTargets as targets, october23ReleaseAt as release } from '../lib/daily-editorial-20261023';
 import { builtInPosts, builtInComments as allBuiltInComments } from '../lib/built-in-content';
-// Operator-requested reader comments (2026-10-24) are checked in their own test.
-const builtInComments = (id: string) => allBuiltInComments(id).filter((c) => !c.id.startsWith("reader-20261024-"));
+// Operator-requested reader comments and guide comments (2026-10-24) are checked in their own tests.
+const builtInComments = (id: string) => allBuiltInComments(id).filter((c) => !c.id.startsWith("reader-20261024-") && !c.id.startsWith("guide-20261024-"));
 import { supplementalComments } from '../lib/supplemental-comments';
 import { createDuplicatePostChecker, similarity } from '../lib/dedup';
 import { hasPii, reviewText } from '../lib/safety';
