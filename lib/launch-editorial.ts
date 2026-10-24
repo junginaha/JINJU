@@ -72,9 +72,6 @@ const COMMENTS: Record<string, EditorialComment[]> = {
   ],
 };
 
-export function launchEditorialPost(id: string) {
-  return launchEditorialPosts.find((post) => post.id === id) ?? null;
-}
 
 export function launchEditorialComments(id: string) {
   return COMMENTS[id] ?? [];

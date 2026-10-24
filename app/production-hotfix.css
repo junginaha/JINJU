@@ -46,10 +46,6 @@
   animation: .85s 2.95s both intro-key-dot;
 }
 
-.intro-signature {
-  animation: .55s 3.25s forwards intro-signature-in;
-}
-
 .detail-page,
 .admin-review-page {
   min-height: 100vh;

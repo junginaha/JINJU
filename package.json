@@ -13,9 +13,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@neondatabase/serverless": "^1.1.0",
-    "@semaphore-protocol/group": "^4.14.3",
-    "@semaphore-protocol/identity": "^4.14.3",
-    "@semaphore-protocol/proof": "^4.14.3",
     "@sentry/nextjs": "^10.67.0",
     "next": "16.3.0",
     "react": "19.2.8",
@@ -35,9 +32,6 @@
   "overrides": {
     "brace-expansion": "5.0.9",
     "fast-uri": "3.1.5",
-    "nanoid": "3.3.17",
-    "snarkjs": "0.7.5",
-    "underscore": "1.13.8",
-    "ws": "8.21.1"
+    "nanoid": "3.3.17"
   }
 }
