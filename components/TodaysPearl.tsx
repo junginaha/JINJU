@@ -28,7 +28,7 @@ export default function TodaysPearl({ initialPearl }: { initialPearl?: Pick | nu
   if(!pearl)return null;
   return <aside className={styles.card} aria-label="오늘의 진주">
     <a className={styles.link} href={`/post/${encodeURIComponent(pearl.id)}`}>
-      <div className={styles.top}><span className={styles.label}><span className={styles.pearl} aria-hidden="true" />오늘의 진주</span><time dateTime={pearl.day}>{pearl.day.slice(5).replace('-','.')}</time></div>
+      <div className={styles.top}><span className={styles.label}><span className={styles.pearl} aria-hidden="true" />오늘의 진주</span></div>
       <h2>{pearl.title}</h2>
       <p className={styles.excerpt}>{pearl.excerpt}</p>
       <div className={styles.bottom}><span>{pearl.reason}</span><strong>함께 읽기 <span aria-hidden="true">↗</span></strong></div>
