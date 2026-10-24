@@ -1,14 +1,14 @@
-.card { box-sizing:border-box; width:100%; max-width:100%; min-width:0; margin:0 0 26px; border:1px solid #e5e5e5; border-radius:20px; background:#fff; color:#111; overflow:hidden; isolation:isolate; color-scheme:light; }
+.card { box-sizing:border-box; width:100%; max-width:100%; min-width:0; margin:0 0 26px; border:1px solid #ececec; border-radius:20px; background:#fff; color:#111; overflow:hidden; isolation:isolate; color-scheme:light; box-shadow:0 1px 0 #ffffff0a, 0 14px 36px -18px #00000080; }
 .link { box-sizing:border-box; display:block; width:100%; min-width:0; padding:24px; color:#111; text-decoration:none; text-align:left; }
 .link:focus-visible { outline:2px solid #555; outline-offset:-4px; border-radius:20px; }
 .top { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; }
-.label { display:inline-flex; align-items:center; gap:9px; color:#333; font-size:12px; font-weight:700; line-height:1.5; letter-spacing:.04em; white-space:nowrap; }
-.pearl { width:12px; height:12px; flex:none; border-radius:50%; background:radial-gradient(circle at 32% 28%,#fff 0%,#e9ddd4 37%,#b8dadd 70%,#9e9caa 100%); border:1px solid #ddd; }
-.top time { flex:none; white-space:nowrap; color:#555; font-size:12px; line-height:1.5; font-variant-numeric:tabular-nums; }
+.label { display:inline-flex; align-items:center; gap:10px; color:#222; font-size:12px; font-weight:700; line-height:1.5; letter-spacing:.06em; white-space:nowrap; }
+.pearl { width:16px; height:16px; flex:none; border-radius:50%; background:radial-gradient(circle at 32% 27%,#ffffff 0 6%,#ffffffcc 9%,#ffffff00 22%),radial-gradient(ellipse 60% 30% at 55% 88%,#ffffff40 0,#ffffff00 70%),radial-gradient(circle at 74% 72%,#7f9cff8c 0,#7f9cff00 48%),radial-gradient(circle at 24% 70%,#d982e873 0,#d982e800 46%),radial-gradient(circle at 80% 28%,#5fe0cf59 0,#5fe0cf00 42%),radial-gradient(circle at 46% 44%,#4a4d5a 0%,#1b1c23 50%,#050506 100%); box-shadow:inset -2px -2.5px 4px #000000b3,inset 1px 1px 2px #ffffff4d,0 1px 3px #00000059,0 0 0 .5px #00000033; }
+.top time { flex:none; white-space:nowrap; color:#777; font-size:12px; line-height:1.5; letter-spacing:.02em; font-variant-numeric:tabular-nums; }
 .link h2 { margin:16px 0 10px; color:#111; font-size:clamp(19px,3.6vw,25px); font-weight:700; line-height:1.45; letter-spacing:-.035em; word-break:keep-all; overflow-wrap:anywhere; }
-.excerpt { margin:0; color:#333; font-size:14px; line-height:1.75; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; word-break:keep-all; overflow-wrap:anywhere; }
+.excerpt { margin:0; color:#444; font-size:14px; line-height:1.75; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; word-break:keep-all; overflow-wrap:anywhere; text-wrap:pretty; }
 .bottom { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 18px; margin-top:20px; padding-top:16px; border-top:1px solid #e7e7e7; }
-.bottom > span { flex:1 1 180px; min-width:0; color:#555; font-size:12px; line-height:1.65; word-break:keep-all; overflow-wrap:anywhere; }
-.bottom strong { flex:none; margin-left:auto; color:#111; font-size:12px; line-height:1.65; font-weight:600; white-space:nowrap; }
-@media(hover:hover) { .link:hover h2,.link:hover .bottom strong { text-decoration:underline; text-underline-offset:3px; } }
+.bottom > span { flex:1 1 180px; min-width:0; color:#666; font-size:12px; line-height:1.65; word-break:keep-all; overflow-wrap:anywhere; text-wrap:balance; }
+.bottom strong { flex:none; margin-left:auto; display:inline-flex; align-items:center; gap:4px; padding:7px 13px; border-radius:999px; background:#111; color:#fff; font-size:12px; line-height:1.4; font-weight:600; white-space:nowrap; }
+@media(hover:hover) { .link:hover h2 { text-decoration:underline; text-underline-offset:3px; } .link:hover .bottom strong { background:#2a2b31; } }
 @media(max-width:600px) { .card { margin-bottom:20px; border-radius:16px; } .link { padding:20px; } }
