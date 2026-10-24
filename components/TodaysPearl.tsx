@@ -31,7 +31,7 @@ export default function TodaysPearl({ initialPearl }: { initialPearl?: Pick | nu
       <div className={styles.top}><span className={styles.label}><span className={styles.pearl} aria-hidden="true" />오늘의 진주</span></div>
       <h2>{pearl.title}</h2>
       <p className={styles.excerpt}>{pearl.excerpt}</p>
-      <div className={styles.bottom}><span>{pearl.reason}</span><strong>함께 읽기 <span aria-hidden="true">↗</span></strong></div>
+      <div className={styles.bottom}><strong>함께 읽기 <span aria-hidden="true">↗</span></strong></div>
     </a>
   </aside>;
 }
