@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { koreaDay, nextKoreaDay, type TodaysPearl as Pick } from '../lib/todays-pearl';
 import styles from './TodaysPearl.module.css';
 
-export default function TodaysPearl({ initialPearl }: { initialPearl?: Pick | null }) {
+export default function TodaysPearl({ initialPearl, onPearl }: { initialPearl?: Pick | null; onPearl?: (id: string | null) => void }) {
   const [pearl,setPearl] = useState(initialPearl ?? null);
+  useEffect(() => { onPearl?.(pearl?.id ?? null); }, [pearl?.id, onPearl]);
   useEffect(() => {
     let stopped=false;
     let timer: ReturnType<typeof setTimeout>;

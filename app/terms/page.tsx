@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "../../components/PolicyPage";
-import { SITE_NAME } from "@/lib/search-indexing";
+import { SITE_NAME, SITE_OG_IMAGE } from "@/lib/search-indexing";
 
 const description = "진주.kr의 익명 의견 게시, 권리침해 신고·임시조치, 익명 통계 활용과 서비스 이용 기준을 안내합니다.";
 
@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   title: "이용약관",
   description,
   alternates: { canonical: "/terms", languages: { "ko-KR": "/terms" } },
-  openGraph: { title: `이용약관 | ${SITE_NAME}`, description, type: "website", url: "/terms", siteName: SITE_NAME, locale: "ko_KR" },
+  openGraph: { title: `이용약관 | ${SITE_NAME}`, description, type: "website", url: "/terms", siteName: SITE_NAME, locale: "ko_KR", images: [SITE_OG_IMAGE] },
+  twitter: { card: "summary_large_image", images: [SITE_OG_IMAGE] },
 };
 
 export default function TermsPage() {

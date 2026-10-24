@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "문제제보 처리상태",
   description: "진주.kr 문제제보·권리침해 신고의 처리 상태를 접수번호와 확인키로 확인합니다.",
   robots: { index: false, follow: false },
+  alternates: { canonical: "/report-status" },
 };
 
 export default function ReportStatusPage() {

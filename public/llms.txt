@@ -14,6 +14,15 @@ Korean display domain: https://진주.kr/
 - Guidance: 안전하고 개운하게 속마음을 털어놓으세요
 - Not related to: 경상남도 진주시, 진주시청, 지방자치단체 공식 서비스
 
+## Key facts
+- 가입·실명 확인 없이 익명으로 글과 댓글을 남깁니다.
+- 이름·연락처 같은 개인 식별정보를 요구하지 않습니다.
+- 게시 전에 개인정보와 위험한 표현을 점검하고, 수정이 필요하면 고쳐 쓸 문장을 안내합니다.
+- 글마다 반응과 댓글을 남길 수 있고, 문제제보·권리침해 신고는 접수번호로 처리상태를 확인합니다.
+- 홈 첫 화면의 '오늘의 진주'는 하루에 한 편의 공개 글을 골라 보여 줍니다.
+- 운영팀이 작성한 글과 답글에는 운영자임을 밝힙니다.
+- 토스 앱 안의 미니앱 '진주:진실의 주둥이'로도 이용할 수 있습니다.
+
 ## Public pages
 - Home: https://xn--o55b9n.kr/
 - About: https://xn--o55b9n.kr/about
@@ -21,6 +30,7 @@ Korean display domain: https://진주.kr/
 - Principles: https://xn--o55b9n.kr/principles
 - Safety: https://xn--o55b9n.kr/safety
 - Privacy: https://xn--o55b9n.kr/privacy
+- All posts: https://xn--o55b9n.kr/archive
 - Sitemap: https://xn--o55b9n.kr/sitemap.xml
 - RSS: https://xn--o55b9n.kr/rss.xml
 

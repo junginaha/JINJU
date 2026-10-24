@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "../../components/PolicyPage";
-import { SITE_NAME } from "@/lib/search-indexing";
+import { SITE_NAME, SITE_OG_IMAGE } from "@/lib/search-indexing";
 
 const description = "진주.kr이 익명 의견을 보호하면서 개인정보 노출, 괴롭힘, 명예훼손, 불법·위험한 내용을 제한하고 권리침해 요청을 처리하는 운영원칙입니다.";
 
@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   title: "운영원칙",
   description,
   alternates: { canonical: "/principles", languages: { "ko-KR": "/principles" } },
-  openGraph: { title: `운영원칙 | ${SITE_NAME}`, description, type: "website", url: "/principles", siteName: SITE_NAME, locale: "ko_KR" },
+  openGraph: { title: `운영원칙 | ${SITE_NAME}`, description, type: "website", url: "/principles", siteName: SITE_NAME, locale: "ko_KR", images: [SITE_OG_IMAGE] },
+  twitter: { card: "summary_large_image", images: [SITE_OG_IMAGE] },
 };
 
 export default function PrinciplesPage() {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "../../components/PolicyPage";
-import { SITE_NAME } from "@/lib/search-indexing";
+import { SITE_NAME, SITE_OG_IMAGE } from "@/lib/search-indexing";
 
 const description = "진주.kr의 개인정보 0% 원칙과 익명 참여, 서비스 보호에 필요한 최소 기술정보 처리 방식을 안내합니다.";
 
@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   title: "개인정보",
   description,
   alternates: { canonical: "/privacy", languages: { "ko-KR": "/privacy" } },
-  openGraph: { title: `개인정보 | ${SITE_NAME}`, description, type: "website", url: "/privacy", siteName: SITE_NAME, locale: "ko_KR" },
+  openGraph: { title: `개인정보 | ${SITE_NAME}`, description, type: "website", url: "/privacy", siteName: SITE_NAME, locale: "ko_KR", images: [SITE_OG_IMAGE] },
+  twitter: { card: "summary_large_image", images: [SITE_OG_IMAGE] },
 };
 
 export default function PrivacyPage() {

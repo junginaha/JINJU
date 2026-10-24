@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "../../components/PolicyPage";
-import { SITE_NAME } from "@/lib/search-indexing";
+import { SITE_NAME, SITE_OG_IMAGE } from "@/lib/search-indexing";
 
 const description = "진주.kr의 정식 운영 상태와 안정화 원칙, 익명 문제제보 방법을 안내합니다.";
 
@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   title: "정식 운영 안내",
   description,
   alternates: { canonical: "/beta", languages: { "ko-KR": "/beta" } },
-  openGraph: { title: `정식 운영 안내 | ${SITE_NAME}`, description, type: "website", url: "/beta", siteName: SITE_NAME, locale: "ko_KR" },
+  openGraph: { title: `정식 운영 안내 | ${SITE_NAME}`, description, type: "website", url: "/beta", siteName: SITE_NAME, locale: "ko_KR", images: [SITE_OG_IMAGE] },
+  twitter: { card: "summary_large_image", images: [SITE_OG_IMAGE] },
 };
 
 export default function BetaPage() {

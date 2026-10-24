@@ -68,7 +68,6 @@ export default async function PostPage({ params }: PageProps) {
     url: postUrl,
     headline: selected.title,
     text: selected.content,
-    articleBody: selected.content,
     articleSection: selected.category,
     datePublished: selected.createdAt,
     dateModified: selected.updatedAt || selected.createdAt,
@@ -85,6 +84,11 @@ export default async function PostPage({ params }: PageProps) {
     publisher: { "@id": SITE_ORGANIZATION_ID },
     isPartOf: { "@id": SITE_WEBSITE_ID },
     mainEntityOfPage: postUrl,
+    commentCount: selected.commentCount,
+    interactionStatistic: [
+      { "@type": "InteractionCounter", interactionType: "https://schema.org/CommentAction", userInteractionCount: selected.commentCount },
+      { "@type": "InteractionCounter", interactionType: "https://schema.org/LikeAction", userInteractionCount: selected.heard },
+    ],
   };
 
   return (

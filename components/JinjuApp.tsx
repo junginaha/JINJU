@@ -159,6 +159,7 @@ function Pearl({ size = 44, className = "" }: { size?: number; className?: strin
 
 export default function JinjuApp({ initialPosts = seedPosts, initialPostId = null, initialTotal, initialPearl }: { initialPosts?: Post[]; initialPostId?: string | null; initialTotal?: number; initialPearl?: DailyPick | null }) {
   const [showIntro, setShowIntro] = useState(false);
+  const [pearlId, setPearlId] = useState<string | null>(initialPearl?.id ?? null);
   const [introReady, setIntroReady] = useState(false);
   const [posts, setPosts] = useState(initialPosts);
   const [feedState, setFeedState] = useState<"loading" | "ready" | "error">(
@@ -475,10 +476,11 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   const filteredPosts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return posts
+      .filter((post) => normalized || topic !== "전체" || post.id !== pearlId)
       .filter((post) => topic === "전체" || post.category === topic)
       .filter((post) => !normalized || `${post.title} ${post.content}`.toLowerCase().includes(normalized))
       .sort((a, b) => sort === "popular" ? (b.heard + b.same) - (a.heard + a.same) : 0);
-  }, [posts, query, sort, topic]);
+  }, [posts, query, sort, topic, pearlId]);
 
   const loadMorePosts=useCallback(()=>{
     if(feedLoadingMore||!hasMorePosts)return;
@@ -964,7 +966,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
             </header>
 
             <div className="feed-shell">
-              <TodaysPearl initialPearl={initialPearl} />
+              <TodaysPearl initialPearl={initialPearl} onPearl={setPearlId} />
               <header className="feed-heading">
                 <div><h1>새로운 의견</h1></div>
                 <span>{feedTotal}개의 공개 의견</span>

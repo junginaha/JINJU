@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "../../components/PolicyPage";
-import { SITE_NAME } from "@/lib/search-indexing";
+import { SITE_NAME, SITE_OG_IMAGE } from "@/lib/search-indexing";
 
 const description = "진주.kr에서 개인정보 노출, 명예훼손·사생활 침해 등 권리침해를 익명으로 신고하고 임시조치를 요청하는 방법을 안내합니다.";
 
@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   title: "안전안내",
   description,
   alternates: { canonical: "/safety", languages: { "ko-KR": "/safety" } },
-  openGraph: { title: `안전안내 | ${SITE_NAME}`, description, type: "website", url: "/safety", siteName: SITE_NAME, locale: "ko_KR" },
+  openGraph: { title: `안전안내 | ${SITE_NAME}`, description, type: "website", url: "/safety", siteName: SITE_NAME, locale: "ko_KR", images: [SITE_OG_IMAGE] },
+  twitter: { card: "summary_large_image", images: [SITE_OG_IMAGE] },
 };
 
 export default function SafetyPage() {
