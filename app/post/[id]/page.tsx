@@ -87,7 +87,6 @@ export default async function PostPage({ params }: PageProps) {
     commentCount: selected.commentCount,
     interactionStatistic: [
       { "@type": "InteractionCounter", interactionType: "https://schema.org/CommentAction", userInteractionCount: selected.commentCount },
-      { "@type": "InteractionCounter", interactionType: "https://schema.org/LikeAction", userInteractionCount: selected.heard },
     ],
   };
 
