@@ -94,6 +94,10 @@ execFileSync(path.join(ROOT, "node_modules/.bin/tailwindcss"), ["-c", "tailwind.
 fs.appendFileSync(path.join(OUT, "assets/site.css"), "\n" + fs.readFileSync(path.join(ROOT, "app/production-hotfix.css"), "utf8"));
 fs.copyFileSync(path.join(ROOT, "public/jinju-pearl-cutout.png"), path.join(OUT, "jinju-pearl-cutout.png"));
 
+// Embed component styles in every page so the daily card never depends on a second stylesheet request.
+const componentCss = fs.readFileSync(path.join(OUT, "assets/app.css"), "utf8");
+if (/<\/style/i.test(componentCss)) throw new Error("Unsafe component CSS");
+
 const css = fs.readFileSync(path.join(here, "src/toss.css"), "utf8");
 fs.writeFileSync(path.join(OUT, "assets/toss.css"), css);
 
@@ -106,7 +110,7 @@ for (const [name, title] of Object.entries(PAGES)) {
 <title>${title}</title>
 <link rel="icon" href="/jinju-pearl-cutout.png">
 <link rel="stylesheet" href="/assets/site.css">
-<link rel="stylesheet" href="/assets/app.css">
+<style data-jinju-component-styles>${componentCss}</style>
 <link rel="stylesheet" href="/assets/toss.css">
 </head>
 <body>

@@ -28,8 +28,8 @@ test('Reader posts receive authored supplements and built-in posts do not double
   if(communityReaderPostIds.has(id))assert.equal(keepsSupplementalCommentsWithAutoSet(id),true);
  }
 });
-test('Toss HTML loads generated component CSS after site CSS',()=>{
+test('Toss HTML embeds generated component CSS after site CSS',()=>{
  const build=readFileSync('toss/build.mjs','utf8');
- assert.ok(build.indexOf('/assets/app.css')>build.indexOf('/assets/site.css'));
+ assert.ok(build.indexOf('<style data-jinju-component-styles>')>build.indexOf('/assets/site.css'));
  assert.match(build,/Missing bundled component CSS/);
 });
