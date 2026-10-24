@@ -7,6 +7,7 @@ import { applyPostOverride, contentOverrides, hiddenCommentCounts, type ContentO
 import { dedupePosts, HIDDEN_DUPLICATE_POST_IDS } from "./dedup";
 import { refinedJinjuDisplayName } from "./display-name";
 import type { EditorialPost } from "./editorial";
+import { withLikeBoost } from "./like-boost";
 import {
   keepsSupplementalCommentsWithAutoSet,
   supplementalComments,
@@ -161,11 +162,11 @@ export const getPublicPosts = cache(async () => {
     .flatMap((post) => {
       if (!isPublished(post, now)) return [];
       const visible = applyPostOverride(post, overrides);
-      return visible ? [{
+      return visible ? [withLikeBoost({
         ...visible,
         category: normalizePublicCategory(visible.category),
         commentCount: Math.max(0, visible.commentCount - (hiddenCounts.get(visible.id) || 0)),
-      }] : [];
+      })] : [];
     })
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 });
@@ -211,11 +212,11 @@ export const getPublicPost = cache(async (id: string) => {
           overrides,
         );
         const hiddenCount = hiddenCommentCounts(overrides).get(id) || 0;
-        return post ? {
+        return post ? withLikeBoost({
           ...post,
           category: normalizePublicCategory(post.category),
           commentCount: Math.max(0, post.commentCount - hiddenCount),
-        } : null;
+        }) : null;
       }
     } catch (error) {
       console.error("[public-posts] database post unavailable", error);
@@ -226,9 +227,9 @@ export const getPublicPost = cache(async (id: string) => {
   if (!fallback || !isPublished(fallback, now)) return null;
   const post = applyPostOverride(builtInWithVisibleCommentCount(fallback, now), overrides);
   const hiddenCount = hiddenCommentCounts(overrides).get(id) || 0;
-  return post ? {
+  return post ? withLikeBoost({
     ...post,
     category: normalizePublicCategory(post.category),
     commentCount: Math.max(0, post.commentCount - hiddenCount),
-  } : null;
+  }) : null;
 });

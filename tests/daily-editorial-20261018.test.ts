@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { builtInComments, builtInPosts } from "../lib/built-in-content";
+import { builtInComments as allBuiltInComments, builtInPosts } from "../lib/built-in-content";
+// Operator-requested reader comments (2026-10-24) are checked in their own test.
+const builtInComments = (id: string) => allBuiltInComments(id).filter((c) => !c.id.startsWith("reader-20261024-"));
 import { october18Candidates as candidates, october18EditorialComments as commentsFor, october18EditorialPosts as posts, october18Research as research, october18Selection as selection } from "../lib/daily-editorial-20261018";
 import { editorialDiversityIssues } from "../lib/editorial-diversity";
 import { normalizeCommentTimes } from "../lib/comment-time";

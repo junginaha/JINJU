@@ -4,6 +4,7 @@ import { db, databaseEnabled, ensureSchema, hash, token } from "../../../../../l
 import { HIDDEN_DUPLICATE_POST_IDS } from "../../../../../lib/dedup";
 import { rateLimit } from "../../../../../lib/rate-limit";
 import { purgeExpiredReactions } from "../../../../../lib/reactions";
+import { likeBoost } from "../../../../../lib/like-boost";
 
 function anonymousReactionId(request: Request) {
   const cookie = request.headers.get("cookie") || "";
@@ -62,7 +63,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       rows = await db()`SELECT heard, same FROM posts WHERE id = ${id} LIMIT 1`;
       return reactionResponse(
         request,
-        { ok: true, alreadyReacted: true, reaction: kind, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
+        { ok: true, alreadyReacted: true, reaction: kind, post: { heard: Number(rows[0].heard) + likeBoost(id), same: Number(rows[0].same) } },
         identity,
       );
     }
@@ -82,7 +83,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (rows[0]) {
       return reactionResponse(
         request,
-        { ok: true, switched: true, reaction: kind, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
+        { ok: true, switched: true, reaction: kind, post: { heard: Number(rows[0].heard) + likeBoost(id), same: Number(rows[0].same) } },
         identity,
         true,
       );
@@ -97,7 +98,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     rows = await db()`SELECT heard, same FROM posts WHERE id = ${id} LIMIT 1`;
     return reactionResponse(
       request,
-      { ok: true, alreadyReacted: true, reaction: kind, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
+      { ok: true, alreadyReacted: true, reaction: kind, post: { heard: Number(rows[0].heard) + likeBoost(id), same: Number(rows[0].same) } },
       identity,
     );
   }
@@ -106,7 +107,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     : await db()`UPDATE posts SET same = same + 1, updated_at = NOW() WHERE id = ${id} RETURNING heard, same`;
   return reactionResponse(
     request,
-    { ok: true, reaction: kind, post: { heard: Number(rows[0].heard), same: Number(rows[0].same) } },
+    { ok: true, reaction: kind, post: { heard: Number(rows[0].heard) + likeBoost(id), same: Number(rows[0].same) } },
     identity,
     true,
   );
