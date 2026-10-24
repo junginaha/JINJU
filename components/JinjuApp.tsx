@@ -8,6 +8,7 @@ import type { TodaysPearl as DailyPick } from "../lib/todays-pearl";
 import PostTemperature from "./PostTemperature";
 import FeedbackDialog from "./FeedbackDialog";
 import { formatCommentTime } from "../lib/comment-time";
+import { track } from "../lib/track";
 import {
   activeReactionHistory,
   REACTION_HISTORY_KEY,
@@ -749,10 +750,12 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     if (data.status === "pending") {
       setSubmitStatus("운영자 승인 대기 상태로 안전하게 보관했습니다.");
       setPendingNotice(true);
+      track("post_pending", { category });
       return true;
     }
     await loadPosts(0,false,{topic:"전체",query:"",sort:"latest"});
     setPublishedPostId(data.id || null);
+    track("post_publish", { category, post_id: data.id || null });
     setSubmitStatus("");
     setComposerOpen(false);
     return true;
@@ -804,6 +807,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
       setPosts((current)=>current.map((post)=>post.id===postId?{...post,heard:data.post!.heard,same:data.post!.same}:post));
       const next=recordReaction(reactedPosts,postId,kind);
       setReactedPosts(next);
+      track("reaction", { kind, post_id: postId });
       try{localStorage.setItem(REACTION_HISTORY_KEY,JSON.stringify(next))}catch{/* Server-side one-time protection remains active. */}
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "반응을 남기지 못했습니다. 잠시 후 다시 시도해주세요.");
@@ -839,6 +843,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     const created={id:data.id||Date.now(),body:data.body||trimmed,displayName:data.displayName,createdAt:data.createdAt||new Date().toISOString()};
     if(data.id&&data.deleteKey){const next={...commentDeleteKeys,[data.id]:data.deleteKey};setCommentDeleteKeys(next);saveKeys(COMMENT_DELETE_KEYS,next)}
     setPosts((current) => current.map((post) => post.id === postId ? { ...post, comments: [...post.comments, created] } : post));
+    track("comment_submit", { post_id: postId });
     return created;
   }
 
@@ -848,6 +853,7 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
     if(voiceFieldRef.current==="query"&&(voiceStartPendingRef.current||voiceState!=="idle"))stopVoice(true);
     window.history.pushState({}, "", `/post/${encodeURIComponent(postId)}`);
     setSelectedPostId(postId);
+    track("post_open", { post_id: postId });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 

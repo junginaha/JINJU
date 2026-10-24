@@ -3,6 +3,7 @@
 // but the shared link is a Toss deep link (intoss://jinju?post=…).
 import { useEffect, useRef, useState } from "react";
 import { tossShare, tossShareLink } from "./bridge";
+import { track } from "./growth";
 
 const SHARE_DESCRIPTION = "개인정보 없이 할 말은 하는 익명 커뮤니티";
 const NOTICE_DURATION_MS = 3200;
@@ -31,6 +32,7 @@ async function copyText(text: string) {
 }
 
 export async function shareJinjuPost(title: string, id: string | null) {
+  track("share", { post_id: id });
   const link = await tossShareLink(id);
   const message = `${title}\n${SHARE_DESCRIPTION}${link ? `\n\n${link}` : ""}`;
   if ((await tossShare(message)) === "shared") return "shared" as const;

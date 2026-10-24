@@ -1,4 +1,5 @@
 import "./bridge";
+import { screen, track } from "./growth";
 import { createRoot } from "react-dom/client";
 import type { ReactNode } from "react";
 import TossShareBridge, { shareJinjuPost } from "./TossShareBridge";
@@ -50,6 +51,9 @@ async function sharedPost(): Promise<Post | null> {
 
 const page = location.pathname.replace(/^\/+/, "").replace(/\.html$/, "");
 const render = ROUTES[page];
+const openedPost = new URLSearchParams(location.search).get("post");
+screen(Object.prototype.hasOwnProperty.call(ROUTES, page) ? page : openedPost ? "post_detail" : "home", openedPost ? { post_id: openedPost } : {});
+if (openedPost) track("post_open", { post_id: openedPost, via: "link" });
 const root = createRoot(document.getElementById("root")!);
 if (render) {
   root.render(<><TossShareBridge />{render()}</>);
