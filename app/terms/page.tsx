@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "../../components/PolicyPage";
+import CustomerCenter from "../../components/CustomerCenter";
 import { SITE_NAME, SITE_OG_IMAGE } from "@/lib/search-indexing";
 
 const description = "진주.kr의 익명 의견 게시, 권리침해 신고·임시조치, 익명 통계 활용과 서비스 이용 기준을 안내합니다.";
@@ -48,7 +49,9 @@ export default function TermsPage() {
     </section>
     <section>
       <h2>9. 문의</h2>
-      <p>권리침해, 이용약관, 서비스 운영 문의는 각 게시글의 문제제보 기능 또는 hello@xn--o55b9n.kr로 접수할 수 있습니다. 처리상태 확인은 <a href="/report-status">문제제보 처리상태</a>에서 할 수 있습니다. 시행일: 2026년 8월 9일.</p>
+      <p>권리침해, 이용약관, 서비스 운영 문의는 각 게시글의 문제제보 기능 또는 고객센터로 접수할 수 있습니다. 처리상태 확인은 <a href="/report-status">문제제보 처리상태</a>에서 할 수 있습니다.</p>
+      <CustomerCenter topic="이용약관·운영 문의" />
+      <p className="policy-updated">최종 업데이트: 2026년 10월 25일</p>
     </section>
   </PolicyPage>;
 }

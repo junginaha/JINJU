@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "../../components/PolicyPage";
+import CustomerCenter from "../../components/CustomerCenter";
 import ReportStatus from "../../components/ReportStatus";
 
 export const metadata: Metadata = {
@@ -18,7 +19,8 @@ export default function ReportStatusPage() {
     </section>
     <section>
       <h2>개별 통지를 원한다면</h2>
-      <p>전자우편으로 별도 통지를 받기 원하는 권리침해 신청인은 hello@xn--o55b9n.kr로 접수번호와 통지를 받을 전자우편 주소를 보내 지정할 수 있습니다. 이 주소는 해당 권리침해 처리와 통지 목적으로만 사용합니다.</p>
+      <p>전자우편으로 별도 통지를 받기 원하는 권리침해 신청인은 고객센터로 접수번호와 통지를 받을 전자우편 주소를 보내 지정할 수 있습니다. 이 주소는 해당 권리침해 처리와 통지 목적으로만 사용합니다.</p>
+      <CustomerCenter topic="권리침해 개별 통지 신청" />
     </section>
   </PolicyPage>;
 }

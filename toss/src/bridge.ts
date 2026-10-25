@@ -43,6 +43,9 @@ export function openExternal(url: string) {
     .catch(() => { try { window.location.href = url; } catch {} });
 }
 
+// 고객센터 버튼(components/CustomerCenter)이 메일 앱을 토스 밖에서 열 때 씁니다.
+(window as unknown as { __jinjuOpenExternal: typeof openExternal }).__jinjuOpenExternal = openExternal;
+
 export function bundleUrl(u: URL): string | null {
   const path = u.pathname.replace(/\/+$/, "") || "/";
   if (PAGES[path]) return PAGES[path] + u.search + u.hash;

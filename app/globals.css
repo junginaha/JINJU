@@ -577,3 +577,10 @@ input::placeholder, textarea::placeholder { color: #999; opacity: 1; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
   .share-label-motion.is-share-motion-pair, .share-label-motion.is-share-motion-single { animation: none !important; will-change: auto; }
 }
+
+/* 고객센터 문의 버튼 (정책 페이지) */
+.customer-center { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 10px 18px; color: #111; background: #7fd4dc; border-radius: 999px; font-size: 14px; font-weight: 750; letter-spacing: -.01em; text-decoration: none; transition: background .2s ease, transform .2s ease; }
+.customer-center:hover { background: #a3e3e9; }
+.customer-center:active { transform: scale(.97); }
+.customer-center:focus-visible { outline: 2px solid #f1f1f1; outline-offset: 3px; }
+.policy-content .policy-updated { margin-top: 14px; color: #8a8a8a; font-size: 12px; }

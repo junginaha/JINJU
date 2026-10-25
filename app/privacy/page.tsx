@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "../../components/PolicyPage";
+import CustomerCenter from "../../components/CustomerCenter";
 import { SITE_NAME, SITE_OG_IMAGE } from "@/lib/search-indexing";
 
 const description = "진주.kr의 개인정보 0% 원칙과 익명 참여, 서비스 보호에 필요한 최소 기술정보 처리 방식을 안내합니다.";
@@ -49,7 +50,9 @@ export default function PrivacyPage() {
     </section>
     <section>
       <h2>문의와 권리 행사</h2>
-      <p>본인이 작성한 내용의 삭제, 권리침해 신고, 개인정보 처리 문의는 문제제보 기능 또는 hello@xn--o55b9n.kr로 보내주세요. 확인에 필요한 최소한의 정보만 요청하며 처리 결과를 안내합니다. 시행일: 2026년 8월 12일.</p>
+      <p>본인이 작성한 내용의 삭제, 권리침해 신고, 개인정보 처리 문의는 문제제보 기능 또는 고객센터로 보내주세요. 확인에 필요한 최소한의 정보만 요청하며 처리 결과를 안내합니다.</p>
+      <CustomerCenter topic="개인정보 문의" />
+      <p className="policy-updated">최종 업데이트: 2026년 10월 25일</p>
     </section>
   </PolicyPage>;
 }

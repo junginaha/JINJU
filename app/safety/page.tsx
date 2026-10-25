@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "../../components/PolicyPage";
+import CustomerCenter from "../../components/CustomerCenter";
 import { SITE_NAME, SITE_OG_IMAGE } from "@/lib/search-indexing";
 
 const description = "진주.kr에서 개인정보 노출, 명예훼손·사생활 침해 등 권리침해를 익명으로 신고하고 임시조치를 요청하는 방법을 안내합니다.";
@@ -33,11 +34,13 @@ export default function SafetyPage() {
     </section>
     <section>
       <h2>청소년 보호</h2>
-      <p>진주는 청소년유해매체물을 제공하기 위한 서비스가 아닙니다. 청소년 보호 관련 신고와 문의는 hello@xn--o55b9n.kr로 접수합니다. 법령상 청소년보호책임자 지정 요건에 해당하게 되는 경우 책임자 정보를 이 페이지에 공개합니다.</p>
+      <p>진주는 청소년유해매체물을 제공하기 위한 서비스가 아닙니다. 청소년 보호 관련 신고와 문의는 고객센터로 접수합니다. 법령상 청소년보호책임자 지정 요건에 해당하게 되는 경우 책임자 정보를 이 페이지에 공개합니다.</p>
+      <CustomerCenter topic="청소년 보호 문의" />
     </section>
     <section>
       <h2>운영자·사업자 정보</h2>
-      <p>운영 문의: hello@xn--o55b9n.kr. 현재 공개 게시판의 열람·작성 과정에서는 재화나 용역의 구매 청약을 받지 않습니다. 향후 유료 거래 기능을 제공하는 경우 관계 법령에 따라 상호·대표자·주소·연락처·사업자등록정보 및 필요한 통신판매 정보를 별도로 표시합니다.</p>
+      <p>운영 문의는 고객센터로 보내주세요. 현재 공개 게시판의 열람·작성 과정에서는 재화나 용역의 구매 청약을 받지 않습니다. 향후 유료 거래 기능을 제공하는 경우 관계 법령에 따라 상호·대표자·주소·연락처·사업자등록정보 및 필요한 통신판매 정보를 별도로 표시합니다.</p>
+      <CustomerCenter topic="운영 문의" />
     </section>
   </PolicyPage>;
 }
