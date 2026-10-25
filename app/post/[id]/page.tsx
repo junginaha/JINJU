@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import JinjuApp from "@/components/JinjuAppBridge";
+import { PEARL_ENTRY_PARAM, PEARL_ENTRY_VALUE, pearlEntryStyle } from "@/lib/pearl-entry";
 import { getPublicPost, getPublicPosts, toClientPost } from "@/lib/public-posts";
 import {
   canonicalUrl,
@@ -10,7 +11,7 @@ import {
   SITE_WEBSITE_ID,
 } from "@/lib/search-indexing";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = { params: Promise<{ id: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> };
 
 export const dynamic = "force-dynamic";
 
@@ -54,8 +55,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function PostPage({ params }: PageProps) {
+export default async function PostPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const fromPearl = (await searchParams)?.[PEARL_ENTRY_PARAM] === PEARL_ENTRY_VALUE;
   const selected = await getPublicPost(id);
   if (!selected) notFound();
   const recentPosts = (await getPublicPosts()).filter((post) => post.id !== selected.id).slice(0, 29);
@@ -96,6 +98,7 @@ export default async function PostPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(discussionPost).replace(/</g, "\\u003c") }}
       />
+      {fromPearl && <style>{pearlEntryStyle(selected.id)}</style>}
       <JinjuApp initialPosts={initialPosts} initialPostId={selected.id} />
     </>
   );

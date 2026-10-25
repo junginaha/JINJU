@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { pearlEntryHref } from "@/lib/pearl-entry";
 import { koreaDay, nextKoreaDay, type TodaysPearl as Pick } from '../lib/todays-pearl';
 import styles from './TodaysPearl.module.css';
 
@@ -28,7 +29,7 @@ export default function TodaysPearl({ initialPearl, onPearl }: { initialPearl?: 
   },[]);
   if(!pearl)return null;
   return <aside className={styles.card} aria-label="오늘의 진주">
-    <a className={styles.link} href={`/post/${encodeURIComponent(pearl.id)}`}>
+    <a className={styles.link} href={pearlEntryHref(pearl.id)}>
       <div className={styles.top}><span className={styles.label}><span className={styles.pearl} aria-hidden="true" />오늘의 진주</span></div>
       <h2>{pearl.title}</h2>
       <p className={styles.excerpt}>{pearl.excerpt}</p>

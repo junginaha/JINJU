@@ -1172,7 +1172,7 @@ function PostDetail({ post, reactedKind, reactingKind, onBack, onReact, onShare,
     <main className="detail-page">
       <header className="detail-header"><a className="detail-home" href="/" aria-label="진주.kr 메인으로 돌아가기">← 진주.kr</a><a href="#comment">댓글 쓰기</a></header>
       <div className="detail-shell">
-        <article className="detail-post">
+        <article className="detail-post" data-post-id={post.id}>
           <div className="post-meta"><span>{post.category}{post.displayName ? ` · ${post.displayName}` : ""}</span><time>{post.date}</time></div>
           <h1>{post.title}</h1><p>{post.content}</p>
           <PostTemperature likes={post.heard} dislikes={post.same} interactive />

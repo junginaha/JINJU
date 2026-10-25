@@ -50,7 +50,7 @@ export function bundleUrl(u: URL): string | null {
   const path = u.pathname.replace(/\/+$/, "") || "/";
   if (PAGES[path]) return PAGES[path] + u.search + u.hash;
   const post = path.match(/^\/post\/([^/]+)$/);
-  if (post) return "/index.html?post=" + post[1];
+  if (post) return "/index.html?post=" + post[1] + (u.searchParams.get("from") === "pearl" ? "&from=pearl" : "");
   if (/\.html$/.test(path)) return path + u.search + u.hash;
   return null;
 }

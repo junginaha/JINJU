@@ -1,5 +1,6 @@
 import "./bridge";
 import { screen, track } from "./growth";
+import { PEARL_ENTRY_PARAM, PEARL_ENTRY_VALUE, pearlEntryStyle } from "@/lib/pearl-entry";
 import { createRoot } from "react-dom/client";
 import type { ReactNode } from "react";
 import TossShareBridge, { shareJinjuPost } from "./TossShareBridge";
@@ -52,6 +53,11 @@ async function sharedPost(): Promise<Post | null> {
 const page = location.pathname.replace(/^\/+/, "").replace(/\.html$/, "");
 const render = ROUTES[page];
 const openedPost = new URLSearchParams(location.search).get("post");
+if (openedPost && new URLSearchParams(location.search).get(PEARL_ENTRY_PARAM) === PEARL_ENTRY_VALUE) {
+  const style = document.createElement("style");
+  style.textContent = pearlEntryStyle(openedPost);
+  document.head.appendChild(style);
+}
 screen(Object.prototype.hasOwnProperty.call(ROUTES, page) ? page : openedPost ? "post_detail" : "home", openedPost ? { post_id: openedPost } : {});
 if (openedPost) track("post_open", { post_id: openedPost, via: "link" });
 const root = createRoot(document.getElementById("root")!);
