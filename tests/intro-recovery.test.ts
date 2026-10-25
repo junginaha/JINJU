@@ -7,10 +7,17 @@ const introSource = readFileSync(new URL("../components/Intro.tsx", import.meta.
 const bridgeSource = readFileSync(new URL("../components/JinjuAppBridge.tsx", import.meta.url), "utf8");
 const globalCss = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 const hotfixCss = readFileSync(new URL("../app/production-hotfix.css", import.meta.url), "utf8");
+const layoutSource = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
 
-test("the server-rendered feed is never covered by a hydration bootstrap screen", () => {
-  assert.match(appSource, /useState\(false\);/);
-  assert.match(appSource, /introReady && showIntro \? <Intro/);
+test("first visit paints the intro before the feed; returning visitors never see it flash", () => {
+  // 2026-10-26: the feed used to paint first and the intro appeared on top of it a moment later.
+  assert.match(appSource, /const \[showIntro, setShowIntro\] = useState\(true\);/);
+  assert.match(appSource, /\{showIntro \? <Intro/);
+  assert.match(layoutSource, /INTRO_SEEN_SCRIPT/);
+  assert.match(hotfixCss, /\.jinju-intro-seen \.jinju-intro \{ display: none; \}/);
+});
+
+test("no separate hydration bootstrap screen covers the server-rendered feed", () => {
   assert.doesNotMatch(appSource, /intro-bootstrap/);
   assert.doesNotMatch(bridgeSource, /intro-bootstrap/);
   assert.doesNotMatch(globalCss, /intro-bootstrap/);
