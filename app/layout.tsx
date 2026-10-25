@@ -15,6 +15,7 @@ import {
   SITE_WEBSITE_ID,
 } from "@/lib/search-indexing";
 import ShareBridge from "@/components/ShareBridge";
+import { INTRO_SEEN_SCRIPT } from "@/lib/intro-seen";
 
 const baseUrl = SITE_URL;
 const siteName = SITE_NAME;
@@ -137,6 +138,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="ko-KR">
       <body>
+        <script dangerouslySetInnerHTML={{ __html: INTRO_SEEN_SCRIPT }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(identityGraph).replace(/</g, "\\u003c") }} />
         <ShareBridge />
         {children}

@@ -1,5 +1,7 @@
 import "./bridge";
 import { screen, track } from "./growth";
+import { markIntroSeenBeforePaint } from "@/lib/intro-seen";
+markIntroSeenBeforePaint();
 import { PEARL_ENTRY_PARAM, PEARL_ENTRY_VALUE, pearlEntryStyle } from "@/lib/pearl-entry";
 import { createRoot } from "react-dom/client";
 import type { ReactNode } from "react";
