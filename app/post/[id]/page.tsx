@@ -74,7 +74,7 @@ export default async function PostPage({ params, searchParams }: PageProps) {
     datePublished: selected.createdAt,
     dateModified: selected.updatedAt || selected.createdAt,
     inLanguage: "ko-KR",
-    author: (selected.id.startsWith("jinju-editorial-20261022-") || selected.id.startsWith("jinju-editorial-20261023-")) ? {
+    author: (selected.id.startsWith("jinju-editorial-20261022-") || selected.id.startsWith("jinju-editorial-20261023-") || selected.id.startsWith("jinju-editorial-20261027-")) ? {
       "@type": "Organization",
       "@id": SITE_ORGANIZATION_ID,
       name: "진주 운영팀",

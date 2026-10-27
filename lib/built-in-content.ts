@@ -5,6 +5,7 @@ import { guideComments20261024For } from "./guide-comments-20261024";
 import { refinedJinjuDisplayName } from "./display-name";
 import { warmNewsPost, warmOperatorNotes } from "./operator-notes-20261023";
 import { october23EditorialPosts, october23OperatorPostIds, october23OperatorReplies } from "./daily-editorial-20261023";
+import { october27EditorialPosts, october27EditorialComments } from "./daily-editorial-20261027";
 import { october22EditorialPosts, october22OperatorPostIds, october22OperatorReplies } from "./daily-editorial-20261022";
 import { october21EditorialPosts, october21EditorialComments } from "./daily-editorial-20261021";
 import { october19EditorialPosts, october19EditorialComments } from "./daily-editorial-20261019";
@@ -104,6 +105,7 @@ function chooseUniquePosts(posts: EditorialPost[]) {
 }
 
 export const builtInPosts = chooseUniquePosts([
+  ...october27EditorialPosts,
   warmNewsPost,
   ...october23EditorialPosts,
   ...october22EditorialPosts,
@@ -187,6 +189,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...october27EditorialComments(id),
     ...communityConversationComments(id),
     ...warmConversationComments(id),
     ...readerComments20261024For(id),
