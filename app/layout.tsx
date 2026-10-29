@@ -16,6 +16,7 @@ import {
 } from "@/lib/search-indexing";
 import ShareBridge from "@/components/ShareBridge";
 import { INTRO_SEEN_SCRIPT } from "@/lib/intro-seen";
+import { BUSINESS_REGISTRATION_NUMBER, BUSINESS_REPRESENTATIVE } from "@/lib/business-info";
 
 const baseUrl = SITE_URL;
 const siteName = SITE_NAME;
@@ -114,6 +115,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         url: `${baseUrl}/`,
         description: SITE_IDENTITY_DESCRIPTION,
         disambiguatingDescription: SITE_DISCLAIMER,
+        founder: { "@type": "Person", name: BUSINESS_REPRESENTATIVE },
+        taxID: BUSINESS_REGISTRATION_NUMBER,
         ...(SITE_SAME_AS.length ? { sameAs: SITE_SAME_AS } : {}),
         logo: {
           "@type": "ImageObject",

@@ -104,3 +104,7 @@
 
 /* 이미 인트로를 본 방문자: 첫 화면이 그려지기 전에 숨김 (lib/intro-seen.ts) */
 .jinju-intro-seen .jinju-intro { display: none; }
+
+/* 사업자 정보: 화면 맨 아래 아주 작게 (lib/business-info.ts) */
+.policy-page > .business-line { margin: 28px 0 0; color: #6f6f6f; font-size: 11px; line-height: 1.6; letter-spacing: .01em; }
+.sidebar-footer .business-line { margin-top: 2px; color: #6f6f6f; font-size: 10px; }
