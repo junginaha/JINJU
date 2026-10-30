@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { BUSINESS_LINE } from "../lib/business-info";
+import { BUSINESS_LINE, MAKER } from "../lib/business-info";
 
 export default function PolicyPage({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
-  return <main className="policy-page"><header><a href="/" aria-label="진주.kr 메인으로">← 진주.kr</a><p>{eyebrow}</p><h1>{title}</h1></header><div className="policy-content">{children}</div><p className="business-line">{BUSINESS_LINE}</p></main>;
+  return <main className="policy-page"><header><a href="/" aria-label="진주.kr 메인으로">← 진주.kr</a><p>{eyebrow}</p><h1>{title}</h1></header><div className="policy-content">{children}</div><p className="business-line">{BUSINESS_LINE}</p><p className="business-line maker-line"><a href={MAKER.href} target="_blank" rel="noopener" style={{ color: "inherit", textDecoration: "none" }}>{MAKER.label} · {MAKER.link} ↗</a></p></main>;
 }
