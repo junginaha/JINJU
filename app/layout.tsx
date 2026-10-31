@@ -76,6 +76,8 @@ export const metadata: Metadata = {
     },
   },
   verification: {
+    // 구글 서치콘솔 'HTML 태그' 확인 코드: Vercel 환경 변수 GOOGLE_SITE_VERIFICATION 에 content 값만 넣으면 됩니다.
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
     other: {
       "naver-site-verification": "2d617f45396cbe01f3ec2d642cbec552fb64b827",
     },
