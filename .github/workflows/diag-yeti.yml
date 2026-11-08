@@ -5,5 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "HUMAN:"; curl -sS -o /dev/null -w "%{http_code} %{redirect_url}\n" https://www.xn--o55b9n.kr/
-          echo "YETI:"; curl -sS -A "Mozilla/5.0 (compatible; Yeti/1.1; +https://naver.me/spd)" https://www.xn--o55b9n.kr/ -o p.html -w "%{http_code}\n"; grep -o 'naver-site-verification" content="[^"]*' p.html || echo NOTAG
+          echo "NS:"; dig +short NS xn--o55b9n.kr
+          echo "APEX:"; dig +short A xn--o55b9n.kr
+          echo "WWW:"; dig +short www.xn--o55b9n.kr; echo END
+          whois xn--o55b9n.kr 2>/dev/null | grep -iE "등록대행자|Registrar|Name Server" | head -5 || true
