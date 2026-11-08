@@ -3,9 +3,21 @@
   "redirects": [
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "www.xn--o55b9n.kr" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "www.xn--o55b9n.kr"
+        }
+      ],
       "destination": "https://xn--o55b9n.kr/$1",
-      "permanent": true
+      "permanent": true,
+      "missing": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(Yeti|Naver).*"
+        }
+      ]
     }
   ],
   "crons": [
