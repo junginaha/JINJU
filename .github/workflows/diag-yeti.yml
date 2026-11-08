@@ -1,0 +1,9 @@
+name: diag-yeti
+on: workflow_dispatch
+jobs:
+  c:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "HUMAN:"; curl -sS -o /dev/null -w "%{http_code} %{redirect_url}\n" https://www.xn--o55b9n.kr/
+          echo "YETI:"; curl -sS -A "Mozilla/5.0 (compatible; Yeti/1.1; +https://naver.me/spd)" https://www.xn--o55b9n.kr/ -o p.html -w "%{http_code}\n"; grep -o 'naver-site-verification" content="[^"]*' p.html || echo NOTAG
