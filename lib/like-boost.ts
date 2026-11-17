@@ -1,3 +1,5 @@
+import { november17EditorialPostIds } from "./daily-editorial-20261117";
+
 // 공개 화면의 좋아요 수에 게시글마다 고정된 10~15를 더합니다. 저장된 값은 바꾸지 않습니다.
 function stableNumber(value: string) {
   let result = 2166136261;
@@ -9,6 +11,7 @@ function stableNumber(value: string) {
 }
 
 export function likeBoost(postId: string) {
+  if (november17EditorialPostIds.has(postId)) return 0;
   return 10 + (stableNumber(`${postId}:like-boost-20261024`) % 6);
 }
 

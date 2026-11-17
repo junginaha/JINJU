@@ -4,6 +4,7 @@ import { readerComments20261024 as entries } from '../lib/reader-comments-202610
 import { builtInComments, builtInPosts } from '../lib/built-in-content';
 import { hasPii, reviewText } from '../lib/safety';
 import { likeBoost, withLikeBoost } from '../lib/like-boost';
+import { november17EditorialPostIds } from '../lib/daily-editorial-20261117';
 
 test('Every built-in post gets exactly one safe, unique reader comment', () => {
   // Snapshot of 2026-10-24: posts published after that date have their own comment sets.
@@ -24,10 +25,16 @@ test('Every built-in post gets exactly one safe, unique reader comment', () => {
   }
 });
 
-test('Public like boost is stable and between 10 and 15', () => {
+test('Existing like boosts stay stable; November 17 posts receive no fabricated likes', () => {
   for (const post of builtInPosts) {
     const boost = likeBoost(post.id);
-    assert.ok(boost >= 10 && boost <= 15);
+    if (november17EditorialPostIds.has(post.id)) {
+      assert.equal(boost, 0);
+      assert.equal(post.heard, 0);
+      assert.equal(builtInComments(post.id).length, 0);
+    } else {
+      assert.ok(boost >= 10 && boost <= 15);
+    }
     assert.equal(boost, likeBoost(post.id));
     assert.equal(withLikeBoost(post).heard, post.heard + boost);
   }

@@ -1,3 +1,4 @@
+import { november17EditorialPosts, november17EditorialPostIds } from "./daily-editorial-20261117";
 import { communityConversationComments } from "./community-conversations-20261024";
 import { warmConversationComments } from "./warm-conversation-20261024";
 import { readerComments20261024For } from "./reader-comments-20261024";
@@ -89,7 +90,7 @@ function normalizePost(post: EditorialPost): EditorialPost {
     ...post,
     category: normalizePublicCategory(post.category),
     displayName: post.displayName === "진주 운영팀" ? refinedJinjuDisplayName(post.displayName, post.id) : post.displayName,
-    heard: (post.id === warmNewsPost.id || october22OperatorPostIds.has(post.id) || october23OperatorPostIds.has(post.id)) ? post.heard : Math.max(10, post.heard),
+    heard: (november17EditorialPostIds.has(post.id) || post.id === warmNewsPost.id || october22OperatorPostIds.has(post.id) || october23OperatorPostIds.has(post.id)) ? post.heard : Math.max(10, post.heard),
   };
 }
 
@@ -105,6 +106,7 @@ function chooseUniquePosts(posts: EditorialPost[]) {
 }
 
 export const builtInPosts = chooseUniquePosts([
+  ...november17EditorialPosts,
   ...october27EditorialPosts,
   warmNewsPost,
   ...october23EditorialPosts,
