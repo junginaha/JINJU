@@ -7,7 +7,7 @@ import { visibleBuiltInComments } from "../lib/public-posts";
 import { withLikeBoost } from "../lib/like-boost";
 import { hasPii, reviewText } from "../lib/safety";
 
-test("Each launch discussion has ten clearly identified examples, consistent in feed and detail", () => {
+test("Each launch discussion has ten connected editorial replies, consistent in feed and detail", () => {
   assert.equal(dialogueExamples20261117.length, 30);
   assert.equal(new Set(dialogueExamples20261117.map(c=>c.id)).size,30);
   assert.equal(new Set(dialogueExamples20261117.map(c=>c.body)).size,30);
@@ -19,7 +19,7 @@ test("Each launch discussion has ten clearly identified examples, consistent in 
     assert.equal(visibleBuiltInComments(actual).length,10);
     assert.equal(withLikeBoost(actual).heard,0);
     for (const comment of dialogueExamplesFor(post.id)) {
-      assert.ok(comment.body.startsWith("대화 예시 · "));
+      assert.doesNotMatch(comment.body, /대화 예시|운영팀|AI가 작성/);
       assert.ok(Date.parse(comment.createdAt)>Date.parse(post.createdAt));
       assert.ok(Date.parse(comment.createdAt)<=Date.now());
       assert.equal(hasPii(comment.body),false);
