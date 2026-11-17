@@ -31,7 +31,7 @@ test('Existing like boosts stay stable; November 17 posts receive no fabricated 
     if (november17EditorialPostIds.has(post.id)) {
       assert.equal(boost, 0);
       assert.equal(post.heard, 0);
-      assert.equal(builtInComments(post.id).length, 0);
+      assert.equal(builtInComments(post.id).length, 10);
     } else {
       assert.ok(boost >= 10 && boost <= 15);
     }

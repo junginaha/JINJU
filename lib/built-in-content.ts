@@ -1,3 +1,4 @@
+import { dialogueExamplesFor } from "./dialogue-examples-20261117";
 import { november17EditorialPosts, november17EditorialPostIds } from "./daily-editorial-20261117";
 import { communityConversationComments } from "./community-conversations-20261024";
 import { warmConversationComments } from "./warm-conversation-20261024";
@@ -191,6 +192,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...dialogueExamplesFor(id),
     ...october27EditorialComments(id),
     ...communityConversationComments(id),
     ...warmConversationComments(id),

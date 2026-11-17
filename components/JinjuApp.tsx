@@ -282,7 +282,14 @@ export default function JinjuApp({ initialPosts = seedPosts, initialPostId = nul
   useEffect(() => {
     let seen = false;
     try {
-      const forceIntro = new URLSearchParams(window.location.search).get("intro") === "1";
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("write") === "1") {
+        setShowIntro(false);
+        setIntroReady(true);
+        setComposerOpen(true);
+        return;
+      }
+      const forceIntro = params.get("intro") === "1";
       seen = !forceIntro && Boolean(sessionStorage.getItem("jinju-intro-seen-v1"));
     } catch {
       seen = false;

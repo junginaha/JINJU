@@ -7,6 +7,7 @@ import { archivePageCount, archivePath, archivePosts } from "@/lib/post-archive"
 export const dynamic = "force-dynamic";
 
 const officialPages = [
+  { path: "/start", priority: 0.8 },
   { path: "/about", priority: 0.8 },
   { path: "/terms", priority: 0.7 },
   { path: "/principles", priority: 0.7 },
