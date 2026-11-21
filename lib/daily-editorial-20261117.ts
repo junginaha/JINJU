@@ -41,3 +41,20 @@ export const november17EditorialPosts: EditorialPost[] = [
 ];
 
 export const november17EditorialPostIds = new Set(november17EditorialPosts.map((post) => post.id));
+
+export const november21EditorialPosts: EditorialPost[] = [
+  {
+    "id": "jinju-editorial-20261121-lend-a-book",
+    "title": "책을 빌려줄 때, 돌려받을 날도 정하시나요?",
+    "content": "좋았던 책을 건네면서 ‘천천히 읽어’라고 말할 때가 있어요. 그런데 막상 그 책을 다시 펼쳐보고 싶은 날이 오면, 천천히가 며칠인지 몇 달인지 궁금해집니다. 책갈피는 페이지를 기억하지만, 책이 누구 집에 있는지는 기억해주지 않거든요.\n\n곧 다시 읽을 책이라면 건네면서 ‘다음 모임 때 가져다줄 수 있어?’ 하고 말해두면 어떨까요. 빌리는 사람도 그때까지 읽기 어렵다면 미리 말할 수 있고요. 여유가 있는 책이라면 ‘다 읽으면 알려줘’만으로도 충분할 때가 있어요.\n\n돌려받을 날짜를 말하면 조금 야박한 것 같지만, 아무 말 없이 기다리다 서운해지는 것보다 서로 편할 수도 있겠어요. 여러분은 아끼는 책을 빌려줄 때 어떤 말을 함께 건네나요?",
+    "category": "질문",
+    "displayName": "다정한 문장",
+    "createdAt": "2026-11-21T10:15:00Z",
+    "heard": 0,
+    "same": 0,
+    "support": 0,
+    "commentCount": 0
+  }
+];
+
+export const november21EditorialPostIds = new Set(november21EditorialPosts.map((post) => post.id));
