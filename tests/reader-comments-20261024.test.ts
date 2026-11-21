@@ -1,3 +1,4 @@
+import { foundationPostIds } from "../lib/community-foundation-20261121";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readerComments20261024 as entries } from '../lib/reader-comments-20261024';
@@ -29,6 +30,10 @@ test('Existing like boosts stay stable; November 17 posts receive no fabricated 
   for (const post of builtInPosts) {
     const boost = likeBoost(post.id);
     if (november17EditorialPostIds.has(post.id)) {
+      assert.equal(boost, 0);
+      assert.equal(post.heard, 0);
+      assert.equal(builtInComments(post.id).length, 10);
+    } else if (foundationPostIds.has(post.id)) {
       assert.equal(boost, 0);
       assert.equal(post.heard, 0);
       assert.equal(builtInComments(post.id).length, 10);

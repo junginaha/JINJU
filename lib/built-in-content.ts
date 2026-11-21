@@ -1,3 +1,4 @@
+import { foundationPosts, foundationPostIds, foundationComments } from "./community-foundation-20261121";
 import { dialogueExamplesFor } from "./dialogue-examples-20261117";
 import { november17EditorialPosts, november17EditorialPostIds, november21EditorialPosts, november21EditorialPostIds } from "./daily-editorial-20261117";
 import { communityConversationComments } from "./community-conversations-20261024";
@@ -91,7 +92,7 @@ function normalizePost(post: EditorialPost): EditorialPost {
     ...post,
     category: normalizePublicCategory(post.category),
     displayName: post.displayName === "진주 운영팀" ? refinedJinjuDisplayName(post.displayName, post.id) : post.displayName,
-    heard: (november21EditorialPostIds.has(post.id) || november17EditorialPostIds.has(post.id) || post.id === warmNewsPost.id || october22OperatorPostIds.has(post.id) || october23OperatorPostIds.has(post.id)) ? post.heard : Math.max(10, post.heard),
+    heard: (foundationPostIds.has(post.id) || november21EditorialPostIds.has(post.id) || november17EditorialPostIds.has(post.id) || post.id === warmNewsPost.id || october22OperatorPostIds.has(post.id) || october23OperatorPostIds.has(post.id)) ? post.heard : Math.max(10, post.heard),
   };
 }
 
@@ -107,6 +108,7 @@ function chooseUniquePosts(posts: EditorialPost[]) {
 }
 
 export const builtInPosts = chooseUniquePosts([
+  ...foundationPosts,
   ...november21EditorialPosts,
   ...november17EditorialPosts,
   ...october27EditorialPosts,
@@ -193,6 +195,7 @@ export function builtInPost(id: string) {
 export function builtInComments(id: string): EditorialComment[] {
   const merged = new Map<string, EditorialComment>();
   for (const comment of [
+    ...foundationComments.filter(comment => comment.postId === id),
     ...dialogueExamplesFor(id),
     ...october27EditorialComments(id),
     ...communityConversationComments(id),
